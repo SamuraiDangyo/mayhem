@@ -5,7 +5,7 @@
 
 # Definitions
 
-CC=g++
+CC=clang++
 CFLAGS=-std=c++14 -O2 -march=native -Wall -pedantic -Wextra -DNDEBUG -pthread
 EXE=mayhem
 INSTALLDIR=/usr/bin/

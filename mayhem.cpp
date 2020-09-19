@@ -948,13 +948,13 @@ int MgenCapturesB(Board *moves) {
 }
 
 int MgenTacticalW(Board *moves) {
-  if (ChecksB()) {int len = MgenW(moves), SortAlmostCaptures();   return len;}
-  else           {int len = MgenCapturesW(moves), SortCaptures(); return len;}
+  if (ChecksB()) {const int len = MgenW(moves); SortAlmostCaptures();   return len;}
+  else           {const int len = MgenCapturesW(moves); SortCaptures(); return len;}
 }
 
 int MgenTacticalB(Board *moves) {
-  if (ChecksW()) {int len = MgenB(moves), SortAlmostCaptures();   return len;}
-  else           {int len = MgenCapturesB(moves), SortCaptures(); return len;}
+  if (ChecksW()) {const int len = MgenB(moves); SortAlmostCaptures();   return len;}
+  else           {const int len = MgenCapturesB(moves); SortCaptures(); return len;}
 }
 
 void SortRoot() {
