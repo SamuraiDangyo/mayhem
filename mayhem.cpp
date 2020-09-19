@@ -18,17 +18,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Headers
 
-#include <algorithm>
 #include <iostream>
 #include <vector>
-#include <string>
 #include <unistd.h>
 #include <string.h>
 #include <sys/time.h>
 #include <math.h>
 #include <fstream>
 #include <thread>
-#include <mutex>
 
 // Namespace
 
@@ -37,7 +34,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName      = "Mayhem 0.1",
+  kName      = "Mayhem 0.11",
   kStartpos  = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
 
 const int
