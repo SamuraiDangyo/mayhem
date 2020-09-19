@@ -34,7 +34,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName      = "Mayhem 0.11",
+  kName      = "Mayhem 0.12",
   kStartpos  = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
 
 const int
@@ -253,7 +253,7 @@ bool StopSearch() {return Now() >= s_stop_time;}
 uint64_t RandomBB() {static uint64_t a = 0X12311227ULL, b = 0X1931311ULL, c = 0X13138141ULL; auto mixer = [](uint64_t val) {return ((val) << 7) ^ ((val) >> 5);}; a ^= b + c; b ^= b * c + 0x1717711ULL; c  = (3 * c) + 1;
   return mixer(a) ^ mixer(b) ^ mixer(c);}
 uint64_t Random8x64() {uint64_t val = 0; for (auto i = 0; i < 8; i++) val ^= RandomBB() << (8 * i); return val;}
-int Random1(const int max) {const uint64_t rnum = (g_seed ^ RandomBB()) & 0xFFFFFFFFULL; g_seed = (g_seed << 5) ^ (g_seed + 1) ^ (g_seed >> 3); return max * (int) (0.0001 * (double) (rnum % 10000));}
+int Random1(const int max) {const uint64_t rnum = (g_seed ^ RandomBB()) & 0xFFFFFFFFULL; g_seed = (g_seed << 5) ^ (g_seed + 1) ^ (g_seed >> 3); return (int) (max * (0.0001 * (double) (rnum % 10000)));}
 int Random(const int a, const int b) {return b < a ? Random(b, a) : a + Random1(b - a + 1);}
 bool OnBoard(const int x, const int y) {return x >= 0 && x <= 7 && y >= 0 && y <= 7;}
 
@@ -1233,11 +1233,11 @@ int EvalAll(const bool wtm) {
 int Eval(const bool wtm) {
   const uint64_t hash = GenHash(wtm);
 
-  // Probe endgame bases
+  // Probe the endgame bases
   if (h_white_wins[(uint32_t) kEgWinsKey] == hash) return +kInf;
   if (h_black_wins[(uint32_t) kEgWinsKey] == hash) return -kInf;
 
-  // Probe eval hash
+  // Probe the eval hash
   Hash *eval_entry = &h_eval[(uint32_t) (hash & kEvalHashKey)];
   const int level = std::pow(100 - g_level, 2), noise = level ? Random(-level, level) : 0;
   if (eval_entry->hash == hash) return eval_entry->score + noise;
@@ -1501,7 +1501,7 @@ void ThinkSetup(const int think_time) {
 void RandomMove() {
   if (!m_root_n) return;
   const int root_i = Random(0, m_root_n - 1);
-  if (root_i) Swap(m_moves, m_moves + root_i);
+  if (root_i) Swap(m_root, m_root + root_i);
 }
 
 bool ThinkRandomMove() {
