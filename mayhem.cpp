@@ -37,7 +37,7 @@ const std::string
   kName      = "Mayhem 0.12",
   kStartpos  = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
 
-const int
+constexpr int
   kMaxMoves        = 218,
   kMoveOverhead    = 1,
   kDepthLimit      = 30,
@@ -64,9 +64,10 @@ const int
     {-220,-55,-45,-15,-15,-45,-55,-220,-15,0,10,15,15,10,0,-15,-10,10,20,25,25,20,10,-10,10,15,25,30,30,25,15,10,15,15,25,30,30,25,15,15,-5,10,20,25,25,20,10,-5,-10,0,10,15,15,10,0,-10,-155,-30,-20,10,10,-20,-30,-155},
     {-70,-5,5,10,10,5,-5,-70,-5,0,10,15,15,10,0,-5,5,10,20,25,25,20,10,5,10,15,25,30,30,25,15,10,10,15,25,30,30,25,15,10,5,10,20,25,25,20,10,5,0,5,15,20,20,15,5,0,-30,-5,5,10,10,5,-5,-30},
     {-50,-1,7,10,10,7,-1,-50,-2,7,10,15,15,10,7,-2,5,10,20,25,25,20,10,5,10,15,25,50,50,25,15,10,10,15,25,55,55,25,15,10,5,10,20,25,25,20,10,5,-2,7,10,15,15,10,7,-2,-20,-1,8,10,10,8,-1,-20},
-    {-70,-25,5,7,7,5,-25,-70,-5,0,10,15,15,10,0,-5,5,10,20,25,25,20,10,5,10,15,35,55,55,35,15,10,10,15,25,57,57,25,15,10,5,10,20,27,27,20,10,5,-5,0,10,15,15,10,0,-5,-30,-5,5,10,10,5,-5,-30}};
+    {-70,-25,5,7,7,5,-25,-70,-5,0,10,15,15,10,0,-5,5,10,20,25,25,20,10,5,10,15,35,55,55,35,15,10,10,15,25,57,57,25,15,10,5,10,20,27,27,20,10,5,-5,0,10,15,15,10,0,-5,-30,-5,5,10,10,5,-5,-30}},
+  kMvv[6][6]       = {{85,96,97,98,99,100},{84,86,93,94,95,100},{82,83,87,91,92,100},{79,80,81,88,90,100},{75,76,77,78,89,100},{70,71,72,73,74,100}};
 
-const uint64_t
+constexpr uint64_t
   kFreeColumns[8]       =
     {0x0202020202020202ULL,0x0505050505050505ULL,0x0A0A0A0A0A0A0A0AULL,0x1414141414141414ULL,0x2828282828282828ULL,0x5050505050505050ULL,0xA0A0A0A0A0A0A0A0ULL,0x4040404040404040ULL},
   kRookMagic[64]        =
@@ -175,17 +176,18 @@ uint64_t
 int
   e_pos_mg = 0, e_pos_eg = 0, e_mat_mg = 0, e_mat_eg = 0, e_white_king_sq = 0, e_black_king_sq = 0, e_both_n = 0, e_pst_mg_b[6][64] = {{0}}, e_pst_eg_b[6][64] = {{0}};
 
-// Move generator Variables
+// Move Generator Variables
 
+constexpr Board
+  m_board_empty = {{0},{0},0,0,{0},0,0,0,0,0,0,0};
 Board
-  m_board_tmp = {{0},{0},0,0,{0},0,0,0,0,0,0,0}, *m_board = &m_board_tmp, *m_moves = 0, *m_board_orig = 0, m_board_empty = {{0},{0},0,0,{0},0,0,0,0,0,0,0}, m_root[kMaxMoves] = {{{0},{0},0,0,{0},0,0,0,0,0,0,0}};
+  m_board_tmp = {{0},{0},0,0,{0},0,0,0,0,0,0,0}, *m_board = &m_board_tmp, *m_moves = 0, *m_board_orig = 0, m_root[kMaxMoves] = {{{0},{0},0,0,{0},0,0,0,0,0,0,0}};
 uint64_t
   m_black = 0, m_both = 0, m_empty = 0, m_good = 0, m_pawn_sq = 0, m_white = 0, m_pawn_1_moves_w[64] = {0}, m_pawn_1_moves_b[64] = {0}, m_pawn_2_moves_w[64] = {0}, m_pawn_2_moves_b[64] = {0},
   m_bishop[64] = {0}, m_rook[64] = {0}, m_queen[64] = {0}, m_knight[64] = {0}, m_king[64] = {0}, m_pawn_checks_w[64] = {0}, m_pawn_checks_b[64] = {0},
   m_castle_w[2] = {0}, m_castle_b[2] = {0}, m_castle_empty_w[2] = {0}, m_castle_empty_b[2] = {0}, m_bishop_magic_moves[64][512] = {{0}}, m_rook_magic_moves[64][4096] = {{0}};
 int
-  m_rook_w[2] = {0}, m_rook_b[2] = {0}, m_root_n = 0, m_king_w = 0, m_king_b = 0,
-  m_moves_n = 0, m_mvv[6][6] = {{85,96,97,98,99,100},{84,86,93,94,95,100},{82,83,87,91,92,100},{79,80,81,88,90,100},{75,76,77,78,89,100},{70,71,72,73,74,100}};
+  m_rook_w[2] = {0}, m_rook_b[2] = {0}, m_root_n = 0, m_king_w = 0, m_king_b = 0, m_moves_n = 0;
 bool
   m_wtm = 0;
 
@@ -207,7 +209,7 @@ bool
 
 // Hash Variables
 
-const uint32_t
+constexpr uint32_t
   kEvalHashKey                   = (1 << 22) - 1,
   kKillerMovesKey                = (1 << 21) - 1,
   kGoodMovesKey                  = (1 << 22) - 1,
@@ -227,7 +229,7 @@ uint64_t
 int SearchB(const int, int, const int, const int);
 int QSearchB(const int, int, const int);
 int Eval(const bool);
-void MakeHumanMove();
+void MakeMove();
 uint64_t RookMagicMoves(const int, const uint64_t);
 uint64_t BishopMagicMoves(const int, const uint64_t);
 
@@ -239,11 +241,11 @@ uint64_t Both() {return White() | Black();}
 uint8_t Xcoord(const uint64_t bb) {return bb & 7;}
 uint8_t Ycoord(const uint64_t bb) {return bb >> 3;}
 bool Underpromo() {return m_board->type >= 5 && m_board->type <= 7;}
-int Between(const int a, const int b, const int c) {return std::max(a, std::min(b, c));}
+template <class Type> Type Between(const Type a, const Type b, const Type c) {return std::max(a, std::min(b, c));}
 inline unsigned int Lsb(const uint64_t bb) {return __builtin_ctzll(bb);}
 inline unsigned int Popcount(const uint64_t bb) {return __builtin_popcountll(bb);}
 inline uint64_t ClearBit(const uint64_t bb) {return bb & (bb - 1);}
-uint32_t Nps(const uint32_t ms) {return (1000 * s_nodes) / (ms + 1);}
+uint32_t Nps(const uint64_t nodes, const uint32_t ms) {return (1000 * nodes) / (ms + 1);}
 inline uint64_t Bit(const int nbits) {return 0x1ULL << nbits;}
 int Mirror(const int pos) {return pos ^ 56;}
 void Assert(const bool test, const std::string msg,  const int line_number) {if (test) return; std::cerr << "Error ( " << line_number << " ): " << msg << std::endl; exit(EXIT_FAILURE);}
@@ -257,7 +259,7 @@ int Random1(const int max) {const uint64_t rnum = (g_seed ^ RandomBB()) & 0xFFFF
 int Random(const int a, const int b) {return b < a ? Random(b, a) : a + Random1(b - a + 1);}
 bool OnBoard(const int x, const int y) {return x >= 0 && x <= 7 && y >= 0 && y <= 7;}
 
-template <class Container> void Splitter(const std::string& str, Container& container, const std::string& delims = " ") {
+template <class Type> void Splitter(const std::string& str, Type& container, const std::string& delims = " ") {
   std::size_t current, previous = 0;
   current = str.find_first_of(delims);
   while (current != std::string::npos) {
@@ -422,7 +424,7 @@ void FenEp(const std::string fen) {
 
 void FenRule50(const std::string fen) {
   if (fen.length() == 0 || fen[0] == '-') return;
-  m_board->rule50 = Between(0, std::stoi(fen), 100);
+  m_board->rule50 = Between<int>(0, std::stoi(fen), 100);
 }
 
 void FenGen(const std::string str) {
@@ -652,7 +654,7 @@ void AddNormalStuffW(const int from, const int to) {
   m_board->rule50++;
   if (eat <= -1) {
     m_board->black[-eat - 1] ^= Bit(to);
-    m_board->score            = m_mvv[me - 1][-eat - 1];
+    m_board->score            = kMvv[me - 1][-eat - 1];
     m_board->rule50           = 0;
   }
   if (m_board->pieces[to] == 1) ModifyPawnStuffW(from, to);
@@ -690,7 +692,7 @@ void AddNormalStuffB(const int from, const int to) {
   m_board->black[-me - 1] = (m_board->black[-me - 1] ^ Bit(from)) | Bit(to);
   m_board->rule50++;
   if (eat >= 1) {
-    m_board->score           = m_mvv[-me - 1][eat - 1];
+    m_board->score           = kMvv[-me - 1][eat - 1];
     m_board->rule50          = 0;
     m_board->white[eat - 1] ^= Bit(to);
   }
@@ -1163,9 +1165,7 @@ void EvalSetup() {
 }
 
 double EvalCalculateScale(const bool wtm) {
-  double scale = (e_both_n - 2.0) * (1.0 / ((2.0 * 16.0) - 2.0));
-  if (scale > 1.0) scale = 1.0;
-  if (scale < 0)   scale = 0;
+  double scale = Between<double>(0, (e_both_n - 2.0) * (1.0 / ((2.0 * 16.0) - 2.0)), 1.0);
   scale = 0.5 * (1.0 + scale);
   scale = scale * scale;
   if (wtm) {
@@ -1215,8 +1215,7 @@ void EvalPieces() {
 
 int EvalCalculateScore(const bool wtm) {
   const double scale = EvalCalculateScale(wtm);
-  return (int) ((scale  * (0.82 * (double) (e_pos_mg + e_mat_mg)))
-       + ((1.0 - scale) * (0.82 * (double) (e_pos_eg + e_mat_eg))));
+  return (int) ((scale  * (0.82 * (double) (e_pos_mg + e_mat_mg))) + ((1.0 - scale) * (0.82 * (double) (e_pos_eg + e_mat_eg))));
 }
 
 int EvalAll(const bool wtm) {
@@ -1253,7 +1252,7 @@ void Speak(const int score, const uint64_t search_time) {
   std::cout << "info depth " << std::min(s_max_depth, s_depth + 1) <<
                " nodes "     << s_nodes <<
                " time "      << search_time <<
-               " nps "       << Nps(search_time) <<
+               " nps "       << Nps(s_nodes, search_time) <<
                " score cp "  << ((m_wtm ? 1 : -1) * (int) ((std::abs(score) >= kInf ? 0.01 : 0.1) * score)) <<
                " pv "        << MoveName(m_root) << std::endl;
 }
@@ -1550,33 +1549,34 @@ void CheckFilesExists() {
   std::ifstream white_wins_file("white-wins.nn");
   std::ifstream black_wins_file("black-wins.nn");
 
-  Assert(good_moves_file.good(), "good-moves.nn missing. Place good-moves.nn in the binary folder!", __LINE__);
-  Assert(white_wins_file.good(), "white-wins.nn missing. Place white-wins.nn in the binary folder!", __LINE__);
-  Assert(black_wins_file.good(), "black-wins.nn missing. Place black-wins.nn in the binary folder!", __LINE__);
+  Assert(good_moves_file.good(), "good-moves.nn missing! Put good-moves.nn in the binary folder.", __LINE__);
+  Assert(white_wins_file.good(), "white-wins.nn missing! Put white-wins.nn in the binary folder.", __LINE__);
+  Assert(black_wins_file.good(), "black-wins.nn missing! Put black-wins.nn in the binary folder.", __LINE__);
 
   good_moves_file.close();
   white_wins_file.close();
   black_wins_file.close();
 }
 
-void ReadEndgameFile() {
+void ReadWhitewinsFile() {
   std::ifstream white_wins_file("white-wins.nn");
-  std::ifstream black_wins_file("black-wins.nn");
-
   std::string hash;
   while (white_wins_file >> hash) {
     std::string::size_type sz = 0;
     const uint64_t ull = std::stoull("0x" + hash + "ULL", &sz, 16);
     h_white_wins[ull & kEgWinsKey] = ull;
   }
+  white_wins_file.close();
+}
 
+void ReadBlackWinsFile() {
+  std::ifstream black_wins_file("black-wins.nn");
+  std::string hash;
   while (black_wins_file >> hash) {
     std::string::size_type sz = 0;
     const uint64_t ull = std::stoull("0x" + hash + "ULL", &sz, 16);
     h_black_wins[ull & kEgWinsKey] = ull;
   }
-
-  white_wins_file.close();
   black_wins_file.close();
 }
 
@@ -1610,7 +1610,7 @@ void UciFen() {
 }
 
 void UciMoves() {
-  while (TokenOk()) MakeHumanMove(), TokenPop();
+  while (TokenOk()) MakeMove(), TokenPop();
 }
 
 void UciPosition() {
@@ -1625,7 +1625,7 @@ void UciSetoption() {
     TokenPop(4);
   } else if (TokenPeek("name") && TokenPeek("Level", 1) && TokenPeek("value", 2)) {
     TokenPop(3);
-    g_level = Between(0, TokenInt(), 100);
+    g_level = Between<int>(0, TokenInt(), 100);
   }
 }
 
@@ -1637,9 +1637,9 @@ void UciGo() {
     else if (Token("btime"))     {btime = TokenInt();}
     else if (Token("winc"))      {winc  = TokenInt();}
     else if (Token("binc"))      {binc  = TokenInt();}
-    else if (Token("movestogo")) {mtg   = Between(1, TokenInt(), 1024);}
+    else if (Token("movestogo")) {mtg   = Between<int>(1, TokenInt(), 1024);}
     else if (Token("movetime"))  {Think(TokenInt()); goto out;}
-    else if (Token("depth"))     {s_max_depth = Between(1, TokenInt(), kDepthLimit); Think(kInf); s_max_depth = kDepthLimit; goto out;}
+    else if (Token("depth"))     {s_max_depth = Between<int>(1, TokenInt(), kDepthLimit); Think(kInf); s_max_depth = kDepthLimit; goto out;}
     else {TokenPop();}
   }
   mtg = std::min(mtg + 1, 30);
@@ -1681,7 +1681,7 @@ void Make(const int root_i) {
   m_wtm       = !m_wtm;
 }
 
-void MakeHumanMove() {
+void MakeMove() {
   const std::string move = TokenCurrent();
   MgenRoot();
   for (auto i = 0; i < m_root_n; i++)
@@ -1809,7 +1809,7 @@ void InitEvalStuff() {
 }
 
 void InitDraws() {
-  const int draws[6 * 4] = {1,0,0,0,0,1,0,0,2,0,0,0,1,0,0,1,2,0,1,0,2,0,0,1}; // KNK / KBK / KNNK / KNKB / KNNKN / KNNKB
+  constexpr int draws[6 * 4] = {1,0,0,0,0,1,0,0,2,0,0,0,1,0,0,1,2,0,1,0,2,0,0,1}; // KNK / KBK / KNNK / KNKB / KNNKN / KNNKB
   int len       = 0;
   auto makedraw = [&len](int nkw, int nbw, int nkb, int nbb) {DrawKey(nkw, nbw, nkb, nbb); len++;};
   for (auto i = 0; i < 6; i++) {
@@ -1840,7 +1840,8 @@ void Init() {
   InitJumpMoves();
   Fen(kStartpos);
   CheckFilesExists();
-  ReadEndgameFile();
+  ReadWhitewinsFile();
+  ReadBlackWinsFile();
 }
 
 void PrintHash(const std::string fen) {
@@ -1859,11 +1860,39 @@ void PrintLogo() {
   std::cout << "╋╋╋╋╋╋┗━━┛" << std::endl;
 }
 
+void Bench() {
+  uint64_t nodes = 0, start = Now();
+  const std::vector<std::string> suite = {
+    "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w -",                        // +5 Standard positions
+    "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ",
+    "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w -",
+    "n1n5/1Pk5/8/8/8/8/5Kp1/5N1N w -",
+    "8/PPPk4/8/8/8/8/4Kppp/8 w -",
+    "2nnrbkr/p1qppppp/8/1ppb4/6PP/3PP3/PPP2P2/BQNNRBKR w HEhe -", // +5 Chess960 positions
+    "b1q1rrkb/pppppppp/3nn3/8/P7/1PPP4/4PPPP/BQNNRKRB w GE -",
+    "q1bnrkr1/ppppp2p/2n2p2/4b1p1/2NP4/8/PPP1PPPP/QNB1RRKB w ge -",
+    "qnr1bkrb/pppp2pp/3np3/5p2/8/P2P2P1/NPP1PP1P/QN1RBKRB w GDg -",
+    "n1bqnrkr/pp1ppp1p/2p5/6p1/2P2b2/PN6/1PNPPPPP/1BBQ1RKR w HFhf -"
+  };
+  std::cout << ":: Benchmarks ::" << std::endl;
+  for (uint8_t i = 0; i < suite.size(); i++) {
+    std::cout << (i + 1) << " / " << suite.size() << ": " << std::endl;
+    Fen(suite[i]);
+    Think(1000);
+    nodes += s_nodes;
+    std::cout << std::endl;
+  }
+  std::cout << "Nodes: " << nodes << std::endl;
+  std::cout << "Nps:   " << Nps(nodes, Now() - start) << std::endl;
+}
+
 void PrintHelp() {
-  std::cout << ":: help ::" << std::endl;
-  std::cout << "--help      This help" << std::endl;
-  std::cout << "--version   Print version" << std::endl;
-  std::cout << "-hash [FEN] Generate hash" << std::endl;
+  std::cout << ":: Help ::" << std::endl;
+  std::cout << "> mayhem     # Enters UCI mode" << std::endl;
+  std::cout << "--help       This help" << std::endl;
+  std::cout << "--version    Print version" << std::endl;
+  std::cout << "--bench      Run benchmarks" << std::endl;
+  std::cout << "-hash [FEN]  Generate hash" << std::endl;
 }
 
 void Loop() {
@@ -1875,6 +1904,7 @@ void Args(int argc, char **argv) {
   if (argc >= 3 && std::string(argv[1]) == "-hash")     {PrintHash(std::string(argv[2])); return;}
   if (argc >= 2 && std::string(argv[1]) == "--version") {std::cout << kName << std::endl; return;}
   if (argc >= 2 && std::string(argv[1]) == "--help")    {PrintHelp();                     return;}
+  if (argc >= 2 && std::string(argv[1]) == "--bench")   {Bench();                         return;}
   PrintLogo();
   if (argc >= 2) return;
   Loop();
