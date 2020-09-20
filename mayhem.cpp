@@ -20,12 +20,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <iostream>
 #include <vector>
+#include <fstream>
+#include <thread>
 #include <unistd.h>
 #include <string.h>
 #include <sys/time.h>
 #include <math.h>
-#include <fstream>
-#include <thread>
 
 // Namespace
 
@@ -1274,6 +1274,7 @@ bool DrawRule50And3repetition(const uint64_t hash) {
   return 0;
 }
 
+#if defined(__unix__)
 bool InputAvailable() {
   fd_set fd;
   struct timeval tv;
@@ -1283,6 +1284,10 @@ bool InputAvailable() {
   select(STDIN_FILENO + 1, &fd, 0, 0, &tv);
   return FD_ISSET(STDIN_FILENO, &fd) > 0;
 }
+#else
+#include <conio.h>
+bool InputAvailable() {return _kbhit();}
+#endif
 
 bool UserStop() {
   if (!InputAvailable()) return 0;
@@ -1548,11 +1553,9 @@ void CheckFilesExists() {
   std::ifstream good_moves_file("good-moves.nn");
   std::ifstream white_wins_file("white-wins.nn");
   std::ifstream black_wins_file("black-wins.nn");
-
   Assert(good_moves_file.good(), "good-moves.nn missing! Put good-moves.nn in the binary folder.", __LINE__);
   Assert(white_wins_file.good(), "white-wins.nn missing! Put white-wins.nn in the binary folder.", __LINE__);
   Assert(black_wins_file.good(), "black-wins.nn missing! Put black-wins.nn in the binary folder.", __LINE__);
-
   good_moves_file.close();
   white_wins_file.close();
   black_wins_file.close();
@@ -1862,6 +1865,7 @@ void PrintLogo() {
 
 void Bench() {
   uint64_t nodes = 0, start = Now();
+  int i = 0;
   const std::vector<std::string> suite = {
     "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w -",                        // +5 Standard positions
     "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ",
@@ -1874,16 +1878,15 @@ void Bench() {
     "qnr1bkrb/pppp2pp/3np3/5p2/8/P2P2P1/NPP1PP1P/QN1RBKRB w GDg -",
     "n1bqnrkr/pp1ppp1p/2p5/6p1/2P2b2/PN6/1PNPPPPP/1BBQ1RKR w HFhf -"
   };
-  std::cout << ":: Benchmarks ::" << std::endl;
-  for (uint8_t i = 0; i < suite.size(); i++) {
-    std::cout << (i + 1) << " / " << suite.size() << ": " << std::endl;
-    Fen(suite[i]);
+  std::cout << ":: Benchmarks ::\n" << std::endl;
+  for (auto fen : suite) {
+    std::cout << (++i) << " / " << suite.size() << ": " << std::endl;
+    Fen(fen);
     Think(1000);
     nodes += s_nodes;
     std::cout << std::endl;
   }
-  std::cout << "Nodes: " << nodes << std::endl;
-  std::cout << "Nps:   " << Nps(nodes, Now() - start) << std::endl;
+  std::cout << "Nps: " << Nps(nodes, Now() - start) << std::endl;
 }
 
 void PrintHelp() {
