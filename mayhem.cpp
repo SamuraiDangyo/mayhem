@@ -33,9 +33,9 @@ namespace mayhem {
 
 // Constants
 
-const std::string
-  kName      = "Mayhem 0.12",
-  kStartpos  = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
+constexpr char
+  kName[]     = "Mayhem 0.13",
+  kStartpos[] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -";
 
 constexpr int
   kMaxMoves        = 218,
@@ -199,7 +199,7 @@ uint64_t
 // Search Variables
 
 uint64_t
-  s_stop_time = 0, s_ticks = 0, s_sure_draws[15] = {0}, s_r50_positions[128] = {0}, s_nodes = 0;
+  s_stop_time = 0, s_sure_draws[15] = {0}, s_r50_positions[128] = {0}, s_nodes = 0;
 int
   s_max_depth = kDepthLimit, s_qs_depth = 6, s_depth = 0, s_best_score = 0;
 double
@@ -223,7 +223,6 @@ uint64_t
   h_white_wins[kEgWinsKey + 1]   = {0},
   h_black_wins[kEgWinsKey + 1]   = {0};
 
-
 // Function Prototypes
 
 int SearchB(const int, int, const int, const int);
@@ -241,7 +240,7 @@ uint64_t Both() {return White() | Black();}
 uint8_t Xcoord(const uint64_t bb) {return bb & 7;}
 uint8_t Ycoord(const uint64_t bb) {return bb >> 3;}
 bool Underpromo() {return m_board->type >= 5 && m_board->type <= 7;}
-template <class Type> Type Between(const Type a, const Type b, const Type c) {return std::max(a, std::min(b, c));}
+template <class Type> Type Between(const Type val_a, const Type val_b, const Type val_c) {return std::max(val_a, std::min(val_b, val_c));}
 inline unsigned int Lsb(const uint64_t bb) {return __builtin_ctzll(bb);}
 inline unsigned int Popcount(const uint64_t bb) {return __builtin_popcountll(bb);}
 inline uint64_t ClearBit(const uint64_t bb) {return bb & (bb - 1);}
@@ -252,11 +251,15 @@ void Assert(const bool test, const std::string msg,  const int line_number) {if 
 const std::string MoveStr(const int from, const int to) {char str[5]; str[0] = 'a' + Xcoord(from), str[1] = '1' + Ycoord(from), str[2] = 'a' + Xcoord(to), str[3] = '1' + Ycoord(to), str[4] = '\0'; return std::string(str);}
 uint64_t Now() {struct timeval tv; if (gettimeofday(&tv, NULL)) return 0; return (uint64_t) (1000 * tv.tv_sec + tv.tv_usec / 1000);}
 bool StopSearch() {return Now() >= s_stop_time;}
-uint64_t RandomBB() {static uint64_t a = 0X12311227ULL, b = 0X1931311ULL, c = 0X13138141ULL; auto mixer = [](uint64_t val) {return ((val) << 7) ^ ((val) >> 5);}; a ^= b + c; b ^= b * c + 0x1717711ULL; c  = (3 * c) + 1;
-  return mixer(a) ^ mixer(b) ^ mixer(c);}
+uint64_t RandomBB() {
+  static uint64_t val_a = 0X12311227ULL, val_b = 0X1931311ULL, val_c = 0X13138141ULL;
+  auto mixer = [](uint64_t num) {return ((num) << 7) ^ ((num) >> 5);};
+  val_a ^= val_b + val_c; val_b ^= val_b * val_c + 0x1717711ULL; val_c  = (3 * val_c) + 1;
+  return mixer(val_a) ^ mixer(val_b) ^ mixer(val_c);
+}
 uint64_t Random8x64() {uint64_t val = 0; for (auto i = 0; i < 8; i++) val ^= RandomBB() << (8 * i); return val;}
 int Random1(const int max) {const uint64_t rnum = (g_seed ^ RandomBB()) & 0xFFFFFFFFULL; g_seed = (g_seed << 5) ^ (g_seed + 1) ^ (g_seed >> 3); return (int) (max * (0.0001 * (double) (rnum % 10000)));}
-int Random(const int a, const int b) {return b < a ? Random(b, a) : a + Random1(b - a + 1);}
+int Random(const int min_val, const int max_val) {return max_val < min_val ? Random(max_val, min_val) : min_val + Random1(max_val - min_val + 1);}
 bool OnBoard(const int x, const int y) {return x >= 0 && x <= 7 && y >= 0 && y <= 7;}
 
 template <class Type> void Splitter(const std::string& str, Type& container, const std::string& delims = " ") {
@@ -1297,9 +1300,9 @@ bool UserStop() {
 }
 
 bool TimeCheckSearch() {
-  s_ticks++;
-  if ((s_ticks & 0xFFULL) != 0) return 0;
-  if (StopSearch() || ((!(s_ticks & 0xFFFFFULL)) && UserStop())) s_stop = 1;
+  static uint64_t ticks = 0;
+  if ((++ticks & 0xFFULL) != 0) return 0;
+  if (StopSearch() || ((!(ticks & 0xFFFFFULL)) && UserStop())) s_stop = 1;
   return s_stop;
 }
 
@@ -1336,15 +1339,15 @@ int QSearchB(const int alpha, int beta, const int depth) {
 }
 
 void UpdateGoodmove(const uint64_t hash, const uint8_t index) {
-  Sort *goodmove = &h_goodmoves[(uint32_t) (hash & kGoodMovesKey)];
-  goodmove->hash   = hash;
-  goodmove->index  = index;
+  Sort *goodmove  = &h_goodmoves[(uint32_t) (hash & kGoodMovesKey)];
+  goodmove->hash  = hash;
+  goodmove->index = index;
 }
 
 void UpdateKiller(const uint64_t hash, const uint8_t index) {
-  Sort *killermove = &h_killers[(uint32_t) (hash & kKillerMovesKey)];
-  killermove->hash   = hash;
-  killermove->index  = index;
+  Sort *killermove  = &h_killers[(uint32_t) (hash & kKillerMovesKey)];
+  killermove->hash  = hash;
+  killermove->index = index;
 }
 
 void SortMoves(const uint64_t hash) {
@@ -1745,7 +1748,7 @@ void InitRookMagics() {
 }
 
 uint64_t MakeSliderMoves(const int pos, const int *slider_vectors) {
-  uint64_t moves = 0;
+  uint64_t moves  = 0;
   const int x_pos = Xcoord(pos), y_pos = Ycoord(pos);
   for (auto i = 0; i < 4; i++) {
     const int dx = slider_vectors[2 * i], dy = slider_vectors[2 * i + 1];
@@ -1781,8 +1784,8 @@ uint64_t MakeJumpMoves(const int pos, const int len, const int dy, const int *ju
 void InitJumpMoves() {
   const int pawn_check_vectors[2 * 2] = {-1,1,1,1}, pawn_1_vectors[1 * 2] = {0,1};
   for (auto i = 0; i < 64; i++) {
-    m_king[i]     = MakeJumpMoves(i, 8,  1, kKingVectors);
-    m_knight[i]   = MakeJumpMoves(i, 8,  1, kKnightVectors);
+    m_king[i]           = MakeJumpMoves(i, 8,  1, kKingVectors);
+    m_knight[i]         = MakeJumpMoves(i, 8,  1, kKnightVectors);
     m_pawn_checks_w[i]  = MakeJumpMoves(i, 2,  1, pawn_check_vectors);
     m_pawn_checks_b[i]  = MakeJumpMoves(i, 2, -1, pawn_check_vectors);
     m_pawn_1_moves_w[i] = MakeJumpMoves(i, 1,  1, pawn_1_vectors);
@@ -1865,7 +1868,7 @@ void PrintLogo() {
 
 void Bench() {
   uint64_t nodes = 0, start = Now();
-  int i = 0;
+  int nth = 0;
   const std::vector<std::string> suite = {
     "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w -",                        // +5 Standard positions
     "r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ",
@@ -1880,7 +1883,7 @@ void Bench() {
   };
   std::cout << ":: Benchmarks ::\n" << std::endl;
   for (auto fen : suite) {
-    std::cout << (++i) << " / " << suite.size() << ": " << std::endl;
+    std::cout << ++nth << " / " << suite.size() << ": " << std::endl;
     Fen(fen);
     Think(1000);
     nodes += s_nodes;
