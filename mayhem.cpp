@@ -156,6 +156,13 @@ typedef struct {
   int score;
 } Hash;
 
+struct SearchInfo {
+  bool nulltried = 0;
+  int depth = 0, ply = 0;
+  SearchInfo() {nulltried = 0; depth = 0; ply = 0;}
+  //uint64_t Random8x64() {uint64_t val = 0; for (auto i = 0; i < 8; i++) val ^= RandomBB() << (8 * i); return val;}
+};
+
 // Global Variables
 
 int
@@ -225,7 +232,7 @@ uint64_t
 
 // Function Prototypes
 
-int SearchB(const int, int, const int, const int);
+int SearchB(const int, int, const int, const int, const bool, const bool);
 int QSearchB(const int, int, const int);
 int Eval(const bool);
 void MakeMove();
@@ -965,7 +972,8 @@ int MgenTacticalB(Board *moves) {
 void SortRoot() {
   Board *tmp = m_board;
   for (auto i = 0; i < m_root_n; i++) {
-    m_board = m_root + i;
+    m_root[i].index = i;
+    m_board         = m_root + i;
     m_board->score += (Underpromo() ? -10000 : 0) + (m_board->type >= 1 && m_board->type <= 4 ? 5000 : 0) + (m_wtm ? 1 : -1) * Eval(m_wtm) + Random(-10, 10);
   }
   for (auto i = 0; i < m_root_n; i++)
@@ -1351,11 +1359,11 @@ void UpdateKiller(const uint64_t hash, const uint8_t index) {
 }
 
 void SortMoves(const uint64_t hash) {
-  const Sort *killermove = &h_killers[(uint32_t) (hash & kKillerMovesKey)], *goodmove   = &h_goodmoves[(uint32_t) (hash & kGoodMovesKey)];
+  const Sort *killermove = &h_killers[(uint32_t) (hash & kKillerMovesKey)], *goodmove = &h_goodmoves[(uint32_t) (hash & kGoodMovesKey)];
   SortMgen(killermove->hash == hash ? killermove->index : -1, goodmove->hash == hash ? goodmove->index : -1);
 }
 
-int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
+int SearchMovesW(int alpha, const int beta, int depth, const int ply, const bool null_tried) {
   int score, i;
   Board moves[kMaxMoves];
   const uint64_t hash = m_board->hash;
@@ -1368,11 +1376,11 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
     m_board = moves + i;
     if (Underpromo()) continue;
     if (ok_lmr && i >= 2 && (!m_board->score) && !ChecksW()) {
-      score = SearchB(alpha, beta, depth - 2 - std::min(1, i / 25), ply + 1);
+      score = SearchB(alpha, beta, depth - 2 - std::min(1, i / 25), ply + 1, 0, null_tried);
       if (score <= alpha) continue;
       m_board = moves + i;
     }
-    score = SearchB(alpha, beta, depth - 1, ply + 1);
+    score = SearchB(alpha, beta, depth - 1, ply + 1, !i, null_tried);
     if (score > alpha) {
       alpha  = score;
       ok_lmr = 0;
@@ -1386,7 +1394,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   return alpha;
 }
 
-int SearchW(int alpha, const int beta, const int depth, const int ply) {
+int SearchW(int alpha, const int beta, const int depth, const int ply, const bool is_pv, const bool null_tried) {
   const int rule50    = m_board->rule50;
   const uint64_t hash = GenHash(1), rep_hash = s_r50_positions[rule50];
   m_board->hash = hash;
@@ -1394,12 +1402,22 @@ int SearchW(int alpha, const int beta, const int depth, const int ply) {
   if (s_stop || TimeCheckSearch() || DrawRule50And3repetition(hash) || DrawMaterial()) return 0;
   if (depth <= 0 || ply >= kDepthLimit) return (int) (s_r50_factor[rule50] * QSearchW(alpha, beta, s_qs_depth));
   s_r50_positions[rule50] = hash;
-  alpha = SearchMovesW(alpha, beta, depth, ply);
+  // Pass a move to see if it causes a cutoff. Then prune
+  if (depth >= 5 && !is_pv && !null_tried && !ChecksB()) {
+    const char ep   = m_board->epsq;
+    Board *tmp      = m_board;
+    m_board->epsq   = -1;
+    const int score = std::max(alpha, SearchB(alpha, beta, depth - 1 - 3, ply, 0, 1));
+    m_board         = tmp;
+    m_board->epsq   = ep;
+    if (score >= beta) return score;
+  }
+  alpha = SearchMovesW(alpha, beta, depth, ply, null_tried);
   s_r50_positions[rule50] = rep_hash;
   return alpha;
 }
 
-int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
+int SearchMovesB(const int alpha, int beta, int depth, const int ply, const bool null_tried) {
   int score, i;
   Board moves[kMaxMoves];
   const uint64_t hash = m_board->hash;
@@ -1412,11 +1430,11 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
     m_board = moves + i;
     if (Underpromo()) continue;
     if (ok_lmr && i >= 2 && (!m_board->score) && !ChecksB()) {
-      score = SearchW(alpha, beta, depth - 2 - std::min(1, i / 25), ply + 1);
+      score = SearchW(alpha, beta, depth - 2 - std::min(1, i / 25), ply + 1, 0, null_tried);
       if (score >= beta) continue;
       m_board = moves + i;
     }
-    score = SearchW(alpha, beta, depth - 1, ply + 1);
+    score = SearchW(alpha, beta, depth - 1, ply + 1, !i, null_tried);
     if (score < beta) {
       beta   = score;
       ok_lmr = 0;
@@ -1430,7 +1448,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   return beta;
 }
 
-int SearchB(const int alpha, int beta, const int depth, const int ply) {
+int SearchB(const int alpha, int beta, const int depth, const int ply, const bool is_pv, const bool null_tried) {
   const int rule50    = m_board->rule50;
   const uint64_t hash = GenHash(0), rep_hash = s_r50_positions[rule50];
   m_board->hash = hash;
@@ -1438,7 +1456,16 @@ int SearchB(const int alpha, int beta, const int depth, const int ply) {
   if (s_stop || DrawRule50And3repetition(hash) || DrawMaterial()) return 0;
   if (depth <= 0 || ply >= kDepthLimit) return (int) (s_r50_factor[rule50] * QSearchB(alpha, beta, s_qs_depth));
   s_r50_positions[rule50] = hash;
-  beta = SearchMovesB(alpha, beta, depth, ply);
+  if (depth >= 5 && !is_pv && !null_tried && !ChecksW()) {
+    const char ep   = m_board->epsq;
+    Board *tmp      = m_board;
+    m_board->epsq   = -1;
+    const int score = std::min(beta, SearchW(alpha, beta, depth - 1 - 3, ply, 0, 1));
+    m_board         = tmp;
+    m_board->epsq   = ep;
+    if (alpha >= score) return score;
+  }
+  beta = SearchMovesB(alpha, beta, depth, ply, null_tried);
   s_r50_positions[rule50] = rep_hash;
   return beta;
 }
@@ -1455,13 +1482,13 @@ int BestW() {
   for (i = 0; i < m_root_n; i++) {
     m_board = m_root + i;
     if (s_depth >= 1 && i >= 1) {
-      score = SearchB(alpha, alpha + 1, s_depth, 0);
+      score = SearchB(alpha, alpha + 1, s_depth, 0, 0, 0);
       if (score > alpha) {
         m_board = m_root + i;
-        score   = SearchB(alpha, kInf, s_depth, 0);
+        score   = SearchB(alpha, kInf, s_depth, 0, 0, 0);
       }
     } else {
-      score = SearchB(alpha, kInf, s_depth, 0);
+      score = SearchB(alpha, kInf, s_depth, 0, !i, 0);
     }
     if (s_stop) return s_best_score;
     if (score > alpha) {
@@ -1477,14 +1504,15 @@ int BestB() {
   int score = 0, best_i = 0, beta = kInf, i;
   for (i = 0; i < m_root_n; i++) {
     m_board = m_root + i;
+    SearchInfo sinfo;
     if (s_depth >= 1 && i >= 1) {
-      score = SearchW(beta - 1, beta, s_depth, 0);
+      score = SearchW(beta - 1, beta, s_depth, 0, 0, 0);
       if (score < beta) {
         m_board = m_root + i;
-        score   = SearchW(-kInf, beta, s_depth, 0);
+        score   = SearchW(-kInf, beta, s_depth, 0, 0, 0);
       }
     } else {
-      score = SearchW(-kInf, beta, s_depth, 0);
+      score = SearchW(-kInf, beta, s_depth, 0, !i, 0);
     }
     if (s_stop) return s_best_score;
     if (score < beta) {
