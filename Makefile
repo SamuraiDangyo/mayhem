@@ -1,20 +1,15 @@
-#
-# Mayhem is just (an experimental engine) Sapeli 1.90 written in C++14
-# GNU General Public License version 3; for details see LICENSE
-#
-
 # Definitions
 
 CC=clang++
-CFLAGS=-std=c++14 -O2 -march=native -Wall -pedantic -Wextra -DNDEBUG -pthread
+CFLAGS=-std=c++14 -Ofast -fomit-frame-pointer -march=native -Wall -pedantic -Wextra -DNDEBUG -DUSE_SSE41 -msse4.1 -DUSE_SSSE3 -mssse3 -DUSE_SSE2 -msse2 -DUSE_SSE -msse
 EXE=mayhem
 INSTALLDIR=/usr/bin/
-NAME=mayhem.cpp
+FILES=*.cpp
 
 # Targets
 
 all:
-	$(CC) $(CFLAGS) $(NAME) -o $(EXE)
+	$(CC) $(CFLAGS) $(FILES) -o $(EXE)
 
 strip:
 	strip ./$(EXE)
@@ -22,27 +17,10 @@ strip:
 clean:
 	rm -f $(EXE)*
 
-install: all
-	if [ -d $(INSTALLDIR) ]; then sudo cp -f $(EXE) $(INSTALLDIR); fi
-
-help: all
-	./$(EXE) --help
-
 play: all
-	cutechess-cli -variant fischerandom -engine cmd=./$(EXE) dir=. proto=uci -engine cmd=sapeli dir=. proto=uci -each tc=1 -rounds 100000
+	cutechess-cli -variant fischerandom -engine cmd=./$(EXE) dir=. proto=uci -engine cmd=sapeli dir=. proto=uci -each tc=60 -rounds 10
 
 xboard: all
 	xboard -fUCI -fcp ./$(EXE)
 
-goodmoves: all
-	python3.8 good-moves-gen.py --gen
-
-endgame: all
-	python3.8 endgame-gen.py --gen
-
-uniques:
-	uniq good-moves.nn good-moves-uniques.nn
-	uniq white-wins.nn white-wins-uniques.nn
-	uniq black-wins.nn black-wins-uniques.nn
-
-.PHONY: all strip clean install help play xboard goodmoves endgame uniques
+.PHONY: all strip clean play xboard
