@@ -32,10 +32,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace mayhem {
 
-// Constexprs
+// Constants
 
-constexpr char
-  kName[] = "Mayhem NNUE 0.44", kStartpos[] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+const std::string
+  kName = "Mayhem NNUE 0.44", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0", kEvalFile = "nn-eba324f53044.nnue";
 
 constexpr uint32_t
   kEvalHashKey = (1 << 22) - 1, kKillersKey = (1 << 21) - 1, kGoodMovesKey = (1 << 22) - 1;
@@ -140,7 +140,7 @@ typedef struct {
 typedef struct {uint64_t hash; uint8_t index;} Sort;
 typedef struct {uint64_t hash; int score;} Hash;
 
-// Global Variables
+// Variables
 
 int
   g_level = 100, g_move_overhead = 10, m_rook_w[2] = {0}, m_rook_b[2] = {0}, m_root_n = 0, m_king_w = 0, m_king_b = 0, m_moves_n = 0, s_max_depth = kDepthLimit, s_qs_depth = 6, s_depth = 0, s_best_score = 0,
@@ -161,9 +161,6 @@ size_t
 
 std::vector<std::string>
   g_tokens = {};
-
-std::string
-  g_eval_file = "nn-eba324f53044.nnue";
 
 Board
   m_board_tmp = {{0},{0},0,0,{0},0,0,0,0,0,0,0}, *m_board = &m_board_tmp, *m_moves = 0, *m_board_orig = 0, m_root[kMaxMoves] = {{{0},{0},0,0,{0},0,0,0,0,0,0,0}};
@@ -202,7 +199,7 @@ uint32_t Nps(const uint64_t nodes, const uint32_t ms) {return (1000 * nodes) / (
 inline uint64_t Bit(const int nbits) {return 0x1ULL << nbits;}
 int Mirror(const int sq) {return sq ^ 56;}
 void Assert(const bool test, const std::string msg) {if (test) return; std::cerr << msg << std::endl; exit(EXIT_FAILURE);}
-const std::string MoveStr(const int from, const int to) {char str[5]; str[0] = 'a' + Xcoord(from), str[1] = '1' + Ycoord(from), str[2] = 'a' + Xcoord(to), str[3] = '1' + Ycoord(to), str[4] = '\0'; return std::string(str);}
+const std::string MoveStr(const int from, const int to) {char str[5]; str[0] = 'a' + Xcoord(from); str[1] = '1' + Ycoord(from); str[2] = 'a' + Xcoord(to); str[3] = '1' + Ycoord(to); str[4] = '\0'; return std::string(str);}
 uint64_t Now() {struct timeval tv; if (gettimeofday(&tv, NULL)) return 0; return (uint64_t) (1000 * tv.tv_sec + tv.tv_usec / 1000);}
 uint64_t RandomBB() {
   static uint64_t va = 0X12311227ULL, vb = 0X1931311ULL, vc = 0X13138141ULL;
@@ -810,21 +807,21 @@ inline void Swap(Board *board_a, Board *board_b) {
 
 void SortMgen(const uint64_t hash) {
   const Sort *killer = &h_killers[(uint32_t) (hash & kKillersKey)], *goodmove = &h_goodmoves[(uint32_t) (hash & kGoodMovesKey)];
-  int tactics = 0, i, j;
+  int tactics = 0;
   if (killer->hash == hash && killer->index < m_moves_n) m_moves[killer->index].score += 10000;
   else if (goodmove->hash == hash && goodmove->index < m_moves_n) m_moves[goodmove->index].score += 1000;
-  for (i = 0; i < m_moves_n; i++) {if (m_moves[i].score) {tactics++;} m_moves[i].index = i;}
-  for (i = 0, tactics = std::min(tactics, m_moves_n); i < tactics; i++)
-    for (j = i + 1; j < m_moves_n; j++)
+  for (auto i = 0; i < m_moves_n; i++) {if (m_moves[i].score) {tactics++;} m_moves[i].index = i;}
+  for (auto i = 0; i < tactics; i++)
+    for (auto j = i + 1; j < m_moves_n; j++)
       if (m_moves[j].score > m_moves[i].score)
         Swap(m_moves + j, m_moves + i);
 }
 
 void SortAlmostCaptures() {
-  int tactics = 0, i, j;
-  for (i = 0; i < m_moves_n; i++) if (m_moves[i].score) tactics++;
-  for (i = 0; i < tactics; i++)
-    for (j = i + 1; j < m_moves_n; j++)
+  int tactics = 0;
+  for (auto i = 0; i < m_moves_n; i++) if (m_moves[i].score) tactics++;
+  for (auto i = 0; i < tactics; i++)
+    for (auto j = i + 1; j < m_moves_n; j++)
       if (m_moves[j].score > m_moves[i].score)
         Swap(m_moves + j, m_moves + i);
 }
@@ -1001,7 +998,7 @@ int ClassicalEval(const bool wtm) {
 
 int NNEvaluation(const bool wtm) {
   int pieces[33], squares[33], index = 2;
-  for (int i = 0; i < 64; i++) {
+  for (auto i = 0; i < 64; i++) {
     switch (m_board->pieces[i]) {
     case +1: case +2: case +3: case +4: case +5: pieces[index] = 7 - (int) m_board->pieces[i];           squares[index++] = i; break;
     case -1: case -2: case -3: case -4: case -5: pieces[index] = 6 + (7 - (- (int) m_board->pieces[i])); squares[index++] = i; break;
@@ -1330,8 +1327,8 @@ void UciSetoption() {
     g_move_overhead = Between<int>(0, TokenInt(), 5000);
   } else if (TokenPeek("name") && TokenPeek("EvalFile", 1) && TokenPeek("value", 2)) {
     TokenPop(3);
-    g_eval_file = TokenCurrent();
-    nnue_init(g_eval_file.c_str());
+    const std::string eval_file = TokenCurrent();
+    nnue_init(eval_file.c_str());
     TokenPop(1);
   }
 }
@@ -1360,7 +1357,7 @@ void UciUci() {
   std::cout << "option name UCI_Chess960 type check default false" << std::endl;
   std::cout << "option name Level type spin default 100 min 0 max 100" << std::endl;
   std::cout << "option name MoveOverhead type spin default 10 min 0 max 5000" << std::endl;
-  std::cout << "option name EvalFile type string default " << g_eval_file << std::endl;
+  std::cout << "option name EvalFile type string default " << kEvalFile << std::endl;
   std::cout << "uciok" << std::endl;
 }
 
@@ -1529,7 +1526,7 @@ void Init() {
   InitSliderMoves();
   InitJumpMoves();
   InitPsqt();
-  nnue_init(g_eval_file.c_str());
+  nnue_init(kEvalFile.c_str());
   Fen(kStartpos);
 }
 
