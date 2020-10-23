@@ -35,7 +35,7 @@ namespace mayhem {
 // Constexprs
 
 constexpr char
-  kName[] = "Mayhem NNUE 0.43", kStartpos[] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName[] = "Mayhem NNUE 0.44", kStartpos[] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr uint32_t
   kEvalHashKey = (1 << 22) - 1, kKillersKey = (1 << 21) - 1, kGoodMovesKey = (1 << 22) - 1;
@@ -999,7 +999,7 @@ int ClassicalEval(const bool wtm) {
 
 // NN Evaluation
 
-int evaluate(const bool wtm) {
+int NNEvaluation(const bool wtm) {
   int pieces[33], squares[33], index = 2;
   for (int i = 0; i < 64; i++) {
     switch (m_board->pieces[i]) {
@@ -1018,7 +1018,7 @@ int Eval(const bool wtm) {
   Hash *eval_entry = &h_eval[(uint32_t) (hash & kEvalHashKey)];
   if (eval_entry->hash == hash) return eval_entry->score;
   eval_entry->hash = hash;
-  return eval_entry->score = evaluate(wtm);
+  return eval_entry->score = NNEvaluation(wtm);
 }
 
 // Search
@@ -1288,7 +1288,7 @@ void Think(const int think_time) {
   MgenRoot();
   if (ThinkRandomMove()) return;
   if (m_root_n <= 1) {Speak(0, 0); return;}
-  g_use_classical = Popcount(Both()) < 16 && std::abs(evaluate(m_wtm)) > 500; // Up/down a rook and EG activate simple fast Eval. So we can checkmate/run
+  g_use_classical = Popcount(Both()) < 16 && std::abs(NNEvaluation(m_wtm)) > 500; // Up/down a rook and EG activate simple fast Eval. So we can checkmate/run
   for (; std::abs(s_best_score) < 0.5 * kInf && s_depth < s_max_depth && !s_stop; s_depth++) {
     s_best_score = m_wtm ? BestW() : BestB();
     Speak(s_best_score, Now() - start);
@@ -1331,6 +1331,7 @@ void UciSetoption() {
   } else if (TokenPeek("name") && TokenPeek("EvalFile", 1) && TokenPeek("value", 2)) {
     TokenPop(3);
     g_eval_file = TokenCurrent();
+    nnue_init(g_eval_file.c_str());
     TokenPop(1);
   }
 }
@@ -1398,22 +1399,22 @@ void MakeMove() {
 // Init
 
 uint64_t PermutateBb(const uint64_t moves, const int index) {
-  int i, total = 0, good[64] = {0};
+  int total = 0, good[64] = {0};
   uint64_t permutations = 0;
-  for (i = 0; i < 64; i++) if (moves & Bit(i)) good[total++] = i;
+  for (auto i = 0; i < 64; i++) if (moves & Bit(i)) good[total++] = i;
   const int popn = Popcount(moves);
-  for (i = 0; i < popn; i++) if ((1 << i) & index) permutations |= Bit(good[i]);
+  for (auto i = 0; i < popn; i++) if ((1 << i) & index) permutations |= Bit(good[i]);
   return permutations & moves;
 }
 
 uint64_t MakeSliderMagicMoves(const int *slider_vectors, const int sq, const uint64_t moves) {
-  uint64_t tmp, possible_moves = 0;
+  uint64_t possible_moves = 0;
   const int x_pos = Xcoord(sq), y_pos = Ycoord(sq);
   for (auto i = 0; i < 4; i++)
-    for (int j = 1; j < 8; j++) {
+    for (auto j = 1; j < 8; j++) {
       const int x = x_pos + j * slider_vectors[2 * i], y = y_pos + j * slider_vectors[2 * i + 1];
       if (!OnBoard(x, y)) break;
-      tmp             = Bit(8 * y + x);
+      const uint64_t tmp = Bit(8 * y + x);
       possible_moves |= tmp;
       if (tmp & moves) break;
     }
@@ -1423,7 +1424,7 @@ uint64_t MakeSliderMagicMoves(const int *slider_vectors, const int sq, const uin
 void InitBishopMagics() {
   for (auto i = 0; i < 64; i++) {
     const uint64_t magics = kBishopMoveMagics[i] & (~Bit(i));
-    for (int j = 0; j < 512; j++) {
+    for (auto j = 0; j < 512; j++) {
       const uint64_t allmoves = PermutateBb(magics, j);
       m_bishop_magic_moves[i][BishopMagicIndex(i, allmoves)] = MakeSliderMagicMoves(kBishopVectors, i, allmoves);
     }
@@ -1433,7 +1434,7 @@ void InitBishopMagics() {
 void InitRookMagics() {
   for (auto i = 0; i < 64; i++) {
     const uint64_t magics = kRookMoveMagic[i] & (~Bit(i));
-    for (int j = 0; j < 4096; j++) {
+    for (auto j = 0; j < 4096; j++) {
       const uint64_t allmoves = PermutateBb(magics, j);
       m_rook_magic_moves[i][RookMagicIndex(i, allmoves)] = MakeSliderMagicMoves(kRookVectors, i, allmoves);
     }
@@ -1446,7 +1447,7 @@ uint64_t MakeSliderMoves(const int sq, const int *slider_vectors) {
   for (auto i = 0; i < 4; i++) {
     const int dx = slider_vectors[2 * i], dy = slider_vectors[2 * i + 1];
     uint64_t tmp = 0;
-    for (int j = 1; j < 8; j++) {
+    for (auto j = 1; j < 8; j++) {
       const int x = x_pos + j * dx, y = y_pos + j * dy;
       if (!OnBoard(x, y)) break;
       tmp |= Bit(8 * y + x);
@@ -1468,7 +1469,7 @@ uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int *jum
   uint64_t moves  = 0;
   const int x_pos = Xcoord(sq), y_pos = Ycoord(sq);
   for (auto i = 0; i < len; i++) {
-    const auto x = x_pos + jump_vectors[2 * i], y = y_pos + dy * jump_vectors[2 * i + 1];
+    const int x = x_pos + jump_vectors[2 * i], y = y_pos + dy * jump_vectors[2 * i + 1];
     if (OnBoard(x, y)) moves |= Bit(8 * y + x);
   }
   return moves;
@@ -1520,7 +1521,7 @@ void InitPsqt() {
 
 void Init() {
   g_seed += std::time(nullptr);
-  for (int i = 0; i < 128; i++) s_r50_factor[i] = i < 80 ? 1.0 : 1.0 - ((float) i) / 30.0;
+  for (auto i = 0; i < 128; i++) s_r50_factor[i] = i < 80 ? 1.0 : 1.0 - ((float) i) / 30.0;
   InitBishopMagics();
   InitRookMagics();
   InitZobrist();
