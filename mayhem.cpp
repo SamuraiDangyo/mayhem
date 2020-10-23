@@ -35,7 +35,7 @@ namespace mayhem {
 // Constexprs
 
 constexpr char
-  kName[] = "Mayhem NNUE 0.42", kStartpos[] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName[] = "Mayhem NNUE 0.43", kStartpos[] = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr uint32_t
   kEvalHashKey = (1 << 22) - 1, kKillersKey = (1 << 21) - 1, kGoodMovesKey = (1 << 22) - 1;
@@ -151,7 +151,7 @@ uint64_t
   m_bishop[64] = {0}, m_rook[64] = {0}, m_queen[64] = {0}, m_knight[64] = {0}, m_king[64] = {0}, m_pawn_checks_w[64] = {0}, m_pawn_checks_b[64] = {0}, m_castle_w[2] = {0},
   m_castle_b[2] = {0}, m_castle_empty_w[2] = {0}, m_castle_empty_b[2] = {0}, m_bishop_magic_moves[64][512] = {{0}}, m_rook_magic_moves[64][4096] = {{0}},
   z_ep[64] = {0}, z_castle[16] = {0}, z_wtm[2] = {0}, z_board[13][64] = {{0}}, s_stop_time = 0, s_sure_draws[15] = {0}, s_r50_positions[128] = {0}, s_nodes = 0,
-  e_white = 0, e_black = 0, e_empty = 0, e_both = 0, e_columns_down[64] = {0}, e_black_material = 0,  e_white_material = 0, e_king_ring[64] = {0}, e_columns_up[64] = {0};
+  e_white = 0, e_black = 0, e_empty = 0, e_both = 0, e_columns_down[64] = {0}, e_black_material = 0, e_white_material = 0, e_king_ring[64] = {0}, e_columns_up[64] = {0};
 
 bool
   g_uci = 0, g_uci_chess960 = 0, m_wtm = 0, s_stop = 0, g_use_classical = 0;
@@ -397,7 +397,7 @@ void Fen(const std::string fen) {
 inline bool ChecksHereW(const int sq) {
   const uint64_t both = Both();
   return ((m_pawn_checks_b[sq] & m_board->white[0]) | (m_knight[sq] & m_board->white[1]) | (BishopMagicMoves(sq, both) & (m_board->white[2] | m_board->white[4])) |
-          (RookMagicMoves(sq, both) & (m_board->white[3] | m_board->white[4])) | (m_king[sq] &  m_board->white[5]));
+          (RookMagicMoves(sq, both) & (m_board->white[3] | m_board->white[4])) | (m_king[sq] & m_board->white[5]));
 }
 
 inline bool ChecksHereB(const int sq) {
@@ -406,17 +406,17 @@ inline bool ChecksHereB(const int sq) {
           (RookMagicMoves(sq, both) & (m_board->black[3] | m_board->black[4])) | (m_king[sq] & m_board->black[5]));
 }
 
-bool ChecksCastleW(uint64_t squares) {for (; squares; squares = ClearBit(squares)) if (ChecksHereW(Lsb(squares))) return 1; return 0;}
-bool ChecksCastleB(uint64_t squares) {for (; squares; squares = ClearBit(squares)) if (ChecksHereB(Lsb(squares))) return 1; return 0;}
+bool ChecksCastleW(uint64_t squares) {for (; squares; squares = ClearBit(squares)) {if (ChecksHereW(Lsb(squares))) return 1;} return 0;}
+bool ChecksCastleB(uint64_t squares) {for (; squares; squares = ClearBit(squares)) {if (ChecksHereB(Lsb(squares))) return 1;} return 0;}
 bool ChecksW() {return ChecksHereW(Lsb(m_board->black[5]));}
 bool ChecksB() {return ChecksHereB(Lsb(m_board->white[5]));}
 
 // Move generator
 
 inline uint64_t BishopMagicIndex(const int position, const uint64_t mask) {return ((mask & kBishopMask[position]) * kBishopMagic[position]) >> 55;}
-inline uint64_t RookMagicIndex(const int position, const uint64_t mask)   {return ((mask & kRookMask[position]) * kRookMagic[position]) >> 52;}
+inline uint64_t RookMagicIndex(const int position, const uint64_t mask) {return ((mask & kRookMask[position]) * kRookMagic[position]) >> 52;}
 inline uint64_t BishopMagicMoves(const int position, const uint64_t mask) {return m_bishop_magic_moves[position][BishopMagicIndex(position, mask)];}
-inline uint64_t RookMagicMoves(const int position, const uint64_t mask)   {return m_rook_magic_moves[position][RookMagicIndex(position, mask)];}
+inline uint64_t RookMagicMoves(const int position, const uint64_t mask) {return m_rook_magic_moves[position][RookMagicIndex(position, mask)];}
 
 void HandleCastlingW(const int mtype, const int from, const int to) {
   m_moves[m_moves_n] = *m_board;
@@ -500,20 +500,20 @@ void AddCastleOOOB() {
 }
 
 void MgenCastlingMovesB() {
-  if ((m_board->castle & 4) && !(m_castle_empty_b[0] & m_both)) AddCastleOOB(),  m_board = m_board_orig;
-  if ((m_board->castle & 8) && !(m_castle_empty_b[1] & m_both)) AddCastleOOOB(), m_board = m_board_orig;
+  if ((m_board->castle & 4) && !(m_castle_empty_b[0] & m_both)) {AddCastleOOB();  m_board = m_board_orig;}
+  if ((m_board->castle & 8) && !(m_castle_empty_b[1] & m_both)) {AddCastleOOOB(); m_board = m_board_orig;}
 }
 
 void CheckCastlingRightsW() {
   if (m_board->pieces[m_king_w]    != 6) {m_board->castle &= 4 | 8; return;}
-  if (m_board->pieces[m_rook_w[0]] != 4)  m_board->castle &= 2 | 4 | 8;
-  if (m_board->pieces[m_rook_w[1]] != 4)  m_board->castle &= 1 | 4 | 8;
+  if (m_board->pieces[m_rook_w[0]] != 4) {m_board->castle &= 2 | 4 | 8;}
+  if (m_board->pieces[m_rook_w[1]] != 4) {m_board->castle &= 1 | 4 | 8;}
 }
 
 void CheckCastlingRightsB() {
   if (m_board->pieces[m_king_b]    != -6) {m_board->castle &= 1 | 2; return;}
-  if (m_board->pieces[m_rook_b[0]] != -4)  m_board->castle &= 1 | 2 | 8;
-  if (m_board->pieces[m_rook_b[1]] != -4)  m_board->castle &= 1 | 2 | 4;
+  if (m_board->pieces[m_rook_b[0]] != -4) {m_board->castle &= 1 | 2 | 8;}
+  if (m_board->pieces[m_rook_b[1]] != -4) {m_board->castle &= 1 | 2 | 4;}
 }
 
 void HandleCastlingRights() {
@@ -557,7 +557,7 @@ void AddPromotionW(const int from, const int to, const int piece, const int scor
 
 void AddPromotionStuffW(const int from, const int to) {
   Board *tmp = m_board;
-  for (int piece = 2; piece <= 5; piece++) AddPromotionW(from, to, piece, piece == 5 ? 100 : 0), m_board = tmp;
+  for (int piece = 2; piece <= 5; piece++) {AddPromotionW(from, to, piece, piece == 5 ? 100 : 0); m_board = tmp;}
 }
 
 void AddNormalStuffW(const int from, const int to) {
@@ -812,7 +812,7 @@ void SortMgen(const uint64_t hash) {
   const Sort *killer = &h_killers[(uint32_t) (hash & kKillersKey)], *goodmove = &h_goodmoves[(uint32_t) (hash & kGoodMovesKey)];
   int tactics = 0, i, j;
   if (killer->hash == hash && killer->index < m_moves_n) m_moves[killer->index].score += 10000;
-  if (goodmove->hash == hash && goodmove->index < m_moves_n) m_moves[goodmove->index].score += 1000;
+  else if (goodmove->hash == hash && goodmove->index < m_moves_n) m_moves[goodmove->index].score += 1000;
   for (i = 0; i < m_moves_n; i++) {if (m_moves[i].score) {tactics++;} m_moves[i].index = i;}
   for (i = 0, tactics = std::min(tactics, m_moves_n); i < tactics; i++)
     for (j = i + 1; j < m_moves_n; j++)
@@ -878,13 +878,6 @@ int MgenTacticalB(Board *moves) {
   else           {const int len = MgenCapturesB(moves); SortCaptures(); return len;}
 }
 
-void SortRootMoves() {
-  for (auto i = 0; i < m_root_n; i++)
-    for (auto j = i + 1; j < m_root_n; j++)
-      if (m_root[j].score > m_root[i].score)
-        Swap(m_root + j, m_root + i);
-}
-
 void EvalRootMoves() {
   Board *tmp = m_board;
   for (auto i = 0; i < m_root_n; i++) {
@@ -895,19 +888,26 @@ void EvalRootMoves() {
   m_board = tmp;
 }
 
+void SortRootMoves() {
+  for (auto i = 0; i < m_root_n; i++)
+    for (auto j = i + 1; j < m_root_n; j++)
+      if (m_root[j].score > m_root[i].score)
+        Swap(m_root + j, m_root + i);
+}
+
 void SortRoot() {
   EvalRootMoves();
   SortRootMoves();
 }
 
-void PrintRoot() {
-  for (auto i = 0; i < m_root_n; i++)
-    std::cout << i << ": " << MoveName(m_root + i) << " : " << m_root[i].score << std::endl;
-}
-
 void MgenRoot() {
   m_root_n = m_wtm ? MgenW(m_root) : MgenB(m_root);
   SortRoot();
+}
+
+void PrintRoot() {
+  for (auto i = 0; i < m_root_n; i++)
+    std::cout << i << ": " << MoveName(m_root + i) << " : " << m_root[i].score << std::endl;
 }
 
 // "Classical" Evaluation - We still need this crap
@@ -936,7 +936,6 @@ void EvalQueensW(const int sq)  {MaterialW(4); PsqtW(4, sq); MobilityW(BishopMag
 void EvalQueensB(const int sq)  {MaterialB(4); PsqtB(4, sq); MobilityB(BishopMagicMoves(sq, e_both) | RookMagicMoves(sq, e_both), 11, 25);}
 void EvalKingsW(const int sq)   {PsqtW(5, sq); MobilityW(m_king[sq], 7, 25);}
 void EvalKingsB(const int sq)   {PsqtB(5, sq); MobilityB(m_king[sq], 7, 25);}
-
 void MatingW() {ScoreW(-kCenter[e_black_king_sq], 11, 11); ScoreW(EvalClose(e_white_king_sq, e_black_king_sq), 11, 11);}
 void MatingB() {ScoreB(-kCenter[e_white_king_sq], 11, 11); ScoreB(EvalClose(e_black_king_sq, e_white_king_sq), 11, 11);}
 
@@ -956,13 +955,6 @@ float EvalCalculateScale() {
   scale = 0.5 * (1.0 + scale);
   return scale * scale;
 }
-
-void EvalBonusPair(const int piece, const int mg, const int eg) {
-  if (Popcount(m_board->white[piece]) >= 2) MixScoreW(mg, eg);
-  if (Popcount(m_board->black[piece]) >= 2) MixScoreB(mg, eg);
-}
-
-void EvalBonusChecks() {if (ChecksB()) MixScoreB(350, 80); else if (ChecksW()) MixScoreW(350, 80);}
 
 void EvalEndgame() {
   if (e_both_n > 6) return;
@@ -1007,24 +999,14 @@ int ClassicalEval(const bool wtm) {
 
 // NN Evaluation
 
-static inline int evaluate(const bool wtm) {
+int evaluate(const bool wtm) {
   int pieces[33], squares[33], index = 2;
   for (int i = 0; i < 64; i++) {
-    if (m_board->pieces[i] == 6) {
-      pieces[0] = 1;
-      squares[0] = i;
-    } else if (m_board->pieces[i] == -6) {
-      pieces[1] = 7;
-      squares[1] = i;
-    } else if (m_board->pieces[i] > 0) {
-      pieces[index] = 7 - (int) m_board->pieces[i];
-      squares[index] = i;
-      index++;
-    } else if (m_board->pieces[i] < 0) {
-      pieces[index] = 6 + (7 - (- (int) m_board->pieces[i]));
-      squares[index] = i;
-      index++;
-    }
+    switch (m_board->pieces[i]) {
+    case +1: case +2: case +3: case +4: case +5: pieces[index] = 7 - (int) m_board->pieces[i];           squares[index++] = i; break;
+    case -1: case -2: case -3: case -4: case -5: pieces[index] = 6 + (7 - (- (int) m_board->pieces[i])); squares[index++] = i; break;
+    case +6: pieces[0] = 1; squares[0] = i; break;
+    case -6: pieces[1] = 7; squares[1] = i; break;}
   }
   pieces[index] = squares[index] = 0;
   return (wtm ? 1 : -1) * nnue_evaluate(!wtm, pieces, squares);
@@ -1299,16 +1281,6 @@ bool ThinkRandomMove() {
   return 1;
 }
 
-// Make sure the move is legal too
-bool SwapMove(const std::string move) {
-  for (auto i = 0; i < m_root_n; i++)
-    if (MoveName(m_root + i) == move) {
-      if (i) Swap(m_root, m_root + i);
-      return 1;
-    }
-  return 0;
-}
-
 void Think(const int think_time) {
   Board *tmp     = m_board;
   uint64_t start = Now();
@@ -1316,7 +1288,7 @@ void Think(const int think_time) {
   MgenRoot();
   if (ThinkRandomMove()) return;
   if (m_root_n <= 1) {Speak(0, 0); return;}
-  g_use_classical = std::abs(evaluate(m_wtm)) > 500; // Up/down a rook activate simple fast Eval. So we can checkmate
+  g_use_classical = Popcount(Both()) < 16 && std::abs(evaluate(m_wtm)) > 500; // Up/down a rook and EG activate simple fast Eval. So we can checkmate/run
   for (; std::abs(s_best_score) < 0.5 * kInf && s_depth < s_max_depth && !s_stop; s_depth++) {
     s_best_score = m_wtm ? BestW() : BestB();
     Speak(s_best_score, Now() - start);
@@ -1419,11 +1391,7 @@ void Make(const int root_i) {
 void MakeMove() {
   const std::string move = TokenCurrent();
   MgenRoot();
-  for (auto i = 0; i < m_root_n; i++)
-    if (move == MoveName(m_root + i)) {
-      Make(i);
-      return;
-    }
+  for (auto i = 0; i < m_root_n; i++) {if (move == MoveName(m_root + i)) {Make(i); return;}}
   Assert(0, "Error #4: Bad move");
 }
 
@@ -1560,8 +1528,8 @@ void Init() {
   InitSliderMoves();
   InitJumpMoves();
   InitPsqt();
-  Fen(kStartpos);
   nnue_init(g_eval_file.c_str());
+  Fen(kStartpos);
 }
 
 void Bench() {
@@ -1596,6 +1564,7 @@ void PrintHelp() {
   std::cout << "--help    This help" << std::endl;
   std::cout << "--version Print version" << std::endl;
   std::cout << "--bench   Run benchmarks" << std::endl;
+  std::cout << "--list    Show root list" << std::endl;
 }
 
 void Loop() {
@@ -1605,9 +1574,10 @@ void Loop() {
 
 void Args(int argc, char **argv) {
   if (argc == 1) {Loop(); return;}
-  if (argc >= 2 && std::string(argv[1]) == "--version") {std::cout << kName << std::endl; return;}
-  if (argc >= 2 && std::string(argv[1]) == "--help")    {PrintHelp(); return;}
-  if (argc >= 2 && std::string(argv[1]) == "--bench")   {Bench(); return;}
+  if (argc == 2 && std::string(argv[1]) == "--version") {std::cout << kName << std::endl; return;}
+  if (argc == 2 && std::string(argv[1]) == "--help")    {PrintHelp(); return;}
+  if (argc == 2 && std::string(argv[1]) == "--bench")   {Bench(); return;}
+  if (argc == 2 && std::string(argv[1]) == "--list")    {MgenRoot(); PrintRoot(); return;}
 }}
 
 // "The Spartans do not ask how many are the enemy but where are they." -- Plutarch

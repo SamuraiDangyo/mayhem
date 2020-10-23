@@ -1,5 +1,3 @@
-![Mayhem](https://github.com/SamuraiDangyo/mayhem/blob/master/logo.jpg)
-
 ```
 ╋╋╋╋╋╋╋╋╋╋┏┓
 ╋╋╋╋╋╋╋╋╋╋┃┃
