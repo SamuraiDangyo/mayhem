@@ -35,10 +35,10 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem NNUE 0.44", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem NNUE 0.45", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr uint32_t
-  kSortKey = (1 << 22) - 1, kEvalHashKey = (1 << 22) - 1;
+  kSortKey = (1 << 22) - 1, kEvalHashKey = (1 << 23) - 1;
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 30, kInf = 1048576, kKingVectors[] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
