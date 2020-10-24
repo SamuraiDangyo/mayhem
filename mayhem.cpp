@@ -275,7 +275,7 @@ const std::string TokenCurrent() {return TokenOk() ? g_tokens[g_tokens_nth] : ""
 bool TokenIs(const std::string token) {return TokenOk() && token == TokenCurrent();}
 void TokenPop(const int howmany = 1) {g_tokens_nth += howmany;}
 bool Token(const std::string token) {if (!TokenIs(token)) return 0; TokenPop(); return 1;}
-int TokenInt() {int val = 0; if (TokenOk()) val = std::stoi(g_tokens[g_tokens_nth]), TokenPop(); return val;}
+int TokenInt() {return TokenOk() ? std::stoi(g_tokens[g_tokens_nth]) : 0;}
 bool TokenPeek(const std::string str, const int index = 0) {return g_tokens_nth + index < g_tokens.size() ? str == g_tokens[g_tokens_nth + index] : 0;}
 
 // Board
@@ -1272,35 +1272,23 @@ void UciPosition() {
 }
 
 void UciSetoption() {
-  if (TokenPeek("name") && TokenPeek("UCI_Chess960", 1) && TokenPeek("value", 2)) {
-    g_uci_chess960 = TokenPeek("true", 3);
-    TokenPop(4);
-  } else if (TokenPeek("name") && TokenPeek("Level", 1) && TokenPeek("value", 2)) {
-    TokenPop(3);
-    g_level = Between<int>(0, TokenInt(), 100);
-  } else if (TokenPeek("name") && TokenPeek("MoveOverhead", 1) && TokenPeek("value", 2)) {
-    TokenPop(3);
-    g_move_overhead = Between<int>(0, TokenInt(), 5000);
-  } else if (TokenPeek("name") && TokenPeek("EvalFile", 1) && TokenPeek("value", 2)) {
-    TokenPop(3);
-    g_eval_file = TokenCurrent();
-    nnue_init(g_eval_file.c_str());
-    TokenPop(1);
-  }
+  if (TokenPeek("name") && TokenPeek("UCI_Chess960", 1) && TokenPeek("value", 2)) {g_uci_chess960 = TokenPeek("true", 3); TokenPop(4);} 
+  else if (TokenPeek("name") && TokenPeek("Level", 1) && TokenPeek("value", 2)) {TokenPop(3); g_level = Between<int>(0, TokenInt(), 100); TokenPop(1);} 
+  else if (TokenPeek("name") && TokenPeek("MoveOverhead", 1) && TokenPeek("value", 2)) {TokenPop(3); g_move_overhead = Between<int>(0, TokenInt(), 5000); TokenPop(1);} 
+  else if (TokenPeek("name") && TokenPeek("EvalFile", 1) && TokenPeek("value", 2)) {TokenPop(3); g_eval_file = TokenCurrent(); nnue_init(g_eval_file.c_str()); TokenPop(1);}
 }
 
 void UciGo() {
   int wtime = 0, btime = 0, winc = 0, binc = 0, mtg = 30;
-  while (TokenOk()) {
+  for (; TokenOk(); TokenPop(1)) {
     if (     Token("infinite"))  {Think(kInf); goto out;}
     else if (Token("wtime"))     {wtime = TokenInt();}
     else if (Token("btime"))     {btime = TokenInt();}
     else if (Token("winc"))      {winc  = TokenInt();}
     else if (Token("binc"))      {binc  = TokenInt();}
     else if (Token("movestogo")) {mtg   = Between<int>(1, TokenInt(), 30);}
-    else if (Token("movetime"))  {Think(TokenInt()); goto out;}
-    else if (Token("depth"))     {s_max_depth = Between<int>(1, TokenInt(), kDepthLimit); Think(kInf); s_max_depth = kDepthLimit; goto out;}
-    else {TokenPop();}
+    else if (Token("movetime"))  {Think(TokenInt()); TokenPop(1); goto out;}
+    else if (Token("depth"))     {s_max_depth = Between<int>(1, TokenInt(), kDepthLimit); Think(kInf); s_max_depth = kDepthLimit; TokenPop(1); goto out;}
   }
   Think(std::max(0, m_wtm ? (wtime - g_move_overhead) / mtg + winc : (btime - g_move_overhead) / mtg + binc));
 out:
@@ -1533,6 +1521,7 @@ void Args(int argc, char **argv) {
   if (argc == 2 && std::string(argv[1]) == "--help")    {PrintHelp(); return;}
   if (argc == 2 && std::string(argv[1]) == "--bench")   {Bench(); return;}
   if (argc == 2 && std::string(argv[1]) == "--list")    {MgenRoot(); PrintRoot(); return;}
+  std::cout << "See: --help" << std::endl;
 }}
 
 // "The Spartans do not ask how many are the enemy but where are they." -- Plutarch
