@@ -270,19 +270,16 @@ inline uint64_t GenHash(const int wtm) {
 
 // Tokenizer
 
-bool TokenOk() {return g_tokens_nth < g_tokens.size();}
-const std::string TokenCurrent() {return TokenOk() ? g_tokens[g_tokens_nth] : "";}
-bool TokenIs(const std::string token) {return TokenOk() && token == TokenCurrent();}
-void TokenPop(const int howmany = 1) {g_tokens_nth += howmany;}
-bool Token(const std::string token) {if (!TokenIs(token)) return 0; TokenPop(); return 1;}
-int TokenInt() {return TokenOk() ? std::stoi(g_tokens[g_tokens_nth]) : 0;}
-bool TokenPeek(const std::string str, const int index = 0) {return g_tokens_nth + index < g_tokens.size() ? str == g_tokens[g_tokens_nth + index] : 0;}
+bool TokenOk(const int look_ahead = 0) {return g_tokens_nth + look_ahead < g_tokens.size();}
+const std::string TokenCurrent(const int look_ahead = 1) {return TokenOk(look_ahead) ? g_tokens[g_tokens_nth + look_ahead] : "";}
+void TokenPop(const int pop_howmany = 1) {g_tokens_nth += pop_howmany;}
+bool Token(const std::string token, const int pop_howmany = 1) {if (TokenOk(0) && token == TokenCurrent(0)) {TokenPop(pop_howmany); return 1;} return 0;}
+int TokenInt(const int look_ahead = 0) {return TokenOk(look_ahead) ? std::stoi(g_tokens[g_tokens_nth + look_ahead]) : 0;}
+bool TokenPeek(const std::string str, const int look_ahead = 0) {return TokenOk(look_ahead) ? str == g_tokens[g_tokens_nth + look_ahead] : 0;}
 
 // Board
 
 void BuildBitboards() {
-  memset(m_board->white, 0, sizeof(m_board->white));
-  memset(m_board->black, 0, sizeof(m_board->black));
   for (auto i = 0; i < 64; i++)
     if (     m_board->pieces[i] > 0) m_board->white[ m_board->pieces[i] - 1] |= Bit(i);
     else if (m_board->pieces[i] < 0) m_board->black[-m_board->pieces[i] - 1] |= Bit(i);
@@ -373,6 +370,8 @@ void FenReset() {
   m_king_w = m_king_b = 0;
   memset(m_rook_w, 0, sizeof(m_rook_w));
   memset(m_rook_b, 0, sizeof(m_rook_b));
+  memset(m_board->white, 0, sizeof(m_board->white));
+  memset(m_board->black, 0, sizeof(m_board->black));
 }
 
 void Fen(const std::string fen) {
@@ -1254,15 +1253,15 @@ void Think(const int think_time) {
 // UCI
 
 void UciFen() {
-  if (TokenIs("startpos")) {TokenPop(); return;}
-  TokenPop();
+  if (Token("startpos")) return;
+  TokenPop(1);
   std::string posfen = "";
-  for (; TokenOk() && !TokenIs("moves"); TokenPop(1)) posfen += TokenCurrent() + " ";
+  for (; TokenOk(0) && !Token("moves", 0); TokenPop(1)) posfen += TokenCurrent(0) + " ";
   Fen(posfen);
 }
 
 void UciMoves() {
-  while (TokenOk()) {MakeMove(); TokenPop();}
+  while (TokenOk(0)) {MakeMove(); TokenPop(1);}
 }
 
 void UciPosition() {
@@ -1272,23 +1271,23 @@ void UciPosition() {
 }
 
 void UciSetoption() {
-  if (TokenPeek("name") && TokenPeek("UCI_Chess960", 1) && TokenPeek("value", 2)) {g_uci_chess960 = TokenPeek("true", 3); TokenPop(4);} 
-  else if (TokenPeek("name") && TokenPeek("Level", 1) && TokenPeek("value", 2)) {TokenPop(3); g_level = Between<int>(0, TokenInt(), 100); TokenPop(1);} 
-  else if (TokenPeek("name") && TokenPeek("MoveOverhead", 1) && TokenPeek("value", 2)) {TokenPop(3); g_move_overhead = Between<int>(0, TokenInt(), 5000); TokenPop(1);} 
-  else if (TokenPeek("name") && TokenPeek("EvalFile", 1) && TokenPeek("value", 2)) {TokenPop(3); g_eval_file = TokenCurrent(); nnue_init(g_eval_file.c_str()); TokenPop(1);}
+  if (TokenPeek("name") && TokenPeek("UCI_Chess960", 1) && TokenPeek("value", 2)) {g_uci_chess960 = TokenPeek("true", 3); TokenPop(4);}
+  else if (TokenPeek("name") && TokenPeek("Level", 1) && TokenPeek("value", 2)) {g_level = Between<int>(0, TokenInt(3), 100); TokenPop(4);}
+  else if (TokenPeek("name") && TokenPeek("MoveOverhead", 1) && TokenPeek("value", 2)) {g_move_overhead = Between<int>(0, TokenInt(3), 5000); TokenPop(4);}
+  else if (TokenPeek("name") && TokenPeek("EvalFile", 1) && TokenPeek("value", 2)) {g_eval_file = TokenCurrent(3); nnue_init(g_eval_file.c_str()); TokenPop(4);}
 }
 
 void UciGo() {
   int wtime = 0, btime = 0, winc = 0, binc = 0, mtg = 30;
-  for (; TokenOk(); TokenPop(1)) {
+  for (; TokenOk(0); TokenPop(1)) {
     if (     Token("infinite"))  {Think(kInf); goto out;}
-    else if (Token("wtime"))     {wtime = TokenInt();}
-    else if (Token("btime"))     {btime = TokenInt();}
-    else if (Token("winc"))      {winc  = TokenInt();}
-    else if (Token("binc"))      {binc  = TokenInt();}
-    else if (Token("movestogo")) {mtg   = Between<int>(1, TokenInt(), 30);}
-    else if (Token("movetime"))  {Think(TokenInt()); TokenPop(1); goto out;}
-    else if (Token("depth"))     {s_max_depth = Between<int>(1, TokenInt(), kDepthLimit); Think(kInf); s_max_depth = kDepthLimit; TokenPop(1); goto out;}
+    else if (Token("wtime"))     {wtime = TokenInt(0);}
+    else if (Token("btime"))     {btime = TokenInt(0);}
+    else if (Token("winc"))      {winc  = TokenInt(0);}
+    else if (Token("binc"))      {binc  = TokenInt(0);}
+    else if (Token("movestogo")) {mtg   = Between<int>(1, TokenInt(0), 30);}
+    else if (Token("movetime"))  {Think(TokenInt(0)); TokenPop(1); goto out;}
+    else if (Token("depth"))     {s_max_depth = Between<int>(1, TokenInt(0), kDepthLimit); Think(kInf); s_max_depth = kDepthLimit; TokenPop(1); goto out;}
   }
   Think(std::max(0, m_wtm ? (wtime - g_move_overhead) / mtg + winc : (btime - g_move_overhead) / mtg + binc));
 out:
@@ -1306,15 +1305,15 @@ void UciUci() {
 }
 
 bool UciCommands() {
-  if (TokenOk()) {
-    if (     Token("position"))  UciPosition();
+  if (TokenOk(0)) {
+    if (Token("position"))       UciPosition();
     else if (Token("go"))        UciGo();
     else if (Token("isready"))   std::cout << "readyok" << std::endl;
     else if (Token("setoption")) UciSetoption();
     else if (Token("uci"))       UciUci();
     else if (Token("quit"))      return 0;
   }
-  while (TokenOk()) TokenPop();
+  while (TokenOk(0)) TokenPop();
   return 1;
 }
 
@@ -1331,7 +1330,7 @@ void Make(const int root_i) {
 }
 
 void MakeMove() {
-  const std::string move = TokenCurrent();
+  const std::string move = TokenCurrent(0);
   MgenRoot();
   for (auto i = 0; i < m_root_n; i++) {if (move == MoveName(m_root + i)) {Make(i); return;}}
   Assert(0, "Error #4: Bad move");
@@ -1521,7 +1520,7 @@ void Args(int argc, char **argv) {
   if (argc == 2 && std::string(argv[1]) == "--help")    {PrintHelp(); return;}
   if (argc == 2 && std::string(argv[1]) == "--bench")   {Bench(); return;}
   if (argc == 2 && std::string(argv[1]) == "--list")    {MgenRoot(); PrintRoot(); return;}
-  std::cout << "See: --help" << std::endl;
+  std::cout << "> mayhem --help" << std::endl;
 }}
 
 // "The Spartans do not ask how many are the enemy but where are they." -- Plutarch
