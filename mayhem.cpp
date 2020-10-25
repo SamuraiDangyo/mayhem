@@ -1,5 +1,5 @@
 /*
-Mayhem is Sapeli 1.90 written in C++14 with SF NNUE copy pasted (Credits to all involved)...
+Mayhem is Sapeli 1.90 written in C++14 + SF NNUE evaluation copy pasted (Credits to all involved) ...
 Copyright (C) 2020 Toni Helminen
 
 This program is free software: you can redistribute it and/or modify
@@ -178,7 +178,7 @@ std::string
 int SearchB(const int, int, const int, const int);
 int QSearchB(const int, int, const int);
 int Eval(const bool);
-int EvaluationHashNNUE(const bool);
+int EvaluationByHashNNUE(const bool);
 void MakeMove();
 uint64_t RookMagicMoves(const int, const uint64_t);
 uint64_t BishopMagicMoves(const int, const uint64_t);
@@ -547,7 +547,7 @@ void AddPromotionW(const int from, const int to, const int piece) {
 void AddPromotionStuffW(const int from, const int to) {
   if (!s_underpromos) {AddPromotionW(from, to, 5); return;}
   Board *tmp = m_board;
-  for (int piece = 2; piece <= 5; piece++) {AddPromotionW(from, to, piece); m_board = tmp;}
+  for (auto piece = 2; piece <= 5; piece++) {AddPromotionW(from, to, piece); m_board = tmp;}
 }
 
 void AddNormalStuffW(const int from, const int to) {
@@ -854,7 +854,7 @@ void EvalRootMoves() {
   Board *tmp = m_board;
   for (auto i = 0; i < m_root_n; i++) {
     m_board = m_root + i;
-    m_board->score += (m_wtm ? 1 : -1) * EvaluationHashNNUE(m_wtm) + Random(-5, 5);
+    m_board->score += (m_wtm ? 1 : -1) * EvaluationByHashNNUE(m_wtm) + Random(-5, 5);
   }
   m_board = tmp;
 }
@@ -967,7 +967,7 @@ int EvaluationNNUE(const bool wtm) {
   return (wtm ? 1 : -1) * nnue_evaluate(!wtm, pieces, squares);
 }
 
-int EvaluationHashNNUE(const bool wtm) {
+int EvaluationByHashNNUE(const bool wtm) {
   const uint64_t hash = GenHash(wtm);
   Hash *eval_entry = &h_eval[(uint32_t) (hash & kEvalHashKey)];
   if (eval_entry->hash == hash) return eval_entry->score;
@@ -991,7 +991,7 @@ bool DrawMaterial() {
 int Eval(const bool wtm) {
   if (DrawMaterial()) return 0;
   const float scale_factor = m_board->rule50 < 20 ? 1.0 : 1.0 - (((float) m_board->rule50) / 100.0);
-  return (int) (scale_factor * (g_use_classical ? EvaluationClassical(wtm) : EvaluationHashNNUE(wtm)));
+  return (int) (scale_factor * (g_use_classical ? EvaluationClassical(wtm) : EvaluationByHashNNUE(wtm)));
 }
 
 // Search
@@ -1164,8 +1164,8 @@ void SortRoot(const int index) {
 }
 
 int BestW() {
-  int score = 0, best_i = 0, alpha = -kInf, i;
-  for (i = 0; i < m_root_n; i++) {
+  int score = 0, best_i = 0, alpha = -kInf;
+  for (auto i = 0; i < m_root_n; i++) {
     m_board = m_root + i;
     if (s_depth >= 1 && i >= 1) {
       score = SearchB(alpha, alpha + 1, s_depth, 0);
@@ -1187,8 +1187,8 @@ int BestW() {
 }
 
 int BestB() {
-  int score = 0, best_i = 0, beta = kInf, i;
-  for (i = 0; i < m_root_n; i++) {
+  int score = 0, best_i = 0, beta = kInf;
+  for (auto i = 0; i < m_root_n; i++) {
     m_board = m_root + i;
     if (s_depth >= 1 && i >= 1) {
       score = SearchW(beta - 1, beta, s_depth, 0);
@@ -1220,7 +1220,7 @@ void ThinkSetup(const int think_time) {
 
 void RandomMove() {
   if (!m_root_n) return;
-  const int root_i = Random(0, m_root_n - 1);
+  const auto root_i = Random(0, m_root_n - 1);
   if (root_i) Swap(m_root, m_root + root_i);
 }
 
@@ -1231,13 +1231,13 @@ bool ThinkRandomMove() {
 }
 
 void Think(const int think_time) {
-  Board *tmp     = m_board;
-  uint64_t start = Now();
+  Board *tmp = m_board;
+  const uint64_t start = Now();
   ThinkSetup(think_time);
   MgenRoot();
   if (ThinkRandomMove()) return;
   if (m_root_n <= 1) {Speak(0, 0); return;}
-  g_use_classical = Popcount(Both()) < 10 && std::abs(EvaluationHashNNUE(m_wtm)) > 500; // Up/down a rook and EG activate simple fast Eval. So we can checkmate/run
+  g_use_classical = Popcount(Both()) < 10 && std::abs(EvaluationByHashNNUE(m_wtm)) > 500; // Up/down a rook and EG activate simple fast Eval. So we can checkmate/run
   s_underpromos = 0;
   for (; std::abs(s_best_score) < 0.5 * kInf && s_depth < s_max_depth && !s_stop; s_depth++) {
     s_best_score = m_wtm ? BestW() : BestB();
