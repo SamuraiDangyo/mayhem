@@ -22,8 +22,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <vector>
 #include <fstream>
 #include <ctime>
-#include <unistd.h>
+#include <cmath>
 #include <cstring>
+#include <unistd.h>
 #include <sys/time.h>
 #include "nnue.h"
 
@@ -37,7 +38,7 @@ const std::string
   kName = "Mayhem NNUE 0.45", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr uint32_t
-  kSortKey = (1 << 22) - 1, kScoreKey = (1 << 23) - 1;
+  kSortKey = (1 << 22) - 1, kScoreKey = (1 << 22) - 1;
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 30, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
@@ -1003,7 +1004,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
 int SearchW(int alpha, const int beta, const int depth, const int ply) {
   s_nodes++;
   if (s_stop || TimeCheckSearch()) return 0;
-  if (depth <= 0 || ply >= kDepthLimit) return (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * QSearchW(alpha, beta, s_qs_depth));
+  if (depth <= 0 || ply >= kDepthLimit) return (int) (std::pow(1.0 - (((float) m_board->rule50) / 100.0), 2) * QSearchW(alpha, beta, s_qs_depth));
   const auto rule50 = m_board->rule50;
   const uint64_t tmp = s_r50_positions[rule50];
   s_r50_positions[rule50] = Hash(1);
@@ -1044,7 +1045,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
 int SearchB(const int alpha, int beta, const int depth, const int ply) {
   s_nodes++;
   if (s_stop) return 0;
-  if (depth <= 0 || ply >= kDepthLimit) return (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * QSearchB(alpha, beta, s_qs_depth));
+  if (depth <= 0 || ply >= kDepthLimit) return (int) (std::pow(1.0 - (((float) m_board->rule50) / 100.0), 2) * QSearchB(alpha, beta, s_qs_depth));
   const auto rule50 = m_board->rule50;
   const uint64_t tmp = s_r50_positions[rule50];
   s_r50_positions[rule50] = Hash(0);
@@ -1329,14 +1330,14 @@ void InitJumpMoves() {
 }
 
 void InitDraws() {
-  constexpr int draws[6 * 4] = {1,0,0,0 ,0,1,0,0, 2,0,0,0, 1,0,0,1, 2,0,1,0, 2,0,0,1}; // KNK / KBK / KNNK / KNKB / KNNKN / KNNKB
+  constexpr int draws[6 * 4] = {1,0,0,0 ,0,1,0,0, 2,0,0,0, 1,0,0,1, 2,0,1,0, 2,0,0,1}; // KNK, KBK, KNNK, KNKB, KNNKN, KNNKB
   int len       = 0;
   auto makedraw = [&len](int nkw, int nbw, int nkb, int nbb) {DrawKey(nkw, nbw, nkb, nbb); len++;};
   for (auto i = 0; i < 6; i++) {
     makedraw(draws[4 * i    ], draws[4 * i + 1], draws[4 * i + 2], draws[4 * i + 3]);
     makedraw(draws[4 * i + 2], draws[4 * i + 3], draws[4 * i    ], draws[4 * i + 1]);
   }
-  makedraw(0,0,0,0); // KK / KNNKNN / KBKB
+  makedraw(0,0,0,0); // KK, KNNKNN, KBKB
   makedraw(2,0,2,0);
   makedraw(0,1,0,1);
 }
@@ -1356,8 +1357,8 @@ void Init() {
   InitDraws();
   InitSliderMoves();
   InitJumpMoves();
-  nnue_init(g_eval_file.c_str());
   Fen(kStartpos);
+  nnue_init(g_eval_file.c_str());
 }
 
 void Bench() {
@@ -1388,7 +1389,7 @@ void Bench() {
 
 void PrintHelp() {
   std::cout << ":: Help ::" << std::endl;
-  std::cout << "> mayhem  # Enter UCI mode" << std::endl;
+  std::cout << "> mayhem # Enter UCI mode" << std::endl;
   std::cout << "--help    This help" << std::endl;
   std::cout << "--version Print version" << std::endl;
   std::cout << "--bench   Run benchmarks" << std::endl;
@@ -1400,9 +1401,9 @@ void Loop() {while (Uci());}
 void Args(int argc, char **argv) {
   if (argc == 1) {Loop(); return;}
   if (argc == 2 && std::string(argv[1]) == "--version") {std::cout << kName << std::endl; return;}
-  if (argc == 2 && std::string(argv[1]) == "--help")    {PrintHelp(); return;}
-  if (argc == 2 && std::string(argv[1]) == "--bench")   {Bench(); return;}
-  if (argc == 3 && std::string(argv[2]) == "-list")    {Fen(std::string(argv[1])); MgenRoot(); PrintRoot(); return;}
+  if (argc == 2 && std::string(argv[1]) == "--help") {PrintHelp(); return;}
+  if (argc == 2 && std::string(argv[1]) == "--bench") {Bench(); return;}
+  if (argc == 3 && std::string(argv[2]) == "-list") {Fen(std::string(argv[1])); MgenRoot(); PrintRoot(); return;}
   std::cout << "> mayhem --help" << std::endl;
 }}
 

@@ -10,16 +10,20 @@ FILES=*.cpp
 all:
 	$(CC) $(CFLAGS) $(FILES) -o $(EXE)
 
+release: clean
+	x86_64-w64-mingw32-g++ $(CFLAGS) -DWINDOWS $(FILES) -o mayhem-0.45-x86-windows-modern-64bit
+	clang++ $(CFLAGS) $(FILES) -o mayhem-0.45-x86-unix-modern-64bit
+
 strip:
 	strip ./$(EXE)
 
 clean:
-	rm -f $(EXE)*
+	rm -f $(EXE) $(EXE)-*
 
 play: all
-	cutechess-cli -variant fischerandom -engine cmd=./$(EXE) dir=. proto=uci -engine cmd=sapeli dir=. proto=uci -each tc=10 -rounds 100
+	cutechess-cli -variant fischerandom -engine cmd=./$(EXE) dir=. proto=uci -engine cmd=sapeli dir=. proto=uci -each tc=60 -rounds 100
 
 xboard: all
 	xboard -fUCI -fcp ./$(EXE)
 
-.PHONY: all strip clean play xboard
+.PHONY: all release strip clean play xboard
