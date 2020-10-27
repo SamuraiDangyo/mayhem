@@ -23,9 +23,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <fstream>
 #include <ctime>
 #include <unistd.h>
-#include <string.h>
+#include <cstring>
 #include <sys/time.h>
-#include <math.h>
 #include "nnue.h"
 
 // Namespace
@@ -38,12 +37,12 @@ const std::string
   kName = "Mayhem NNUE 0.45", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr uint32_t
-  kSortKey = (1 << 22) - 1, kEvalHashKey = (1 << 23) - 1;
+  kSortKey = (1 << 22) - 1, kScoreKey = (1 << 23) - 1;
 
 constexpr int
-  kMaxMoves = 218, kDepthLimit = 30, kInf = 1048576, kKingVectors[] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
-  kBishopVectors[] = {1,1,-1,-1,1,-1,-1,1}, kRookVectors[] = {1,0,0,1,0,-1,-1,0}, kMvv[6][6] = {{85,96,97,98,99,100},{84,86,93,94,95,100},{82,83,87,91,92,100},{79,80,81,88,90,100},{75,76,77,78,89,100},{70,71,72,73,74,100}},
-  kCenter[] = {-3,-1,1,2,2,1,-1,-3,-1,0,2,3,3,2,0,-1,1,2,4,5,5,4,2,1,2,3,5,7,7,5,3,2,2,3,5,7,7,5,3,2,1,2,4,5,5,4,2,1,-1,0,2,3,3,2,0,-1,-3,-1,1,2,2,1,-1,-3};
+  kMaxMoves = 218, kDepthLimit = 30, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
+  kBishopVectors[8] = {1,1,-1,-1,1,-1,-1,1}, kRookVectors[8] = {1,0,0,1,0,-1,-1,0}, kMvv[6][6] = {{85,96,97,98,99,100},{84,86,93,94,95,100},{82,83,87,91,92,100},{79,80,81,88,90,100},{75,76,77,78,89,100},{70,71,72,73,74,100}},
+  kCorner[64] = {8,6,5,4,4,5,6,8,6,5,4,3,3,4,5,6,5,4,3,2,2,3,4,5,4,3,2,0,0,2,3,4,4,3,2,0,0,2,3,4,5,4,3,2,2,3,4,5,6,5,4,3,3,4,5,6,8,6,5,4,4,5,6,8};
 
 constexpr uint64_t
   kRookMagic[64] =
@@ -119,10 +118,10 @@ typedef struct {
     type,       // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
     castle,     // Castling rights
     rule50;     // Rule 50 counter
-} Board;
+} Board_t;
 
-typedef struct {uint64_t hash; uint8_t index;} Sort;
-typedef struct {uint64_t hash; int score;} Hash;
+typedef struct {uint64_t hash; uint8_t index;} Sort_t;
+typedef struct {uint64_t hash; int score;} Score_t;
 
 // Variables
 
@@ -136,7 +135,7 @@ uint64_t
   s_r50_positions[128] = {0}, s_nodes = 0;
 
 bool
-  g_uci_chess960 = 0, m_wtm = 0, s_stop = 0, g_activate_help = 0, s_underpromos = 1;
+  g_chess960 = 0, m_wtm = 0, s_stop = 0, g_activate_help = 0, s_underpromos = 1;
 
 size_t
   g_tokens_nth = 0;
@@ -144,13 +143,13 @@ size_t
 std::vector<std::string>
   g_tokens = {};
 
-Board
+Board_t
   m_board_tmp = {{0},{0},0,{0},0,0,0,0,0,0,0}, *m_board = &m_board_tmp, *m_moves = 0, *m_board_orig = 0, m_root[kMaxMoves] = {{{0},{0},0,{0},0,0,0,0,0,0,0}};
 
-Hash
-  h_eval[kEvalHashKey + 1] = {{0,0}};
+Score_t
+  h_score[kScoreKey + 1] = {{0,0}};
 
-Sort
+Sort_t
   h_killers[kSortKey + 1] = {{0,0}}, h_goodmoves[kSortKey + 1] = {{0,0}};
 
 std::string
@@ -220,31 +219,31 @@ char PromoLetter(const char piece) {
   default: return 'q';}
 }
 
-const std::string MoveName(const Board *move) {
+const std::string MoveName(const Board_t *move) {
   int from = move->from, to = move->to;
   switch (move->type) {
   case 1:
     from = m_king_w;
-    to   = g_uci_chess960 ? m_rook_w[0] : 6;
+    to   = g_chess960 ? m_rook_w[0] : 6;
     break;
   case 2:
     from = m_king_w;
-    to   = g_uci_chess960 ? m_rook_w[1] : 2;
+    to   = g_chess960 ? m_rook_w[1] : 2;
     break;
   case 3:
     from = m_king_b;
-    to   = g_uci_chess960 ? m_rook_b[0] : 56 + 6;
+    to   = g_chess960 ? m_rook_b[0] : 56 + 6;
     break;
   case 4:
     from = m_king_b;
-    to   = g_uci_chess960 ? m_rook_b[1] : 56 + 2;
+    to   = g_chess960 ? m_rook_b[1] : 56 + 2;
     break;
   case 5: case 6: case 7: case 8:
     return MoveStr(from, to) + PromoLetter(move->pieces[to]);}
   return MoveStr(from, to);
 }
 
-inline uint64_t GenHash(const int wtm) {
+inline uint64_t Hash(const int wtm) {
   uint64_t hash = z_ep[m_board->epsq + 1] ^ z_wtm[wtm] ^ z_castle[m_board->castle], both = Both();
   for (; both; both = ClearBit(both)) {const uint8_t sq = Lsb(both); hash ^= z_board[m_board->pieces[sq] + 6][sq];}
   return hash;
@@ -259,7 +258,7 @@ bool Token(const std::string token, const int pop_howmany = 1) {if (TokenOk(0) &
 int TokenInt(const int look_ahead = 0) {return TokenOk(look_ahead) ? std::stoi(g_tokens[g_tokens_nth + look_ahead]) : 0;}
 bool TokenPeek(const std::string str, const int look_ahead = 0) {return TokenOk(look_ahead) ? str == g_tokens[g_tokens_nth + look_ahead] : 0;}
 
-// Board
+// Board_t
 
 void BuildBitboards() {
   for (auto i = 0; i < 64; i++)
@@ -302,7 +301,7 @@ int Piece(const char piece) {for (auto i = 0; i < 6; i++) {if (piece == "pnbrqk"
 
 void FenBoard(const std::string fen) {
   int sq = 56;
-  for (unsigned int i = 0; i < fen.length() && sq >= 0; i++) if (fen[i] == '/') sq -= 16; else if (isdigit(fen[i])) sq += fen[i] - '0'; else m_board->pieces[sq++] = Piece(fen[i]);
+  for (size_t i = 0; i < fen.length() && sq >= 0; i++) if (fen[i] == '/') sq -= 16; else if (isdigit(fen[i])) sq += fen[i] - '0'; else m_board->pieces[sq++] = Piece(fen[i]);
 }
 
 void FenKQkq(const std::string fen) {
@@ -344,16 +343,16 @@ void FenGen(const std::string str) {
 }
 
 void FenReset() {
-  constexpr Board empty = {{0},{0},0,{0},0,0,0,0,0,0,0};
+  constexpr Board_t empty = {{0},{0},0,{0},0,0,0,0,0,0,0};
   m_board_tmp   = empty;
   m_board       = &m_board_tmp;
   m_wtm         = 1;
   m_board->epsq = -1;
   m_king_w = m_king_b = 0;
-  memset(m_rook_w, 0, sizeof(m_rook_w));
-  memset(m_rook_b, 0, sizeof(m_rook_b));
-  memset(m_board->white, 0, sizeof(m_board->white));
-  memset(m_board->black, 0, sizeof(m_board->black));
+  std::memset(m_rook_w, 0, sizeof(m_rook_w));
+  std::memset(m_rook_b, 0, sizeof(m_rook_b));
+  std::memset(m_board->white, 0, sizeof(m_board->white));
+  std::memset(m_board->black, 0, sizeof(m_board->black));
 }
 
 void Fen(const std::string fen) {
@@ -528,7 +527,7 @@ void AddPromotionW(const int from, const int to, const int piece) {
 
 void AddPromotionStuffW(const int from, const int to) {
   if (!s_underpromos) {AddPromotionW(from, to, 5); return;}
-  Board *tmp = m_board;
+  Board_t *tmp = m_board;
   for (auto piece = 2; piece <= 5; piece++) {AddPromotionW(from, to, piece); m_board = tmp;}
 }
 
@@ -617,7 +616,7 @@ void AddPromotionB(const int from, const int to, const int piece) {
 
 void AddPromotionStuffB(const int from, const int to) {
   if (!s_underpromos) {AddPromotionB(from, to, -5); return;}
-  Board *tmp = m_board;
+  Board_t *tmp = m_board;
   for (auto piece = 2; piece <= 5; piece++) {AddPromotionB(from, to, -piece); m_board = tmp;}
 }
 
@@ -774,7 +773,7 @@ void MgenAllCapturesB() {
   MgenKingB();
 }
 
-inline void Swap(Board *board_a, Board *board_b) {
+inline void Swap(Board_t *board_a, Board_t *board_b) {
   const auto tmp = *board_a;
   *board_a       = *board_b;
   *board_b       = tmp;
@@ -790,13 +789,13 @@ void SortNthMoves(const int nth) {
 int EvaluateMoves() {int tactics = 0; for (auto i = 0; i < m_moves_n; i++) {if (m_moves[i].score) {tactics++;} m_moves[i].index = i;} return tactics;}
 void SortAll() {SortNthMoves(m_moves_n);}
 
-void SortByHash(const uint64_t hash) {
-  const Sort *killer = &h_killers[(uint32_t) (hash & kSortKey)], *goodmove = &h_goodmoves[(uint32_t) (hash & kSortKey)];
+void SortByScore(const uint64_t hash) {
+  const Sort_t *killer = &h_killers[(uint32_t) (hash & kSortKey)], *goodmove = &h_goodmoves[(uint32_t) (hash & kSortKey)];
   if (killer->hash == hash) m_moves[killer->index].score += 10000; else if (goodmove->hash == hash) m_moves[goodmove->index].score += 1000;
   SortNthMoves(EvaluateMoves());
 }
 
-int MgenW(Board *moves) {
+int MgenW(Board_t *moves) {
   m_moves_n    = 0;
   m_moves      = moves;
   m_board_orig = m_board;
@@ -804,7 +803,7 @@ int MgenW(Board *moves) {
   return m_moves_n;
 }
 
-int MgenB(Board *moves) {
+int MgenB(Board_t *moves) {
   m_moves_n    = 0;
   m_moves      = moves;
   m_board_orig = m_board;
@@ -812,7 +811,7 @@ int MgenB(Board *moves) {
   return m_moves_n;
 }
 
-int MgenCapturesW(Board *moves) {
+int MgenCapturesW(Board_t *moves) {
   m_moves_n    = 0;
   m_moves      = moves;
   m_board_orig = m_board;
@@ -820,7 +819,7 @@ int MgenCapturesW(Board *moves) {
   return m_moves_n;
 }
 
-int MgenCapturesB(Board *moves) {
+int MgenCapturesB(Board_t *moves) {
   m_moves_n    = 0;
   m_moves      = moves;
   m_board_orig = m_board;
@@ -828,11 +827,11 @@ int MgenCapturesB(Board *moves) {
   return m_moves_n;
 }
 
-int MgenTacticalW(Board *moves) {return ChecksB() ? MgenW(moves) : MgenCapturesW(moves);}
-int MgenTacticalB(Board *moves) {return ChecksW() ? MgenB(moves) : MgenCapturesB(moves);}
+int MgenTacticalW(Board_t *moves) {return ChecksB() ? MgenW(moves) : MgenCapturesW(moves);}
+int MgenTacticalB(Board_t *moves) {return ChecksW() ? MgenB(moves) : MgenCapturesB(moves);}
 
 void EvalRootMoves() {
-  Board *tmp = m_board;
+  Board_t *tmp = m_board;
   for (auto i = 0; i < m_root_n; i++) {
     m_board = m_root + i;
     m_board->score += (m_wtm ? 1 : -1) * Evaluation(m_wtm) + Random(-5, 5);
@@ -875,18 +874,18 @@ int ProbeNNUE(const bool wtm) {
   return (wtm ? 1 : -1) * nnue_evaluate(!wtm, pieces, squares);
 }
 
-int EvalClose(const int sq1, const int sq2) {return 7 - std::abs(Xcoord(sq1) - Xcoord(sq2)) + 7 - std::abs(Ycoord(sq1) - Ycoord(sq2));}
+int EvalClose(const int sq1, const int sq2) {return 7 - std::max(std::abs(Xcoord(sq1) - Xcoord(sq2)), std::abs(Ycoord(sq1) - Ycoord(sq2)));}
 
 int MatingHelp() {
   if (!g_activate_help) return 0;
-  uint64_t white_king_sq = Lsb(m_board->white[5]), black_king_sq = Lsb(m_board->black[5]);
-  if (PopCount(White()) >= 2) return +1 * (-327 * kCenter[black_king_sq] + 321 * EvalClose(white_king_sq, black_king_sq));
-  return -1 * (-327 * kCenter[white_king_sq] + 321 * EvalClose(white_king_sq, black_king_sq));
+  const uint64_t white_king_sq = Lsb(m_board->white[5]), black_king_sq = Lsb(m_board->black[5]);
+  if (PopCount(White()) >= 2) return +1 * (127 * kCorner[black_king_sq] + 251 * EvalClose(white_king_sq, black_king_sq));
+  return -1 * (127 * kCorner[white_king_sq] + 251 * EvalClose(white_king_sq, black_king_sq));
 }
 
 int Evaluation(const bool wtm) {
-  const uint64_t hash = GenHash(wtm);
-  Hash *eval_entry = &h_eval[(uint32_t) (hash & kEvalHashKey)];
+  const uint64_t hash = Hash(wtm);
+  Score_t *eval_entry = &h_score[(uint32_t) (hash & kScoreKey)];
   if (eval_entry->hash == hash) return eval_entry->score;
   eval_entry->hash = hash;
   return eval_entry->score = (DrawMaterial() ? 0 : (ProbeNNUE(wtm) + MatingHelp()));
@@ -942,7 +941,7 @@ int QSearchW(int alpha, const int beta, const int depth) {
   if (s_stop || TimeCheckSearch()) return 0;
   alpha = std::max(alpha, Evaluation(1));
   if (depth <= 0 || alpha >= beta) return alpha;
-  Board moves[64];
+  Board_t moves[64];
   const auto moves_n = MgenTacticalW(moves);
   SortAll();
   for (auto i = 0; i < moves_n; i++) {
@@ -958,7 +957,7 @@ int QSearchB(const int alpha, int beta, const int depth) {
   if (s_stop) return 0;
   beta = std::min(beta, Evaluation(0));
   if (depth <= 0 || alpha >= beta) return beta;
-  Board moves[64];
+  Board_t moves[64];
   const auto moves_n = MgenTacticalB(moves);
   SortAll();
   for (auto i = 0; i < moves_n; i++) {
@@ -969,17 +968,17 @@ int QSearchB(const int alpha, int beta, const int depth) {
   return beta;
 }
 
-void UpdateGoodmove(const uint64_t hash, const uint8_t index) {Sort *goodmove = &h_goodmoves[(uint32_t) (hash & kSortKey)]; goodmove->hash = hash; goodmove->index = index;}
-void UpdateKiller(const uint64_t hash, const uint8_t index) {Sort *killer = &h_killers[(uint32_t) (hash & kSortKey)]; killer->hash = hash; killer->index = index;}
+void UpdateGoodmove(const uint64_t hash, const uint8_t index) {Sort_t *goodmove = &h_goodmoves[(uint32_t) (hash & kSortKey)]; goodmove->hash = hash; goodmove->index = index;}
+void UpdateKiller(const uint64_t hash, const uint8_t index) {Sort_t *killer = &h_killers[(uint32_t) (hash & kSortKey)]; killer->hash = hash; killer->index = index;}
 
 int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   const uint64_t hash = s_r50_positions[m_board->rule50];
   const bool checks = ChecksB();
-  Board moves[kMaxMoves];
+  Board_t moves[kMaxMoves];
   const auto moves_n = MgenW(moves);
   if (!moves_n) return checks ? -kInf : 0; else if (moves_n == 1 || (ply < 5 && checks)) depth++;
   bool ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  SortByHash(hash);
+  SortByScore(hash);
   for (auto i = 0; i < moves_n; i++) {
     m_board = moves + i;
     if (ok_lmr && i >= 2 && (!m_board->score) && !ChecksW()) {
@@ -1007,7 +1006,7 @@ int SearchW(int alpha, const int beta, const int depth, const int ply) {
   if (depth <= 0 || ply >= kDepthLimit) return (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * QSearchW(alpha, beta, s_qs_depth));
   const auto rule50 = m_board->rule50;
   const uint64_t tmp = s_r50_positions[rule50];
-  s_r50_positions[rule50] = GenHash(1);
+  s_r50_positions[rule50] = Hash(1);
   alpha = Draw() ? 0 : SearchMovesW(alpha, beta, depth, ply);
   s_r50_positions[rule50] = tmp;
   return alpha;
@@ -1016,11 +1015,11 @@ int SearchW(int alpha, const int beta, const int depth, const int ply) {
 int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   const uint64_t hash = s_r50_positions[m_board->rule50];
   const bool checks = ChecksW();
-  Board moves[kMaxMoves];
+  Board_t moves[kMaxMoves];
   const auto moves_n = MgenB(moves);
   if (!moves_n) return checks ? kInf : 0; else if (moves_n == 1 || (ply < 5 && checks)) depth++;
   bool ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  SortByHash(hash);
+  SortByScore(hash);
   for (auto i = 0; i < moves_n; i++) {
     m_board = moves + i;
     if (ok_lmr && i >= 2 && !m_board->score && !ChecksB()) {
@@ -1048,7 +1047,7 @@ int SearchB(const int alpha, int beta, const int depth, const int ply) {
   if (depth <= 0 || ply >= kDepthLimit) return (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * QSearchB(alpha, beta, s_qs_depth));
   const auto rule50 = m_board->rule50;
   const uint64_t tmp = s_r50_positions[rule50];
-  s_r50_positions[rule50] = GenHash(0);
+  s_r50_positions[rule50] = Hash(0);
   beta = Draw() ? 0 : SearchMovesB(alpha, beta, depth, ply);
   s_r50_positions[rule50] = tmp;
   return beta;
@@ -1056,7 +1055,7 @@ int SearchB(const int alpha, int beta, const int depth, const int ply) {
 
 void SortRoot(const int index) {
   if (!index) return;
-  const Board tmp = m_root[index];
+  const Board_t tmp = m_root[index];
   for (auto i = index; i > 0; i--) m_root[i] = m_root[i - 1];
   m_root[0] = tmp;
 }
@@ -1129,7 +1128,7 @@ bool ThinkRandomMove() {
 }
 
 void Think(const int think_time) {
-  Board *tmp = m_board;
+  Board_t *tmp = m_board;
   const uint64_t start = Now();
   ThinkSetup(think_time);
   MgenRoot();
@@ -1169,7 +1168,7 @@ void UciPosition() {
 }
 
 void UciSetoption() {
-  if (     TokenPeek("name") && TokenPeek("UCI_Chess960", 1) && TokenPeek("value", 2)) {g_uci_chess960 = TokenPeek("true", 3); TokenPop(4);}
+  if (     TokenPeek("name") && TokenPeek("UCI_Chess960", 1) && TokenPeek("value", 2)) {g_chess960 = TokenPeek("true", 3); TokenPop(4);}
   else if (TokenPeek("name") && TokenPeek("Level", 1)        && TokenPeek("value", 2)) {g_level = Between<int>(0, TokenInt(3), 100); TokenPop(4);}
   else if (TokenPeek("name") && TokenPeek("MoveOverhead", 1) && TokenPeek("value", 2)) {g_move_overhead = Between<int>(0, TokenInt(3), 5000); TokenPop(4);}
   else if (TokenPeek("name") && TokenPeek("EvalFile", 1)     && TokenPeek("value", 2)) {g_eval_file = TokenCurrent(3); nnue_init(g_eval_file.c_str()); TokenPop(4);}
@@ -1221,7 +1220,7 @@ bool Uci() {
 }
 
 void Make(const int root_i) {
-  s_r50_positions[m_board->rule50] = GenHash(m_wtm);
+  s_r50_positions[m_board->rule50] = Hash(m_wtm);
   m_board_tmp = m_root[root_i];
   m_board     = &m_board_tmp;
   m_wtm       = !m_wtm;
@@ -1393,7 +1392,7 @@ void PrintHelp() {
   std::cout << "--help    This help" << std::endl;
   std::cout << "--version Print version" << std::endl;
   std::cout << "--bench   Run benchmarks" << std::endl;
-  std::cout << "--list    Show root list" << std::endl;
+  std::cout << "-list [FEN] Show root list" << std::endl;
 }
 
 void Loop() {while (Uci());}
@@ -1403,7 +1402,7 @@ void Args(int argc, char **argv) {
   if (argc == 2 && std::string(argv[1]) == "--version") {std::cout << kName << std::endl; return;}
   if (argc == 2 && std::string(argv[1]) == "--help")    {PrintHelp(); return;}
   if (argc == 2 && std::string(argv[1]) == "--bench")   {Bench(); return;}
-  if (argc == 2 && std::string(argv[1]) == "--list")    {MgenRoot(); PrintRoot(); return;}
+  if (argc == 3 && std::string(argv[2]) == "-list")    {Fen(std::string(argv[1])); MgenRoot(); PrintRoot(); return;}
   std::cout << "> mayhem --help" << std::endl;
 }}
 
