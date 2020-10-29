@@ -1022,7 +1022,7 @@ int TryNull(const int alpha, const int beta, const int depth, const int ply, con
 int SearchW(int alpha, const int beta, const int depth, const int ply) {
   s_nodes++;
   if (s_stop || TimeCheckSearch()) return 0;
-  if (depth <= 0 || ply >= kDepthLimit) return (int) (std::pow(1.0 - (((float) m_board->rule50) / 100.0), 1) * QSearchW(alpha, beta, s_qs_depth));
+  if (depth <= 0 || ply >= kDepthLimit) return (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * QSearchW(alpha, beta, s_qs_depth));
   const auto rule50 = m_board->rule50;
   const uint64_t tmp = s_r50_positions[rule50];
   const int null_score = TryNull(alpha, beta, depth, ply, 1);
@@ -1066,7 +1066,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
 int SearchB(const int alpha, int beta, const int depth, const int ply) {
   s_nodes++;
   if (s_stop) return 0;
-  if (depth <= 0 || ply >= kDepthLimit) return (int) (std::pow(1.0 - (((float) m_board->rule50) / 100.0), 1) * QSearchB(alpha, beta, s_qs_depth));
+  if (depth <= 0 || ply >= kDepthLimit) return (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * QSearchB(alpha, beta, s_qs_depth));
   const auto rule50 = m_board->rule50;
   const uint64_t tmp = s_r50_positions[rule50];
   const int null_score = TryNull(alpha, beta, depth, ply, 0);
