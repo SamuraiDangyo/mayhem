@@ -1005,13 +1005,12 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
 
 
 int TryNull(int alpha, int beta, int depth, int ply, bool wtm) {
-  return wtm ? alpha : beta;
   if (depth >= 4 && !s_is_pv && !s_null_tried && !(wtm ? ChecksB() : ChecksW())) {
     s_null_tried    = 1;
     const char ep   = m_board->epsq;
     Board_t *tmp    = m_board;
     m_board->epsq   = -1;
-    const int score = wtm ? std::max(alpha, SearchB(alpha, beta, depth - 4, ply)) : std::min(beta, SearchW(alpha, beta, depth - 4, ply));
+    const int score = wtm ? SearchB(alpha, beta, depth - 4, ply) : SearchW(alpha, beta, depth - 4, ply);
     s_null_tried    = 0;
     m_board         = tmp;
     m_board->epsq   = ep;
