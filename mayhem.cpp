@@ -985,7 +985,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
     m_board = moves + i;
     s_is_pv = !moves[i].score;
     if (ok_lmr && i >= 2 && (!m_board->score) && !ChecksW()) {
-      const int score = SearchB(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1);
+      const int score = SearchB(alpha, beta, depth - 2 - std::min(1, i / 24), ply + 1);
       if (score <= alpha) continue;
       m_board = moves + i;
     }
@@ -1045,7 +1045,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
     m_board = moves + i;
     s_is_pv = !moves[i].score;
     if (ok_lmr && i >= 2 && !m_board->score && !ChecksB()) {
-      const int score = SearchW(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1);
+      const int score = SearchW(alpha, beta, depth - 2 - std::min(1, i / 24), ply + 1);
       if (score >= beta) continue;
       m_board = moves + i;
     }
