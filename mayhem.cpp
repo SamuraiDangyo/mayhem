@@ -35,7 +35,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem NNUE 0.47", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem NNUE 0.48", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr uint32_t
   kSortKey = (1 << 22) - 1, kScoreKey = (1 << 23) - 1;
@@ -876,13 +876,13 @@ int ProbeNNUE(const bool wtm) {
   return (wtm ? 1 : -1) * nnue_evaluate(!wtm, pieces, squares);
 }
 
-int EvalClose(const int sq1, const int sq2) {return 7 - std::max(std::abs(Xcoord(sq1) - Xcoord(sq2)), std::abs(Ycoord(sq1) - Ycoord(sq2)));}
+int Distance(const int sq1, const int sq2) {return std::pow(7 - std::abs(Xcoord(sq1) - Xcoord(sq2)), 2) + std::pow(7 - std::abs(Ycoord(sq1) - Ycoord(sq2)), 2);}
 
 int MatingHelp() {
   if (!s_activate_help) return 0;
   const uint64_t white_king_sq = Lsb(m_board->white[5]), black_king_sq = Lsb(m_board->black[5]);
-  if (PopCount(White()) >= 2) return +1 * (200 * kCorner[black_king_sq] + 200 * EvalClose(white_king_sq, black_king_sq));
-  return -1 * (200 * kCorner[white_king_sq] + 200 * EvalClose(white_king_sq, black_king_sq));
+  if (PopCount(White()) >= 2) return +1 * (200 * kCorner[black_king_sq] + 50 * Distance(white_king_sq, black_king_sq));
+  return -1 * (200 * kCorner[white_king_sq] + 50 * Distance(white_king_sq, black_king_sq));
 }
 
 int Evaluation(const bool wtm) {
@@ -903,7 +903,7 @@ void Speak(const int score, const uint64_t search_time) {
 bool Draw() {
   if (m_board->rule50 > 99) return 1;
   const uint64_t hash = s_r50_positions[m_board->rule50];
-  for (auto i = m_board->rule50 - 2, reps = 0; i >= 0; i -= 2) {if (s_r50_positions[i] == hash && ++reps == 2) return 1;}
+  for (auto i = m_board->rule50 - 2; i >= 0; i -= 2) {if (s_r50_positions[i] == hash) return 1;}
   return 0;
 }
 
@@ -1004,7 +1004,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
 }
 
 
-int TryNull(int alpha, int beta, int depth, int ply, bool wtm) {
+int TryNull(const int alpha, const int beta, const int depth, const int ply, const bool wtm) {
   if (depth >= 4 && !s_is_pv && !s_null_tried && !(wtm ? ChecksB() : ChecksW())) {
     s_null_tried    = 1;
     const char ep   = m_board->epsq;
@@ -1022,7 +1022,7 @@ int TryNull(int alpha, int beta, int depth, int ply, bool wtm) {
 int SearchW(int alpha, const int beta, const int depth, const int ply) {
   s_nodes++;
   if (s_stop || TimeCheckSearch()) return 0;
-  if (depth <= 0 || ply >= kDepthLimit) return (int) (std::pow(1.0 - (((float) m_board->rule50) / 100.0), 2) * QSearchW(alpha, beta, s_qs_depth));
+  if (depth <= 0 || ply >= kDepthLimit) return (int) (std::pow(1.0 - (((float) m_board->rule50) / 100.0), 1) * QSearchW(alpha, beta, s_qs_depth));
   const auto rule50 = m_board->rule50;
   const uint64_t tmp = s_r50_positions[rule50];
   const int null_score = TryNull(alpha, beta, depth, ply, 1);
@@ -1066,7 +1066,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
 int SearchB(const int alpha, int beta, const int depth, const int ply) {
   s_nodes++;
   if (s_stop) return 0;
-  if (depth <= 0 || ply >= kDepthLimit) return (int) (std::pow(1.0 - (((float) m_board->rule50) / 100.0), 2) * QSearchB(alpha, beta, s_qs_depth));
+  if (depth <= 0 || ply >= kDepthLimit) return (int) (std::pow(1.0 - (((float) m_board->rule50) / 100.0), 1) * QSearchB(alpha, beta, s_qs_depth));
   const auto rule50 = m_board->rule50;
   const uint64_t tmp = s_r50_positions[rule50];
   const int null_score = TryNull(alpha, beta, depth, ply, 0);
