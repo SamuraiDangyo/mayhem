@@ -11,8 +11,8 @@ all:
 	$(CC) $(CFLAGS) $(FILES) -o $(EXE)
 
 release: clean
-	x86_64-w64-mingw32-g++ $(CFLAGS) -DWINDOWS $(FILES) -o mayhem-0.45-x86-windows-modern-64bit
-	clang++ $(CFLAGS) $(FILES) -o mayhem-0.45-x86-unix-modern-64bit
+	x86_64-w64-mingw32-g++ $(CFLAGS) -DWINDOWS $(FILES) -o mayhem-0.46-x86-windows-modern-64bit
+	g++ $(CFLAGS) $(FILES) -o mayhem-0.46-x86-unix-modern-64bit
 
 strip:
 	strip ./$(EXE)
