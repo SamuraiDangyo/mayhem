@@ -35,10 +35,10 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem NNUE 0.45", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem NNUE 0.46", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr uint32_t
-  kSortKey = (1 << 22) - 1, kScoreKey = (1 << 22) - 1;
+  kSortKey = (1 << 22) - 1, kScoreKey = (1 << 23) - 1;
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 30, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
@@ -136,7 +136,7 @@ uint64_t
   s_r50_positions[128] = {0}, s_nodes = 0;
 
 bool
-  g_chess960 = 0, m_wtm = 0, s_stop = 0, g_activate_help = 0, s_underpromos = 1;
+  g_chess960 = 0, m_wtm = 0, s_stop = 0, s_activate_help = 0, s_underpromos = 1, s_null_tried = 1, s_is_pv = 0;
 
 size_t
   g_tokens_nth = 0;
@@ -159,6 +159,7 @@ std::string
 // Function Prototypes
 
 int SearchB(const int, int, const int, const int);
+int SearchW(int, const int, const int, const int);
 int QSearchB(const int, int, const int);
 int Evaluation(const bool);
 void MakeMove();
@@ -878,10 +879,10 @@ int ProbeNNUE(const bool wtm) {
 int EvalClose(const int sq1, const int sq2) {return 7 - std::max(std::abs(Xcoord(sq1) - Xcoord(sq2)), std::abs(Ycoord(sq1) - Ycoord(sq2)));}
 
 int MatingHelp() {
-  if (!g_activate_help) return 0;
+  if (!s_activate_help) return 0;
   const uint64_t white_king_sq = Lsb(m_board->white[5]), black_king_sq = Lsb(m_board->black[5]);
-  if (PopCount(White()) >= 2) return +1 * (127 * kCorner[black_king_sq] + 251 * EvalClose(white_king_sq, black_king_sq));
-  return -1 * (127 * kCorner[white_king_sq] + 251 * EvalClose(white_king_sq, black_king_sq));
+  if (PopCount(White()) >= 2) return +1 * (200 * kCorner[black_king_sq] + 200 * EvalClose(white_king_sq, black_king_sq));
+  return -1 * (200 * kCorner[white_king_sq] + 200 * EvalClose(white_king_sq, black_king_sq));
 }
 
 int Evaluation(const bool wtm) {
@@ -982,6 +983,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   SortByScore(hash);
   for (auto i = 0; i < moves_n; i++) {
     m_board = moves + i;
+    s_is_pv = !moves[i].score;
     if (ok_lmr && i >= 2 && (!m_board->score) && !ChecksW()) {
       const int score = SearchB(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1);
       if (score <= alpha) continue;
@@ -1001,12 +1003,31 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   return alpha;
 }
 
+
+int TryNull(int alpha, int beta, int depth, int ply, bool wtm) {
+  return wtm ? alpha : beta;
+  if (depth >= 4 && !s_is_pv && !s_null_tried && !(wtm ? ChecksB() : ChecksW())) {
+    s_null_tried    = 1;
+    const char ep   = m_board->epsq;
+    Board_t *tmp    = m_board;
+    m_board->epsq   = -1;
+    const int score = wtm ? std::max(alpha, SearchB(alpha, beta, depth - 4, ply)) : std::min(beta, SearchW(alpha, beta, depth - 4, ply));
+    s_null_tried    = 0;
+    m_board         = tmp;
+    m_board->epsq   = ep;
+    if (wtm) {if (score >= beta) {return score;}} else {if (alpha >= score) {return score;}}
+  }
+  return wtm ? alpha : beta;
+}
+
 int SearchW(int alpha, const int beta, const int depth, const int ply) {
   s_nodes++;
   if (s_stop || TimeCheckSearch()) return 0;
   if (depth <= 0 || ply >= kDepthLimit) return (int) (std::pow(1.0 - (((float) m_board->rule50) / 100.0), 2) * QSearchW(alpha, beta, s_qs_depth));
   const auto rule50 = m_board->rule50;
   const uint64_t tmp = s_r50_positions[rule50];
+  const int null_score = TryNull(alpha, beta, depth, ply, 1);
+  if (null_score >= beta) return null_score;
   s_r50_positions[rule50] = Hash(1);
   alpha = Draw() ? 0 : SearchMovesW(alpha, beta, depth, ply);
   s_r50_positions[rule50] = tmp;
@@ -1023,6 +1044,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   SortByScore(hash);
   for (auto i = 0; i < moves_n; i++) {
     m_board = moves + i;
+    s_is_pv = !moves[i].score;
     if (ok_lmr && i >= 2 && !m_board->score && !ChecksB()) {
       const int score = SearchW(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1);
       if (score >= beta) continue;
@@ -1048,6 +1070,8 @@ int SearchB(const int alpha, int beta, const int depth, const int ply) {
   if (depth <= 0 || ply >= kDepthLimit) return (int) (std::pow(1.0 - (((float) m_board->rule50) / 100.0), 2) * QSearchB(alpha, beta, s_qs_depth));
   const auto rule50 = m_board->rule50;
   const uint64_t tmp = s_r50_positions[rule50];
+  const int null_score = TryNull(alpha, beta, depth, ply, 0);
+  if (alpha >= null_score) return null_score;
   s_r50_positions[rule50] = Hash(0);
   beta = Draw() ? 0 : SearchMovesB(alpha, beta, depth, ply);
   s_r50_positions[rule50] = tmp;
@@ -1113,6 +1137,9 @@ void ThinkSetup(const int think_time) {
   s_nodes      = 0;
   s_depth      = 0;
   s_qs_depth   = 6;
+  s_null_tried = 0;
+  s_is_pv      = 0;
+  s_activate_help = 0;
   s_stop_time  = Now() + (uint64_t) std::max(0, think_time);
 }
 
@@ -1136,14 +1163,13 @@ void Think(const int think_time) {
   if (ThinkRandomMove()) return;
   if (m_root_n <= 1) {Speak(0, 0); return;}
   s_underpromos = 0;
-  g_activate_help = m_wtm ? (!m_board->white[0] && PopCount(Black()) == 1) : (!m_board->black[0] && PopCount(White()) == 1);
+  if ((m_wtm && (!m_board->white[0] && PopCount(Black()) == 1)) || (!m_wtm && (!m_board->black[0] && PopCount(White()) == 1))) s_activate_help = s_null_tried = 1;
   for (; std::abs(s_best_score) < 0.5 * kInf && s_depth < s_max_depth && !s_stop; s_depth++) {
     s_best_score = m_wtm ? BestW() : BestB();
     Speak(s_best_score, Now() - start);
     s_qs_depth = std::min(s_qs_depth + 2, 12);
   }
   s_underpromos = 1;
-  g_activate_help = 0;
   m_board = tmp;
   Speak(s_best_score, Now() - start);
 }
@@ -1411,5 +1437,8 @@ void Args(int argc, char **argv) {
 int main(int argc, char **argv) {
   mayhem::Init();
   mayhem::Args(argc, argv);
+  //mayhem::Fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
+  //mayhem::MgenRoot(); mayhem::PrintRoot();
+  mayhem::Think(10000);
   return EXIT_SUCCESS;
 }
