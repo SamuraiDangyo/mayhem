@@ -1437,8 +1437,5 @@ void Args(int argc, char **argv) {
 int main(int argc, char **argv) {
   mayhem::Init();
   mayhem::Args(argc, argv);
-  //mayhem::Fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
-  //mayhem::MgenRoot(); mayhem::PrintRoot();
-  mayhem::Think(10000);
   return EXIT_SUCCESS;
 }
