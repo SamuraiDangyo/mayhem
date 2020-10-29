@@ -880,7 +880,7 @@ int Distance(const int sq1, const int sq2) {return std::pow(7 - std::abs(Xcoord(
 
 int MatingHelp() {
   if (!s_activate_help) return 0;
-  const uint64_t white_king_sq = Lsb(m_board->white[5]), black_king_sq = Lsb(m_board->black[5]);
+  const auto white_king_sq = Lsb(m_board->white[5]), black_king_sq = Lsb(m_board->black[5]);
   if (PopCount(White()) >= 2) return +1 * (200 * kCorner[black_king_sq] + 50 * Distance(white_king_sq, black_king_sq));
   return -1 * (200 * kCorner[white_king_sq] + 50 * Distance(white_king_sq, black_king_sq));
 }
