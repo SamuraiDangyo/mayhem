@@ -1143,7 +1143,6 @@ DLLExport void _CDECL nnue_init(const char* evalFile)
 
   printf("NNUE file not found!\n");
   fflush(stdout);
-  exit(EXIT_FAILURE);
 }
 
 DLLExport int _CDECL nnue_evaluate(int player, int* pieces, int* squares)
