@@ -35,10 +35,10 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem NNUE 0.48", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem NNUE 0.49", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr uint32_t
-  kSortKey = (1 << 22) - 1, kScoreKey = (1 << 23) - 1;
+  kSortKey = (1 << 23) - 1, kScoreKey = (1 << 23) - 1;
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 30, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
@@ -121,7 +121,7 @@ typedef struct {
     rule50;     // Rule 50 counter
 } Board_t;
 
-typedef struct {uint64_t hash; uint8_t index;} Sort_t;
+typedef struct {uint64_t hash; uint8_t killer, goodmove;} Sort_t;
 typedef struct {uint64_t hash; int score;} Score_t;
 
 // Variables
@@ -151,7 +151,7 @@ Score_t
   h_score[kScoreKey + 1] = {{0,0}};
 
 Sort_t
-  h_killers[kSortKey + 1] = {{0,0}}, h_goodmoves[kSortKey + 1] = {{0,0}};
+  h_sort[kSortKey + 1] = {{0,0,0}};
 
 std::string
   g_eval_file = "nn-eba324f53044.nnue";
@@ -791,9 +791,8 @@ void SortNthMoves(const int nth) {
 int EvaluateMoves() {int tactics = 0; for (auto i = 0; i < m_moves_n; i++) {if (m_moves[i].score) {tactics++;} m_moves[i].index = i;} return tactics;}
 void SortAll() {SortNthMoves(m_moves_n);}
 
-void SortByScore(const uint64_t hash) {
-  const Sort_t *killer = &h_killers[(uint32_t) (hash & kSortKey)], *goodmove = &h_goodmoves[(uint32_t) (hash & kSortKey)];
-  if (killer->hash == hash) m_moves[killer->index].score += 10000; else if (goodmove->hash == hash) m_moves[goodmove->index].score += 1000;
+void SortByScore(const Sort_t *entry, const uint64_t hash) {
+  if (entry->hash == hash) {if (entry->killer) m_moves[entry->killer - 1].score += 10000; else if (entry->goodmove) m_moves[entry->goodmove - 1].score += 1000;}
   SortNthMoves(EvaluateMoves());
 }
 
@@ -970,8 +969,7 @@ int QSearchB(const int alpha, int beta, const int depth) {
   return beta;
 }
 
-void UpdateGoodmove(const uint64_t hash, const uint8_t index) {Sort_t *goodmove = &h_goodmoves[(uint32_t) (hash & kSortKey)]; goodmove->hash = hash; goodmove->index = index;}
-void UpdateKiller(const uint64_t hash, const uint8_t index) {Sort_t *killer = &h_killers[(uint32_t) (hash & kSortKey)]; killer->hash = hash; killer->index = index;}
+void UpdateSort(Sort_t *entry, const bool is_killer, const uint64_t hash, const uint8_t index) {entry->hash = hash; if (is_killer) entry->killer = index + 1; else entry->goodmove = index + 1;}
 
 int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   const uint64_t hash = s_r50_positions[m_board->rule50];
@@ -980,7 +978,8 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   const auto moves_n = MgenW(moves);
   if (!moves_n) return checks ? -kInf : 0; else if (moves_n == 1 || (ply < 5 && checks)) depth++;
   bool ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  SortByScore(hash);
+  Sort_t *entry = &h_sort[(uint32_t) (hash & kSortKey)];
+  SortByScore(entry, hash);
   for (auto i = 0; i < moves_n; i++) {
     m_board = moves + i;
     s_is_pv = !moves[i].score;
@@ -994,15 +993,14 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
       alpha  = score;
       ok_lmr = 0;
       if (alpha >= beta) {
-        UpdateKiller(hash, moves[i].index);
+        UpdateSort(entry, 1, hash, moves[i].index);
         return alpha;
       }
-      UpdateGoodmove(hash, moves[i].index);
+      UpdateSort(entry, 0, hash, moves[i].index);
     }
   }
   return alpha;
 }
-
 
 int TryNull(const int alpha, const int beta, const int depth, const int ply, const bool wtm) {
   if (depth >= 4 && !s_is_pv && !s_null_tried && !(wtm ? ChecksB() : ChecksW())) {
@@ -1040,7 +1038,8 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   const auto moves_n = MgenB(moves);
   if (!moves_n) return checks ? kInf : 0; else if (moves_n == 1 || (ply < 5 && checks)) depth++;
   bool ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  SortByScore(hash);
+  Sort_t *entry = &h_sort[(uint32_t) (hash & kSortKey)];
+  SortByScore(entry, hash);
   for (auto i = 0; i < moves_n; i++) {
     m_board = moves + i;
     s_is_pv = !moves[i].score;
@@ -1054,10 +1053,10 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
       beta   = score;
       ok_lmr = 0;
       if (alpha >= beta) {
-        UpdateKiller(hash, moves[i].index);
+        UpdateSort(entry, 1, hash, moves[i].index);
         return beta;
       }
-      UpdateGoodmove(hash, moves[i].index);
+      UpdateSort(entry, 0, hash, moves[i].index);
     }
   }
   return beta;
