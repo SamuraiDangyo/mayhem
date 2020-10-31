@@ -154,7 +154,7 @@ Sort_t
   h_sort[kSortKey + 1] = {{0,0,0}};
 
 std::string
-  g_eval_file = "nn-eba324f53044.nnue";
+  g_eval_file = "nn-2eb2e0707c2b.nnue";
 
 // Function Prototypes
 
