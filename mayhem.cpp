@@ -35,7 +35,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem 0.49", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem 0.50", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 30, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
@@ -179,19 +179,18 @@ inline unsigned int PopCount(const uint64_t bb) {return __builtin_popcountll(bb)
 inline uint64_t ClearBit(const uint64_t bb) {return bb & (bb - 1);}
 uint32_t Nps(const uint64_t nodes, const uint32_t ms) {return (1000 * nodes) / (ms + 1);}
 inline uint64_t Bit(const int nbits) {return 0x1ULL << nbits;}
-int Mirror(const int sq) {return sq ^ 56;}
 void Assert(const bool test, const std::string msg) {if (test) return; std::cerr << msg << std::endl; exit(EXIT_FAILURE);}
 const std::string MoveStr(const int from, const int to) {char str[5]; str[0] = 'a' + Xcoord(from); str[1] = '1' + Ycoord(from); str[2] = 'a' + Xcoord(to); str[3] = '1' + Ycoord(to); str[4] = '\0'; return std::string(str);}
 uint64_t Now() {struct timeval tv; if (gettimeofday(&tv, NULL)) return 0; return (uint64_t) (1000 * tv.tv_sec + tv.tv_usec / 1000);}
 uint64_t RandomBB() {
   static uint64_t va = 0X12311227ULL, vb = 0X1931311ULL, vc = 0X13138141ULL;
-  auto mixer = [](uint64_t num) {return ((num) << 7) ^ ((num) >> 5);};
+  auto mixer = [](uint64_t num) {return (num << 7) ^ (num >> 5);};
   va ^= vb + vc; vb ^= vb * vc + 0x1717711ULL; vc  = (3 * vc) + 1;
   return mixer(va) ^ mixer(vb) ^ mixer(vc);
 }
 uint64_t Random8x64() {uint64_t val = 0; for (auto i = 0; i < 8; i++) val ^= RandomBB() << (8 * i); return val;}
 int Random1(const int max) {const uint64_t rnum = (g_seed ^ RandomBB()) & 0xFFFFFFFFULL; g_seed = (g_seed << 5) ^ (g_seed + 1) ^ (g_seed >> 3); return (int) (max * (0.0001 * (float) (rnum % 10000)));}
-int Random(const int min_val, const int max_val) {return max_val < min_val ? Random(max_val, min_val) : min_val + Random1(max_val - min_val + 1);}
+int Random(const int x, const int y) {return x + Random1(y - x + 1);}
 bool OnBoard(const int x, const int y) {return x >= 0 && x <= 7 && y >= 0 && y <= 7;}
 
 template <class Type> void Splitter(const std::string& str, Type& container, const std::string& delims = " ") {
@@ -1231,9 +1230,9 @@ void Think(const int think_time) {
 void UciFen() {
   if (Token("startpos")) return;
   TokenPop(1);
-  std::string posfen = "";
-  for (; TokenOk(0) && !Token("moves", 0); TokenPop(1)) posfen += TokenCurrent(0) + " ";
-  Fen(posfen);
+  std::string fen = "";
+  for (; TokenOk(0) && !Token("moves", 0); TokenPop(1)) fen += TokenCurrent(0) + " ";
+  Fen(fen);
 }
 
 void UciMoves() {
@@ -1284,12 +1283,12 @@ void UciUci() {
 
 bool UciCommands() {
   if (TokenOk(0)) {
-    if (Token("position"))       UciPosition();
-    else if (Token("go"))        UciGo();
-    else if (Token("isready"))   std::cout << "readyok" << std::endl;
-    else if (Token("setoption")) UciSetoption();
-    else if (Token("uci"))       UciUci();
-    else if (Token("quit"))      return 0;
+    if (Token("position"))       {UciPosition();}
+    else if (Token("go"))        {UciGo();}
+    else if (Token("isready"))   {std::cout << "readyok" << std::endl;}
+    else if (Token("setoption")) {UciSetoption();}
+    else if (Token("uci"))       {UciUci();}
+    else if (Token("quit"))      {return 0;}
   }
   while (TokenOk(0)) TokenPop();
   return 1;
@@ -1394,7 +1393,7 @@ uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int *jum
 }
 
 void InitJumpMoves() {
-  const int pawn_check_vectors[2 * 2] = {-1,1,1,1}, pawn_1_vectors[1 * 2] = {0,1};
+  constexpr int pawn_check_vectors[2 * 2] = {-1,1,1,1}, pawn_1_vectors[1 * 2] = {0,1};
   for (auto i = 0; i < 64; i++) {
     m_king[i]           = MakeJumpMoves(i, 8,  1, kKingVectors);
     m_knight[i]         = MakeJumpMoves(i, 8,  1, kKnightVectors);
