@@ -289,7 +289,7 @@ std::uint64_t Fill(int from, const int to) {
   return ret;
 }
 
-void FindKings() {for (auto i = 0; i < 64; i++) if (m_board->pieces[i] ==  6) m_king_w = i; else if (m_board->pieces[i] == -6) m_king_b = i;}
+void FindKings() {for (auto i = 0; i < 64; i++) if (m_board->pieces[i] == +6) m_king_w = i; else if (m_board->pieces[i] == -6) m_king_b = i;}
 
 void BuildCastlingBitboards() {
   m_castle_w[0]       = Fill(m_king_w, 6);
@@ -337,7 +337,7 @@ void FenEp(const std::string fen) {
 
 void FenRule50(const std::string fen) {
   if (fen.length() == 0 || fen[0] == '-') return;
-  m_board->rule50 = Between<int>(0, std::stoi(fen), 100);
+  m_board->rule50 = Between<std::uint8_t>(0, std::stoi(fen), 100);
 }
 
 void FenGen(const std::string str) {
@@ -876,9 +876,9 @@ int ClassicalEvaluation(const bool wtm) {
   if (DrawMaterial()) return 0;
   const auto white = White(), black = Black(), both = white | black;
   const auto white_king_sq = Lsb(m_board->white[5]), black_king_sq = Lsb(m_board->black[5]);
-  int score = 0;
+  int score = (wtm ? +5 : -5) + (s_nodes & 1);
   const auto distance = [](const int sq1, const int sq2) {return std::pow(7 - std::abs(Xcoord(sq1) - Xcoord(sq2)), 2) + std::pow(7 - std::abs(Ycoord(sq1) - Ycoord(sq2)), 2);};
-  for (std::uint64_t pieces = both; pieces; pieces = ClearBit(pieces)) {
+  for (auto pieces = both; pieces; pieces = ClearBit(pieces)) {
     const auto sq = Lsb(pieces);
     switch (m_board->pieces[sq]) {
     case +1: score += 100 + 10 * Ycoord(sq); break;
@@ -895,8 +895,7 @@ int ClassicalEvaluation(const bool wtm) {
     case -6: score -= PopCount(m_king[sq]); break;}
   }
   if (ChecksW()) score += 20; else if (ChecksB()) score -= 20;
-  if (PopCount(white) >= 2) score += 17 * kCorner[black_king_sq] + 2 * distance(white_king_sq, black_king_sq); else score -= 17 * kCorner[white_king_sq] + 2 * distance(black_king_sq, white_king_sq);
-  return score + (wtm ? +5 : -5) + (s_nodes & 1);
+  return PopCount(white) >= 2 ? score + 17 * kCorner[black_king_sq] + 2 * distance(white_king_sq, black_king_sq) : score - 17 * kCorner[white_king_sq] - 2 * distance(black_king_sq, white_king_sq);
 }
 
 int ProbeNNUE(const bool wtm) {
@@ -915,7 +914,7 @@ int ProbeNNUE(const bool wtm) {
 int Evaluation(const bool wtm) {
   if (s_activate_help) return ClassicalEvaluation(wtm);
   const auto hash = Hash(wtm);
-  Hash_t *entry = &h_hash[(std::uint32_t) (hash & h_hash_key)];
+  auto *entry = &h_hash[(std::uint32_t) (hash & h_hash_key)];
   if (entry->hash == hash && entry->eval_set) return entry->score;
   entry->hash = hash;
   entry->eval_set = 1;
@@ -925,8 +924,8 @@ int Evaluation(const bool wtm) {
 // Search
 
 void Speak(const int score, const std::uint64_t search_time) {
-  std::cout << "info depth " << std::min(s_max_depth, s_depth + 1) << " nodes " << s_nodes << " time " << search_time << " nps " << Nps(s_nodes, search_time)
-            << " score cp " << ((m_wtm ? 1 : -1) * (int) ((std::abs(score) >= kInf ? 0.01 : 1.0) * score)) << " pv " << MoveName(m_root) << std::endl;
+  std::cout << "info depth " << std::min(s_max_depth, s_depth + 1) << " nodes " << s_nodes << " time " << search_time << " nps " << Nps(s_nodes, search_time) << 
+               " score cp " << ((m_wtm ? 1 : -1) * (int) ((std::abs(score) >= kInf ? 0.01 : 1.0) * score)) << " pv " << MoveName(m_root) << std::endl;
 }
 
 bool Draw() {
@@ -1011,11 +1010,11 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   const auto moves_n = MgenW(moves);
   if (!moves_n) return checks ? -kInf : 0; else if (moves_n == 1 || (ply < 5 && checks)) depth++;
   auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  Hash_t *entry = &h_hash[(std::uint32_t) (hash & h_hash_key)];
+  auto *entry = &h_hash[(std::uint32_t) (hash & h_hash_key)];
   SortByScore(entry, hash);
   for (auto i = 0; i < moves_n; i++) {
     m_board = moves + i;
-    s_is_pv = !moves[i].score;
+    s_is_pv = i >= 1 && !moves[i].score;
     if (ok_lmr && i >= 2 && (!m_board->score) && !ChecksW()) {
       const auto score = SearchB(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1);
       if (score <= alpha) continue;
@@ -1025,10 +1024,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
     if (score > alpha) {
       alpha  = score;
       ok_lmr = 0;
-      if (alpha >= beta) {
-        UpdateSort(entry, kKiller, hash, moves[i].index);
-        return alpha;
-      }
+      if (alpha >= beta) {UpdateSort(entry, kKiller, hash, moves[i].index); return alpha;}
       if (moves[i].score) UpdateSort(entry, kGood, hash, moves[i].index); else UpdateSort(entry, kQuiet, hash, moves[i].index);
     }
   }
@@ -1039,7 +1035,7 @@ int TryNullMove(const int alpha, const int beta, const int depth, const int ply,
   if (!s_nullmove && !s_is_pv && depth >= 4 && !(wtm ? ChecksB() : ChecksW())) {
     s_nullmove    = 1;
     const auto ep   = m_board->epsq;
-    Board_t *tmp    = m_board;
+    auto *tmp       = m_board;
     m_board->epsq   = -1;
     const auto score = wtm ? SearchB(alpha, beta, depth - 4, ply) : SearchW(alpha, beta, depth - 4, ply);
     s_nullmove    = 0;
@@ -1071,11 +1067,11 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   const auto moves_n = MgenB(moves);
   if (!moves_n) return checks ? kInf : 0; else if (moves_n == 1 || (ply < 5 && checks)) depth++;
   auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  Hash_t *entry = &h_hash[(std::uint32_t) (hash & h_hash_key)];
+  auto *entry = &h_hash[(std::uint32_t) (hash & h_hash_key)];
   SortByScore(entry, hash);
   for (auto i = 0; i < moves_n; i++) {
     m_board = moves + i;
-    s_is_pv = !moves[i].score;
+    s_is_pv = i >= 1 && !moves[i].score;
     if (ok_lmr && i >= 2 && !m_board->score && !ChecksB()) {
       const auto score = SearchW(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1);
       if (score >= beta) continue;
@@ -1085,10 +1081,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
     if (score < beta) {
       beta   = score;
       ok_lmr = 0;
-      if (alpha >= beta) {
-        UpdateSort(entry, kKiller, hash, moves[i].index);
-        return beta;
-      }
+      if (alpha >= beta) {UpdateSort(entry, kKiller, hash, moves[i].index); return beta;}
       if (moves[i].score) UpdateSort(entry, kGood, hash, moves[i].index); else UpdateSort(entry, kQuiet, hash, moves[i].index);
     }
   }
@@ -1299,9 +1292,9 @@ void MakeMove() {
 std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
   int total = 0, good[64] = {0};
   std::uint64_t permutations = 0;
-  for (auto i = 0; i < 64; i++) if (moves & Bit(i)) good[total++] = i;
+  for (auto i = 0; i < 64; i++) {if (moves & Bit(i)) good[total++] = i;}
   const int popn = PopCount(moves);
-  for (auto i = 0; i < popn; i++) if ((1 << i) & index) permutations |= Bit(good[i]);
+  for (auto i = 0; i < popn; i++) {if ((1 << i) & index) permutations |= Bit(good[i]);}
   return permutations & moves;
 }
 
