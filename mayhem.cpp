@@ -914,8 +914,8 @@ int ProbeNNUE(const bool wtm) {
 int EvaluationNNUE(const bool wtm) {
   const auto hash = Hash(wtm);
   auto *entry = &h_hash[(std::uint32_t) (hash & h_hash_key)];
-  if (entry->sort_hash == hash) return entry->score;
-  entry->sort_hash = hash;
+  if (entry->eval_hash == hash) return entry->score;
+  entry->eval_hash = hash;
   return entry->score = DrawMaterial() ? 0 : ProbeNNUE(wtm);
 }
 
