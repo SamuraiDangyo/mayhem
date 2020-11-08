@@ -872,7 +872,7 @@ bool DrawMaterial() {
   return 0;
 }
 
-int ClassicalEvaluation(const bool wtm) {
+int EvaluationClassical(const bool wtm) {
   if (DrawMaterial()) return 0;
   const auto white = White(), black = Black(), both = white | black;
   const auto white_king_sq = Lsb(m_board->white[5]), black_king_sq = Lsb(m_board->black[5]);
@@ -911,8 +911,7 @@ int ProbeNNUE(const bool wtm) {
   return (wtm ? 1 : -1) * nnue_evaluate(!wtm, pieces, squares);
 }
 
-int Evaluation(const bool wtm) {
-  if (s_activate_help) return ClassicalEvaluation(wtm);
+int EvaluationNNUE(const bool wtm) {
   const auto hash = Hash(wtm);
   auto *entry = &h_hash[(std::uint32_t) (hash & h_hash_key)];
   if (entry->hash == hash && entry->eval_set) return entry->score;
@@ -920,6 +919,8 @@ int Evaluation(const bool wtm) {
   entry->eval_set = 1;
   return entry->score = DrawMaterial() ? 0 : ProbeNNUE(wtm);
 }
+
+int Evaluation(const bool wtm) {return (s_activate_help ? EvaluationClassical(wtm) : EvaluationNNUE(wtm)) + (g_level == 100 ? 0 : Random(10 * (g_level - 100), 10 * (100 - g_level)));}
 
 // Search
 
@@ -957,12 +958,10 @@ bool UserStop() {
   return 0;
 }
 
-bool StopSearch() {return Now() >= s_stop_time;}
-
 bool TimeCheckSearch() {
   static std::uint64_t ticks = 0;
   if (++ticks & 0xFFULL) return 0;
-  if (StopSearch() || UserStop()) return s_stop = 1;
+  if ((Now() >= s_stop_time) || UserStop()) return s_stop = 1;
   return 0;
 }
 
@@ -974,11 +973,7 @@ int QSearchW(int alpha, const int beta, const int depth) {
   Board_t moves[64];
   const auto moves_n = MgenTacticalW(moves);
   SortAll();
-  for (auto i = 0; i < moves_n; i++) {
-    m_board = moves + i;
-    alpha = std::max(alpha, QSearchB(alpha, beta, depth - 1));
-    if (alpha >= beta) return alpha;
-  }
+  for (auto i = 0; i < moves_n; i++) {m_board = moves + i; if ((alpha = std::max(alpha, QSearchB(alpha, beta, depth - 1))) >= beta) return alpha;}
   return alpha;
 }
 
@@ -990,11 +985,7 @@ int QSearchB(const int alpha, int beta, const int depth) {
   Board_t moves[64];
   const auto moves_n = MgenTacticalB(moves);
   SortAll();
-  for (auto i = 0; i < moves_n; i++) {
-    m_board = moves + i;
-    beta = std::min(beta, QSearchW(alpha, beta, depth - 1));
-    if (alpha >= beta) return beta;
-  }
+  for (auto i = 0; i < moves_n; i++) {m_board = moves + i; if (alpha >= (beta = std::min(beta, QSearchW(alpha, beta, depth - 1)))) return beta;}
   return beta;
 }
 
@@ -1014,12 +1005,8 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   SortByScore(entry, hash);
   for (auto i = 0; i < moves_n; i++) {
     m_board = moves + i;
-    s_is_pv = i >= 1 && !moves[i].score;
-    if (ok_lmr && i >= 2 && (!m_board->score) && !ChecksW()) {
-      const auto score = SearchB(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1);
-      if (score <= alpha) continue;
-      m_board = moves + i;
-    }
+    s_is_pv = i <= 1 && !moves[i].score;
+    if (ok_lmr && i >= 2 && (!m_board->score) && !ChecksW()) {if (SearchB(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1) <= alpha) continue; m_board = moves + i;}
     const auto score = SearchB(alpha, beta, depth - 1, ply + 1);
     if (score > alpha) {
       alpha  = score;
@@ -1034,13 +1021,13 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
 int TryNullMove(const int alpha, const int beta, const int depth, const int ply, const bool wtm) {
   if (!s_nullmove && !s_is_pv && depth >= 4 && !(wtm ? ChecksB() : ChecksW())) {
     s_nullmove    = 1;
-    const auto ep   = m_board->epsq;
-    auto *tmp       = m_board;
-    m_board->epsq   = -1;
+    const auto ep = m_board->epsq;
+    auto *tmp     = m_board;
+    m_board->epsq = -1;
     const auto score = wtm ? SearchB(alpha, beta, depth - 4, ply) : SearchW(alpha, beta, depth - 4, ply);
     s_nullmove    = 0;
-    m_board         = tmp;
-    m_board->epsq   = ep;
+    m_board       = tmp;
+    m_board->epsq = ep;
     if (wtm) {if (score >= beta) {return score;}} else {if (alpha >= score) {return score;}}
   }
   return wtm ? alpha : beta;
@@ -1071,12 +1058,8 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   SortByScore(entry, hash);
   for (auto i = 0; i < moves_n; i++) {
     m_board = moves + i;
-    s_is_pv = i >= 1 && !moves[i].score;
-    if (ok_lmr && i >= 2 && !m_board->score && !ChecksB()) {
-      const auto score = SearchW(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1);
-      if (score >= beta) continue;
-      m_board = moves + i;
-    }
+    s_is_pv = i <= 1 && !moves[i].score;
+    if (ok_lmr && i >= 2 && !m_board->score && !ChecksB()) {if (SearchW(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1) >= beta) continue; m_board = moves + i;}
     const auto score = SearchW(alpha, beta, depth - 1, ply + 1);
     if (score < beta) {
       beta   = score;
@@ -1106,20 +1089,14 @@ int BestW() {
   auto score = 0, best_i = 0, alpha = -kInf;
   for (auto i = 0; i < m_root_n; i++) {
     m_board = m_root + i;
+    s_is_pv = i <= 1 && !m_root[i].score;
     if (s_depth >= 1 && i >= 1) {
-      score = SearchB(alpha, alpha + 1, s_depth, 0);
-      if (score > alpha) {
-        m_board = m_root + i;
-        score = SearchB(alpha, kInf, s_depth, 0);
-      }
+      if ((score = SearchB(alpha, alpha + 1, s_depth, 0)) > alpha) {m_board = m_root + i; score = SearchB(alpha, kInf, s_depth, 0);}
     } else {
       score = SearchB(alpha, kInf, s_depth, 0);
     }
     if (s_stop) return s_best_score;
-    if (score > alpha) {
-      alpha  = score;
-      best_i = i;
-    }
+    if (score > alpha) {alpha = score; best_i = i;}
   }
   SortRoot(best_i);
   return alpha;
@@ -1129,20 +1106,14 @@ int BestB() {
   auto score = 0, best_i = 0, beta = kInf;
   for (auto i = 0; i < m_root_n; i++) {
     m_board = m_root + i;
+    s_is_pv = i <= 1 && !m_root[i].score;
     if (s_depth >= 1 && i >= 1) {
-      score = SearchW(beta - 1, beta, s_depth, 0);
-      if (score < beta) {
-        m_board = m_root + i;
-        score = SearchW(-kInf, beta, s_depth, 0);
-      }
+      if ((score = SearchW(beta - 1, beta, s_depth, 0)) < beta) {m_board = m_root + i; score = SearchW(-kInf, beta, s_depth, 0);}
     } else {
       score = SearchW(-kInf, beta, s_depth, 0);
     }
     if (s_stop) return s_best_score;
-    if (score < beta) {
-      beta   = score;
-      best_i = i;
-    }
+    if (score < beta) {beta = score; best_i = i;}
   }
   SortRoot(best_i);
   return beta;
