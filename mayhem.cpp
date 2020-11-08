@@ -119,7 +119,7 @@ typedef struct {
     rule50;     // Rule 50 counter
 } Board_t; // 2x6x8 + 4 + 64 + 1 + 5 = 170B
 
-typedef struct {std::uint64_t hash; std::int32_t score; std::uint8_t eval_set, killer, good, quiet;} Hash_t; // 16B
+typedef struct {std::uint64_t eval_hash, sort_hash; std::int32_t score; std::uint8_t killer, good, quiet;} Hash_t;
 
 // Enums
 
@@ -227,7 +227,7 @@ void HashtableSetSize(const std::uint32_t mb) {
   const auto hashsize = (1 << 20) * Between<std::uint32_t>(1, PowerOf2(mb), 1024 * 1024), hash_count = PowerOf2(hashsize / sizeof(Hash_t));
   h_hash_key = hash_count - 1;
   h_hash.reset(new Hash_t[hash_count]);
-  for (std::size_t i = 0; i < hash_count; i++) {h_hash[i].hash = h_hash[i].score = h_hash[i].eval_set = h_hash[i].killer = h_hash[i].good = h_hash[i].quiet = 0;}
+  for (std::size_t i = 0; i < hash_count; i++) {h_hash[i].eval_hash = h_hash[i].sort_hash = h_hash[i].score = h_hash[i].killer = h_hash[i].good = h_hash[i].quiet = 0;}
 }
 
 const std::string MoveName(const Board_t *move) {
@@ -400,7 +400,7 @@ int EvaluateMoves() {int tactics = 0; for (auto i = 0; i < m_moves_n; i++) {if (
 void SortAll() {SortNthMoves(m_moves_n);}
 
 void SortByScore(const Hash_t *entry, const std::uint64_t hash) {
-  if (entry->hash == hash) {
+  if (entry->sort_hash == hash) {
     if (entry->killer) {m_moves[entry->killer - 1].score += 10000;} else if (entry->good) {m_moves[entry->good - 1].score += 1000;} 
     if (entry->quiet) {m_moves[entry->quiet - 1].score += 500;}
   }
@@ -914,13 +914,13 @@ int ProbeNNUE(const bool wtm) {
 int EvaluationNNUE(const bool wtm) {
   const auto hash = Hash(wtm);
   auto *entry = &h_hash[(std::uint32_t) (hash & h_hash_key)];
-  if (entry->hash == hash && entry->eval_set) return entry->score;
-  entry->hash = hash;
-  entry->eval_set = 1;
+  if (entry->sort_hash == hash) return entry->score;
+  entry->sort_hash = hash;
   return entry->score = DrawMaterial() ? 0 : ProbeNNUE(wtm);
 }
 
-int Evaluation(const bool wtm) {return (s_activate_help ? EvaluationClassical(wtm) : EvaluationNNUE(wtm)) + (g_level == 100 ? 0 : Random(10 * (g_level - 100), 10 * (100 - g_level)));}
+int EvaluationNoise() {return g_level == 100 ? 0 : Random(10 * (g_level - 100), 10 * (100 - g_level));}
+int Evaluation(const bool wtm) {return (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * (s_activate_help ? EvaluationClassical(wtm) : EvaluationNNUE(wtm))) + EvaluationNoise();}
 
 // Search
 
@@ -968,7 +968,7 @@ bool TimeCheckSearch() {
 int QSearchW(int alpha, const int beta, const int depth) {
   s_nodes++;
   if (s_stop || TimeCheckSearch()) return 0;
-  alpha = std::max(alpha, (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * Evaluation(1)));
+  alpha = std::max(alpha, Evaluation(1));
   if (depth <= 0 || alpha >= beta) return alpha;
   Board_t moves[64];
   const auto moves_n = MgenTacticalW(moves);
@@ -980,7 +980,7 @@ int QSearchW(int alpha, const int beta, const int depth) {
 int QSearchB(const int alpha, int beta, const int depth) {
   s_nodes++;
   if (s_stop) return 0;
-  beta = std::min(beta, (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * Evaluation(0)));
+  beta = std::min(beta, Evaluation(0));
   if (depth <= 0 || alpha >= beta) return beta;
   Board_t moves[64];
   const auto moves_n = MgenTacticalB(moves);
@@ -990,7 +990,7 @@ int QSearchB(const int alpha, int beta, const int depth) {
 }
 
 void UpdateSort(Hash_t *entry, enum Move_e type, const std::uint64_t hash, const std::uint8_t index) {
-  entry->hash = hash;
+  entry->sort_hash = hash;
   switch (type) {case kKiller: entry->killer = index + 1; break; case kGood: entry->good = index + 1; break; case kQuiet: entry->quiet = index + 1; break;}
 }
 
