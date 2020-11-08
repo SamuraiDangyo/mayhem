@@ -343,7 +343,7 @@ void FenRule50(const std::string fen) {
 void FenGen(const std::string str) {
   std::vector<std::string> fentokens = {};
   Splitter<std::vector<std::string>>(std::string(str), fentokens, " ");
-  Assert(fentokens.size() >= 3, "Error #1: Bad fen");
+  Assert(fentokens.size() >= 3, "Error #1: Bad fen !");
   FenBoard(fentokens[0]);
   m_wtm = fentokens[1][0] == 'w';
   FindKings();
@@ -370,7 +370,7 @@ void Fen(const std::string fen) {
   FenReset();
   FenGen(fen);
   BuildBitboards();
-  Assert(PopCount(m_board->white[5]) == 1 && PopCount(m_board->black[5]) == 1, "Error #2: Bad kings");
+  Assert(PopCount(m_board->white[5]) == 1 && PopCount(m_board->black[5]) == 1, "Error #2: Bad kings !");
 }
 
 // Checks
@@ -876,7 +876,7 @@ int EvaluationClassical(const bool wtm) {
   if (DrawMaterial()) return 0;
   const auto white = White(), black = Black(), both = white | black;
   const auto white_king_sq = Lsb(m_board->white[5]), black_king_sq = Lsb(m_board->black[5]);
-  int score = (wtm ? +5 : -5) + (s_nodes & 1);
+  int score = (wtm ? +5 : -5) + (s_nodes & 0x1);
   const auto distance = [](const int sq1, const int sq2) {return std::pow(7 - std::abs(Xcoord(sq1) - Xcoord(sq2)), 2) + std::pow(7 - std::abs(Ycoord(sq1) - Ycoord(sq2)), 2);};
   for (auto pieces = both; pieces; pieces = ClearBit(pieces)) {
     const auto sq = Lsb(pieces);
@@ -961,8 +961,8 @@ bool UserStop() {
 bool TimeCheckSearch() {
   static std::uint64_t ticks = 0;
   if (++ticks & 0xFFULL) return 0;
-  if ((Now() >= s_stop_time) || UserStop()) return s_stop = 1;
-  return 0;
+  if ((Now() >= s_stop_time) || UserStop()) s_stop = 1;
+  return s_stop;
 }
 
 int QSearchW(int alpha, const int beta, const int depth) {
@@ -1255,7 +1255,7 @@ void MakeMove() {
   const auto move = TokenCurrent(0);
   MgenRoot();
   for (auto i = 0; i < m_root_n; i++) {if (move == MoveName(m_root + i)) {Make(i); return;}}
-  Assert(0, "Error #4: Bad move");
+  Assert(0, "Error #4: Bad move !");
 }
 
 // Init
