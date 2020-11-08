@@ -968,7 +968,7 @@ bool TimeCheckSearch() {
 int QSearchW(int alpha, const int beta, const int depth) {
   s_nodes++;
   if (s_stop || TimeCheckSearch()) return 0;
-  alpha = std::max(alpha, Evaluation(1));
+  alpha = std::max(alpha, (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * Evaluation(1)));
   if (depth <= 0 || alpha >= beta) return alpha;
   Board_t moves[64];
   const auto moves_n = MgenTacticalW(moves);
@@ -980,7 +980,7 @@ int QSearchW(int alpha, const int beta, const int depth) {
 int QSearchB(const int alpha, int beta, const int depth) {
   s_nodes++;
   if (s_stop) return 0;
-  beta = std::min(beta, Evaluation(0));
+  beta = std::min(beta, (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * Evaluation(0)));
   if (depth <= 0 || alpha >= beta) return beta;
   Board_t moves[64];
   const auto moves_n = MgenTacticalB(moves);
@@ -1036,7 +1036,7 @@ int TryNullMove(const int alpha, const int beta, const int depth, const int ply,
 int SearchW(int alpha, const int beta, const int depth, const int ply) {
   s_nodes++;
   if (s_stop || TimeCheckSearch()) return 0;
-  if (depth <= 0 || ply >= kDepthLimit) return (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * QSearchW(alpha, beta, s_qs_depth));
+  if (depth <= 0 || ply >= kDepthLimit) return QSearchW(alpha, beta, s_qs_depth);
   const auto rule50 = m_board->rule50;
   const auto tmp = s_r50_positions[rule50];
   const auto null_score = TryNullMove(alpha, beta, depth, ply, 1);
@@ -1074,7 +1074,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
 int SearchB(const int alpha, int beta, const int depth, const int ply) {
   s_nodes++;
   if (s_stop) return 0;
-  if (depth <= 0 || ply >= kDepthLimit) return (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * QSearchB(alpha, beta, s_qs_depth));
+  if (depth <= 0 || ply >= kDepthLimit) return QSearchB(alpha, beta, s_qs_depth);
   const auto rule50 = m_board->rule50;
   const auto tmp = s_r50_positions[rule50];
   const auto null_score = TryNullMove(alpha, beta, depth, ply, 0);
@@ -1420,8 +1420,8 @@ void Loop() {while (Uci());}
 
 void Args(int argc, char **argv) {
   if (argc == 1) {Loop(); return;}
-  if (argc == 2 && std::string(argv[1]) == "--version") {std::cout << kName << std::endl; return;}
   if (argc == 2 && std::string(argv[1]) == "--help")    {PrintHelp(); return;}
+  if (argc == 2 && std::string(argv[1]) == "--version") {std::cout << kName << std::endl; return;}
   if (argc == 2 && std::string(argv[1]) == "--bench")   {Bench(); return;}
   if (argc == 3 && std::string(argv[1]) == "-list")     {Fen(std::string(argv[2])); MgenRoot(); PrintRoot(); return;}
   if (argc == 3 && std::string(argv[1]) == "-eval")     {Fen(std::string(argv[2])); std::cout << Evaluation(m_wtm) << std::endl; return;}
