@@ -1378,6 +1378,7 @@ void InitZobrist() {
 }
 
 void Init() {
+  if (g_seed != 131783) return; // Init just once
   g_seed += std::time(nullptr);
   InitBishopMagics();
   InitRookMagics();
@@ -1410,24 +1411,11 @@ void Bench() {
   std::cout << "Nps: " << Nps(nodes, Now() - start) << std::endl;
 }
 
-void PrintHelp() {
-  std::cout << ":: Help ::" << std::endl;
-  std::cout << "> mayhem # Enter UCI mode" << std::endl;
-  std::cout << "--help    This help" << std::endl;
-  std::cout << "--version Show version" << std::endl;
-  std::cout << "--bench   Run benchmarks" << std::endl;
-  std::cout << "-list [FEN] Show root list" << std::endl;
-  std::cout << "-eval [FEN] Show evaluation" << std::endl;
-}
-
 void Loop() {while (Uci());}
-
-void Args(int argc, char **argv) {
-  if (argc == 1) {Loop(); return;}
-  if (argc == 2 && std::string(argv[1]) == "--help")    {PrintHelp(); return;}
-  if (argc == 2 && std::string(argv[1]) == "--version") {std::cout << kName << std::endl; return;}
-  if (argc == 2 && std::string(argv[1]) == "--bench")   {Bench(); return;}
-  if (argc == 3 && std::string(argv[1]) == "-list")     {Fen(std::string(argv[2])); MgenRoot(); PrintRoot(); return;}
-  if (argc == 3 && std::string(argv[1]) == "-eval")     {Fen(std::string(argv[2])); std::cout << Evaluation(m_wtm) << std::endl; return;}
-  std::cout << "> mayhem --help" << std::endl;
-}}
+void PrintHelp() {
+  const std::vector<std::string> help = {":: Help ::", "> mayhem # Enter UCI mode", "--help    This help", "--version Show version", "--bench   Run benchmarks", "-list [FEN] Show root list", "-eval [FEN] Show evaluation"};
+  for (auto str : help) std::cout << str << std::endl;
+}
+void PrintVersion() {std::cout << kName << std::endl;}
+void PrintList(const std::string fen) {Fen(std::string(fen)); MgenRoot(); PrintRoot();}
+void PrintEval(const std::string fen) {Fen(std::string(fen)); std::cout << Evaluation(m_wtm) << std::endl;}}
