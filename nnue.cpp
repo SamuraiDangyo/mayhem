@@ -1132,12 +1132,12 @@ DLLExport void _CDECL nnue_init(const char* evalFile)
   if (loadedFile)
     free(loadedFile);
 
-  printf("Loading NNUE : %s\n", evalFile);
-  fflush(stdout);
+  //printf("Loading NNUE : %s\n", evalFile);
+  //fflush(stdout);
   if (load_eval_file(evalFile)) {
     loadedFile = strdup(evalFile);
-    printf("NNUE loaded !\n");
-    fflush(stdout);
+    //printf("NNUE loaded !\n");
+    //fflush(stdout);
     return;
   }
 
@@ -1153,11 +1153,3 @@ DLLExport int _CDECL nnue_evaluate(int player, int* pieces, int* squares)
   pos.squares = squares;
   return nnue_evaluate_pos(&pos);
 }
-
-DLLExport int _CDECL nnue_evaluate_fen(const char* fen)
-{
-  int pieces[33],squares[33],player,castle,fifty,move_number;
-  decode_fen((char*)fen,&player,&castle,&fifty,&move_number,pieces,squares);;
-  return nnue_evaluate(player,pieces,squares);
-}
-

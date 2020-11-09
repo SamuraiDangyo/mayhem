@@ -84,13 +84,6 @@ void nnue_init(
 extern "C" {
 #endif
 
-/**
-* Evaluate on FEN string
-*/
-int nnue_evaluate_fen(
-  const char* fen                   /** FEN string to probe evaluation for */
-);
-
 #ifdef __cplusplus
 }
 #endif
