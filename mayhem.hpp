@@ -155,11 +155,11 @@ std::vector<std::string>
 Board_t
   m_board_tmp = {{0},{0},0,{0},0,0,0,0,0,0,0}, *m_board = &m_board_tmp, *m_moves = 0, *m_board_orig = 0, m_root[kMaxMoves] = {{{0},{0},0,{0},0,0,0,0,0,0,0}};
 
-std::unique_ptr<Hash_t[]> 
+std::unique_ptr<Hash_t[]>
   h_hash;
 
 std::string
-  g_eval_file = "nn-cb26f10b1fd9.nnue";
+  g_eval_file = "nn-c3ca321c51c9.nnue";
 
 // Function Prototypes
 
@@ -176,26 +176,26 @@ std::uint64_t BishopMagicMoves(const int, const std::uint64_t);
 inline std::uint64_t White() {return m_board->white[0] | m_board->white[1] | m_board->white[2] | m_board->white[3] | m_board->white[4] | m_board->white[5];}
 inline std::uint64_t Black() {return m_board->black[0] | m_board->black[1] | m_board->black[2] | m_board->black[3] | m_board->black[4] | m_board->black[5];}
 inline std::uint64_t Both() {return White() | Black();}
-std::uint8_t Xcoord(const std::uint64_t bb) {return bb & 7;}
-std::uint8_t Ycoord(const std::uint64_t bb) {return bb >> 3;}
-template <class Type> Type Between(const Type va, const Type vb, const Type vc) {return std::max(va, std::min(vb, vc));}
 inline unsigned int Lsb(const std::uint64_t bb) {return __builtin_ctzll(bb);}
 inline unsigned int PopCount(const std::uint64_t bb) {return __builtin_popcountll(bb);}
 inline std::uint64_t ClearBit(const std::uint64_t bb) {return bb & (bb - 1);}
-std::uint32_t Nps(const std::uint64_t nodes, const std::uint32_t ms) {return (1000 * nodes) / (ms + 1);}
+inline std::uint8_t Xcoord(const std::uint64_t bb) {return bb & 7;}
+inline std::uint8_t Ycoord(const std::uint64_t bb) {return bb >> 3;}
 inline std::uint64_t Bit(const int nbits) {return 0x1ULL << nbits;}
+template <class Type> Type Between(const Type va, const Type vb, const Type vc) {return std::max(va, std::min(vb, vc));}
+std::uint32_t Nps(const std::uint64_t nodes, const std::uint32_t ms) {return (1000 * nodes) / (ms + 1);}
 void Assert(const bool test, const std::string msg) {if (test) return; std::cerr << msg << std::endl; std::exit(EXIT_FAILURE);}
 const std::string MoveStr(const int from, const int to) {char str[5]; str[0] = 'a' + Xcoord(from); str[1] = '1' + Ycoord(from); str[2] = 'a' + Xcoord(to); str[3] = '1' + Ycoord(to); str[4] = '\0'; return std::string(str);}
 std::uint64_t Now() {struct timeval tv; if (gettimeofday(&tv, NULL)) return 0; return (std::uint64_t) (1000 * tv.tv_sec + tv.tv_usec / 1000);}
-std::uint64_t RandomBB() {
+std::uint64_t Random64() {
   static std::uint64_t va = 0X12311227ULL, vb = 0X1931311ULL, vc = 0X13138141ULL;
   auto mixer = [](std::uint64_t num) {return (num << 7) ^ (num >> 5);};
   va ^= vb + vc; vb ^= vb * vc + 0x1717711ULL; vc  = (3 * vc) + 1;
   return mixer(va) ^ mixer(vb) ^ mixer(vc);
 }
-std::uint64_t Random8x64() {std::uint64_t val = 0; for (auto i = 0; i < 8; i++) val ^= RandomBB() << (8 * i); return val;}
-int Random1(const int max) {const std::uint64_t rnum = (g_seed ^ RandomBB()) & 0xFFFFFFFFULL; g_seed = (g_seed << 5) ^ (g_seed + 1) ^ (g_seed >> 3); return (int) (max * (0.0001 * (float) (rnum % 10000)));}
-int Random(const int x, const int y) {return x + Random1(y - x + 1);}
+std::uint64_t Random8x64() {std::uint64_t val = 0; for (auto i = 0; i < 8; i++) val ^= Random64() << (8 * i); return val;}
+int Random(const int max) {const std::uint64_t rnum = (g_seed ^ Random64()) & 0xFFFFFFFFULL; g_seed = (g_seed << 5) ^ (g_seed + 1) ^ (g_seed >> 3); return (int) (max * (0.0001 * (float) (rnum % 10000)));}
+int Random(const int x, const int y) {return x + Random(y - x + 1);}
 bool OnBoard(const int x, const int y) {return x >= 0 && x <= 7 && y >= 0 && y <= 7;}
 
 template <class Type> void Splitter(const std::string& str, Type& container, const std::string& delims = " ") {
@@ -405,7 +405,7 @@ void SortAll() {SortNthMoves(m_moves_n);}
 
 void SortByScore(const Hash_t *entry, const std::uint64_t hash) {
   if (entry->sort_hash == hash) {
-    if (entry->killer) {m_moves[entry->killer - 1].score += 10000;} else if (entry->good) {m_moves[entry->good - 1].score += 1000;} 
+    if (entry->killer) {m_moves[entry->killer - 1].score += 10000;} else if (entry->good) {m_moves[entry->good - 1].score += 1000;}
     if (entry->quiet) {m_moves[entry->quiet - 1].score += 500;}
   }
   SortNthMoves(EvaluateMoves());
@@ -929,7 +929,7 @@ int Evaluation(const bool wtm) {return (int) ((1.0 - (((float) m_board->rule50) 
 // Search
 
 void Speak(const int score, const std::uint64_t search_time) {
-  std::cout << "info depth " << std::min(s_max_depth, s_depth + 1) << " nodes " << s_nodes << " time " << search_time << " nps " << Nps(s_nodes, search_time) << 
+  std::cout << "info depth " << std::min(s_max_depth, s_depth + 1) << " nodes " << s_nodes << " time " << search_time << " nps " << Nps(s_nodes, search_time) <<
                " score cp " << ((m_wtm ? 1 : -1) * (int) ((std::abs(score) >= kInf ? 0.01 : 1.0) * score)) << " pv " << MoveName(m_root) << std::endl;
 }
 
