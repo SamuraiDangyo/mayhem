@@ -1,5 +1,5 @@
 /*
-Mayhem is Sapeli written in C++14 with SF NNUE evaluation (Credits for it ...)
+Mayhem, Linux UCI Chess960 program. Mayhem is Sapeli written in C++14 with SF NNUE evaluation. 
 Copyright (C) 2020 Toni Helminen
 
 This program is free software: you can redistribute it and/or modify
@@ -40,7 +40,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem NNUE 0.50", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem 1.0", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 35, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
@@ -121,7 +121,7 @@ typedef struct {
     type,       // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
     castle,     // Castling rights
     rule50;     // Rule 50 counter
-} Board_t; // 2x6x8 + 4 + 64 + 1 + 5 = 170B
+} Board_t;
 
 typedef struct {std::uint64_t eval_hash, sort_hash; std::int32_t score; std::uint8_t killer, good, quiet;} Hash_t;
 
@@ -159,7 +159,7 @@ std::unique_ptr<Hash_t[]>
   h_hash;
 
 std::string
-  g_eval_file = "nn-c3ca321c51c9.nnue";
+  e_eval_file = "nn-c3ca321c51c9.nnue";
 
 // Function Prototypes
 
@@ -176,8 +176,8 @@ std::uint64_t BishopMagicMoves(const int, const std::uint64_t);
 inline std::uint64_t White() {return m_board->white[0] | m_board->white[1] | m_board->white[2] | m_board->white[3] | m_board->white[4] | m_board->white[5];}
 inline std::uint64_t Black() {return m_board->black[0] | m_board->black[1] | m_board->black[2] | m_board->black[3] | m_board->black[4] | m_board->black[5];}
 inline std::uint64_t Both() {return White() | Black();}
-inline unsigned int Lsb(const std::uint64_t bb) {return __builtin_ctzll(bb);}
-inline unsigned int PopCount(const std::uint64_t bb) {return __builtin_popcountll(bb);}
+inline int Lsb(const std::uint64_t bb) {return __builtin_ctzll(bb);}
+inline int PopCount(const std::uint64_t bb) {return __builtin_popcountll(bb);}
 inline std::uint64_t ClearBit(const std::uint64_t bb) {return bb & (bb - 1);}
 inline std::uint8_t Xcoord(const std::uint64_t bb) {return bb & 7;}
 inline std::uint8_t Ycoord(const std::uint64_t bb) {return bb >> 3;}
@@ -415,7 +415,7 @@ void EvalRootMoves() {
   auto *tmp = m_board;
   for (auto i = 0; i < m_root_n; i++) {
     m_board = m_root + i;
-    m_board->score += (m_wtm ? 1 : -1) * Evaluation(m_wtm) + Random(-2, 2);
+    m_board->score += (m_board->type == 8 ? 1000 : 0) + (m_board->type >= 1 && m_board->type <= 4 ? 100 : 0) + (m_board->type >= 5 && m_board->type <= 7 ? -5000 : 0) + (m_wtm ? +1 : -1) * Evaluation(m_wtm) + Random(+2, -2);
   }
   m_board = tmp;
 }
@@ -860,10 +860,7 @@ void MgenRoot() {
   SortAll();
 }
 
-void PrintRoot() {
-  for (auto i = 0; i < m_root_n; i++)
-    std::cout << i << ": " << MoveName(m_root + i) << " : " << m_root[i].score << std::endl;
-}
+void PrintRoot() {for (auto i = 0; i < m_root_n; i++) std::cout << i << ": " << MoveName(m_root + i) << " : " << m_root[i].score << std::endl;}
 
 // Evaluation
 
@@ -872,7 +869,7 @@ std::uint64_t DrawKey(const int n_knights_w, const int n_bishops_w, const int n_
 bool DrawMaterial() {
   if (m_board->white[0] | m_board->white[3] | m_board->white[4] | m_board->black[0] | m_board->black[3] | m_board->black[4]) return 0;
   const auto hash = DrawKey(PopCount(m_board->white[1]), PopCount(m_board->white[2]), PopCount(m_board->black[1]), PopCount(m_board->black[2]));
-  for (auto i = 0; i < 15; i++) if (s_sure_draws[i] == hash) return 1;
+  for (auto i = 0; i < 15; i++) {if (s_sure_draws[i] == hash) return 1;}
   return 0;
 }
 
@@ -923,14 +920,13 @@ int EvaluationNNUE(const bool wtm) {
   return entry->score = DrawMaterial() ? 0 : ProbeNNUE(wtm);
 }
 
-int EvaluationNoise() {return g_level == 100 ? 0 : Random(10 * (g_level - 100), 10 * (100 - g_level));}
-int Evaluation(const bool wtm) {return (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * (s_activate_help ? EvaluationClassical(wtm) : EvaluationNNUE(wtm))) + EvaluationNoise();}
+int Evaluation(const bool wtm) {return (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * (s_activate_help ? EvaluationClassical(wtm) : EvaluationNNUE(wtm)));}
 
 // Search
 
 void Speak(const int score, const std::uint64_t search_time) {
-  std::cout << "info depth " << std::min(s_max_depth, s_depth + 1) << " nodes " << s_nodes << " time " << search_time << " nps " << Nps(s_nodes, search_time) <<
-               " score cp " << ((m_wtm ? 1 : -1) * (int) ((std::abs(score) >= kInf ? 0.01 : 1.0) * score)) << " pv " << MoveName(m_root) << std::endl;
+  std::cout << "info depth " << std::min(s_max_depth, s_depth + 1) << " nodes " << s_nodes << " time " << search_time << " nps " << Nps(s_nodes, search_time) 
+            << " score cp " << ((m_wtm ? 1 : -1) * (int) ((std::abs(score) >= kInf ? 0.01 : 0.5) * score)) << " pv " << MoveName(m_root) << std::endl;
 }
 
 bool Draw() {
@@ -1100,7 +1096,7 @@ int BestW() {
       score = SearchB(alpha, kInf, s_depth, 0);
     }
     if (s_stop) return s_best_score;
-    if (score > alpha) {alpha = score; best_i = i;}
+    if (score > alpha) {if ((m_root[i].type >= 5 && m_root[i].type <= 7) && std::abs(score) < kInf / 2) continue; /* No underpromos */ alpha = score; best_i = i;}
   }
   SortRoot(best_i);
   return alpha;
@@ -1117,7 +1113,7 @@ int BestB() {
       score = SearchW(-kInf, beta, s_depth, 0);
     }
     if (s_stop) return s_best_score;
-    if (score < beta) {beta = score; best_i = i;}
+    if (score < beta) {if ((m_root[i].type >= 5 && m_root[i].type <= 7) && std::abs(score) < kInf / 2) continue; beta = score; best_i = i;}
   }
   SortRoot(best_i);
   return beta;
@@ -1143,14 +1139,11 @@ bool ThinkRandomMove() {
 }
 
 bool ActivateHelper() {
+  const auto black_n = PopCount(Black()), white_n = PopCount(White());
   if (m_wtm) {
-    if (PopCount(Black()) >= 2) return 0; // Black has pieces
-    if (PopCount(White()) == 2 && m_board->white[0]) return 0; // KPK
-    if (PopCount(White()) == 3 && m_board->white[1] && m_board->white[2]) return 0; // KNBK
+    if (black_n >= 2 || (white_n == 2 && m_board->white[0]) || (white_n == 3 && m_board->white[1] && m_board->white[2])) return 0; // Black has pieces, KPK, KNBK
   } else {
-    if (PopCount(White()) >= 2) return 0;
-    if (PopCount(Black()) == 2 && m_board->black[0]) return 0;
-    if (PopCount(Black()) == 3 && m_board->black[1] && m_board->black[2]) return 0;
+    if (white_n >= 2 || (black_n == 2 && m_board->black[0]) || (black_n == 3 && m_board->black[1] && m_board->black[2])) return 0;
   }
   return 1;
 }
@@ -1170,6 +1163,7 @@ void Think(const int think_time) {
     s_qs_depth = std::min(s_qs_depth + 2, 12);
   }
   s_underpromos = 1;
+  if (g_level >= 1 && g_level <= 99) {auto nth = Random(0, std::max(1, (int) (m_root_n * (1.0 - g_level / 100.0)))); if (Random(0, 100) > g_level && nth) Swap(m_root, m_root + nth);}
   m_board = tmp;
   Speak(s_best_score, Now() - start);
 }
@@ -1184,9 +1178,7 @@ void UciFen() {
   Fen(fen);
 }
 
-void UciMoves() {
-  while (TokenOk()) {MakeMove(); TokenPop();}
-}
+void UciMoves() {while (TokenOk()) {MakeMove(); TokenPop();}}
 
 void UciPosition() {
   Fen(kStartpos);
@@ -1199,7 +1191,7 @@ void UciSetoption() {
   else if (TokenPeek("name") && TokenPeek("Level", 1)        && TokenPeek("value", 2)) {g_level = Between<int>(0, TokenInt(3), 100); TokenPop(4);}
   else if (TokenPeek("name") && TokenPeek("Hash", 1)         && TokenPeek("value", 2)) {HashtableSetSize(TokenInt(3)); TokenPop(4);}
   else if (TokenPeek("name") && TokenPeek("MoveOverhead", 1) && TokenPeek("value", 2)) {g_move_overhead = Between<int>(0, TokenInt(3), 5000); TokenPop(4);}
-  else if (TokenPeek("name") && TokenPeek("EvalFile", 1)     && TokenPeek("value", 2)) {g_eval_file = TokenCurrent(3); nnue_init(g_eval_file.c_str()); TokenPop(4);}
+  else if (TokenPeek("name") && TokenPeek("EvalFile", 1)     && TokenPeek("value", 2)) {e_eval_file = TokenCurrent(3); nnue_init(e_eval_file.c_str()); TokenPop(4);}
 }
 
 void UciGo() {
@@ -1226,7 +1218,7 @@ void UciUci() {
   std::cout << "option name Level type spin default 100 min 0 max 100" << std::endl;
   std::cout << "option name Hash type spin default 256 min 1 max 1048576" << std::endl;
   std::cout << "option name MoveOverhead type spin default 10 min 0 max 5000" << std::endl;
-  std::cout << "option name EvalFile type string default " << g_eval_file << std::endl;
+  std::cout << "option name EvalFile type string default " << e_eval_file << std::endl;
   std::cout << "uciok" << std::endl;
 }
 
@@ -1388,22 +1380,20 @@ void Init() {
   InitJumpMoves();
   Fen(kStartpos);
   HashtableSetSize(256);
-  nnue_init(g_eval_file.c_str());
+  nnue_init(e_eval_file.c_str());
 }
 
 void Bench() {
-  std::uint64_t nodes = 0ULL, start = Now();
+  std::uint64_t nodes = 0, start = Now();
   const std::vector<std::string> suite = {
     "brnnkbrq/pppppppp/8/8/8/8/PPPPPPPP/BRNNKBRQ w GBgb - 0 1",
-    "qbbrnkrn/pppppppp/8/8/8/8/PPPPPPPP/QBBRNKRN w GDgd - 0 1",
     "qnnrkrbb/pppppppp/8/8/8/8/PPPPPPPP/QNNRKRBB w DFdf - 0 1",
-    "nbbqnrkr/pppppppp/8/8/8/8/PPPPPPPP/NBBQNRKR w FHfh - 0 1",
     "nqbnrbkr/pppppppp/8/8/8/8/PPPPPPPP/NQBNRBKR w EHeh - 0 1"
   };
   std::cout << ":: Benchmarks ::\n" << std::endl;
-  for (std::size_t i = 0; i < suite.size(); i++) {
-    std::cout << (i + 1) << " / " << suite.size() << ":" << std::endl;
-    Fen(suite[i]);
+  for (const auto fen : suite) {
+    std::cout << "[ " << fen << " ] " << std::endl;
+    Fen(fen);
     Think(5000);
     nodes += s_nodes;
     std::cout << std::endl;
@@ -1413,7 +1403,7 @@ void Bench() {
 
 void Loop() {while (Uci());}
 void PrintHelp() {
-  const std::vector<std::string> help = {":: Help ::", "> mayhem # Enter UCI mode", "--help    This help", "--version Show version", "--bench   Run benchmarks", "-list [FEN] Show root list", "-eval [FEN] Show evaluation"};
+  const std::vector<std::string> help = {":: Help ::", "> mayhem # Enter UCI mode", "--version Show version", "--bench   Run benchmarks", "-list [FEN] Show root list", "-eval [FEN] Show evaluation"};
   for (auto str : help) std::cout << str << std::endl;
 }
 void PrintVersion() {std::cout << kName << std::endl;}

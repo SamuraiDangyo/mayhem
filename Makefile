@@ -11,17 +11,17 @@ all:
 	$(CXX) $(CXXFLAGS) $(FILES) -o $(EXE)
 
 release: clean
-	x86_64-w64-mingw32-g++ $(CXXFLAGS) -static -DWINDOWS $(FILES) -o mayhem-$(VER)-x86-windows-modern-64bit.exe
-	$(CXX) $(CXXFLAGS) -static $(FILES) -o mayhem-$(VER)-x86-unix-modern-64bit
+	x86_64-w64-mingw32-g++ $(CXXFLAGS) -static -DWINDOWS $(FILES) -o $(EXE)-$(VER)-x86-windows-modern-64bit.exe
+	$(CXX) $(CXXFLAGS) -static $(FILES) -o $(EXE)-$(VER)-x86-unix-modern-64bit
 
 strip:
 	strip ./$(EXE)
 
 clean:
-	rm -f $(EXE) $(EXE)-* *.pgn
+	rm -f $(EXE) $(EXE)-* *.pgn game.* log.*
 
 test: all
-	cutechess-cli -engine cmd=./$(EXE) dir=. proto=uci -engine cmd=fruit proto=uci -each option.MoveOverhead=10 tc=60/40 -rounds 100 -resign movecount=4 score=500 -draw movenumber=40 movecount=12 score=30 -pgnout games.pgn
+	cutechess-cli -engine cmd=./$(EXE) dir=. proto=uci -engine cmd=crafty proto=xboard -each option.MoveOverhead=10 tc=60/40 -rounds 10 -resign movecount=4 score=500 -draw movenumber=40 movecount=12 score=30 -pgnout games.pgn
 
 xboard: all
 	xboard -fUCI -fcp ./$(EXE)
