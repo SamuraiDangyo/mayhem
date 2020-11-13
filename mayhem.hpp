@@ -40,7 +40,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem 1.0", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem 1.1", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 35, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
@@ -1122,7 +1122,7 @@ int BestB() {
 void ThinkSetup(const int think_time) {
   s_stop = s_nullmove = s_is_pv = s_activate_help = 0;
   s_best_score = s_nodes = s_depth = 0;
-  s_qs_depth  = 6;
+  s_qs_depth = 6;
   s_stop_time = Now() + (std::uint64_t) std::max(0, think_time);
 }
 
@@ -1392,7 +1392,7 @@ void Bench() {
   };
   std::cout << ":: Benchmarks ::\n" << std::endl;
   for (const auto fen : suite) {
-    std::cout << "[ " << fen << " ] " << std::endl;
+    std::cout << "[ " << fen << " ]" << std::endl;
     Fen(fen);
     Think(5000);
     nodes += s_nodes;
@@ -1407,5 +1407,5 @@ void PrintHelp() {
   for (auto str : help) std::cout << str << std::endl;
 }
 void PrintVersion() {std::cout << kName << std::endl;}
-void PrintList(const std::string fen) {Fen(std::string(fen)); MgenRoot(); PrintRoot();}
-void PrintEval(const std::string fen) {Fen(std::string(fen)); std::cout << Evaluation(m_wtm) << std::endl;}}
+void PrintList(const std::string fen) {Fen(fen); MgenRoot(); PrintRoot();}
+void PrintEval(const std::string fen) {Fen(fen); std::cout << Evaluation(m_wtm) << std::endl;}}
