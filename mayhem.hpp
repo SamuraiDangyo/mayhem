@@ -1126,15 +1126,10 @@ void ThinkSetup(const int think_time) {
   s_stop_time = Now() + (std::uint64_t) std::max(0, think_time);
 }
 
-void RandomMove() {
-  if (!m_root_n) return;
-  const auto root_i = Random(0, m_root_n - 1);
-  if (root_i) Swap(m_root, m_root + root_i);
-}
-
 bool ThinkRandomMove() {
   if (g_level) return 0;
-  RandomMove();
+  const auto root_i = Random(0, m_root_n - 1);
+  if (root_i) Swap(m_root, m_root + root_i);
   return 1;
 }
 
@@ -1154,8 +1149,8 @@ void Think(const int think_time) {
   ThinkSetup(think_time);
   s_activate_help = s_nullmove = ActivateHelper(); // vs bare king = active mate help + disable null move
   MgenRoot();
-  if (ThinkRandomMove()) return;
   if (m_root_n <= 1) {Speak(0, 0); return;}
+  if (ThinkRandomMove()) return;
   s_underpromos = 0;
   for (; std::abs(s_best_score) < 0.5 * kInf && s_depth < s_max_depth && !s_stop; s_depth++) {
     s_best_score = m_wtm ? BestW() : BestB();
