@@ -127,7 +127,7 @@ typedef struct {std::uint64_t eval_hash, sort_hash; std::int32_t score; std::uin
 
 // Enums
 
-enum Move_e {kKiller, kGood, kQuiet};
+enum Move_t {kKiller, kGood, kQuiet};
 
 // Variables
 
@@ -184,7 +184,7 @@ inline std::uint8_t Ycoord(const std::uint64_t bb) {return bb >> 3;}
 inline std::uint64_t Bit(const int nbits) {return 0x1ULL << nbits;}
 template <class Type> Type Between(const Type va, const Type vb, const Type vc) {return std::max(va, std::min(vb, vc));}
 std::uint32_t Nps(const std::uint64_t nodes, const std::uint32_t ms) {return (1000 * nodes) / (ms + 1);}
-void Assert(const bool test, const std::string msg) {if (test) return; std::cerr << msg << std::endl; std::exit(EXIT_FAILURE);}
+void Assert(const bool test, const std::string &msg) {if (test) return; std::cerr << msg << std::endl; std::exit(EXIT_FAILURE);}
 const std::string MoveStr(const int from, const int to) {char str[5]; str[0] = 'a' + Xcoord(from); str[1] = '1' + Ycoord(from); str[2] = 'a' + Xcoord(to); str[3] = '1' + Ycoord(to); str[4] = '\0'; return std::string(str);}
 std::uint64_t Now() {struct timeval tv; if (gettimeofday(&tv, NULL)) return 0; return (std::uint64_t) (1000 * tv.tv_sec + tv.tv_usec / 1000);}
 std::uint64_t Random64() {
@@ -269,9 +269,9 @@ inline std::uint64_t Hash(const int wtm) {
 bool TokenOk(const int look_ahead = 0) {return g_tokens_nth + look_ahead < g_tokens.size();}
 const std::string TokenCurrent(const int look_ahead = 1) {return TokenOk(look_ahead) ? g_tokens[g_tokens_nth + look_ahead] : "";}
 void TokenPop(const int pop_howmany = 1) {g_tokens_nth += pop_howmany;}
-bool Token(const std::string token, const int pop_howmany = 1) {if (TokenOk(0) && token == TokenCurrent(0)) {TokenPop(pop_howmany); return 1;} return 0;}
+bool Token(const std::string &token, const int pop_howmany = 1) {if (TokenOk(0) && token == TokenCurrent(0)) {TokenPop(pop_howmany); return 1;} return 0;}
 int TokenInt(const int look_ahead = 0) {return TokenOk(look_ahead) ? std::stoi(g_tokens[g_tokens_nth + look_ahead]) : 0;}
-bool TokenPeek(const std::string str, const int look_ahead = 0) {return TokenOk(look_ahead) ? str == g_tokens[g_tokens_nth + look_ahead] : 0;}
+bool TokenPeek(const std::string &str, const int look_ahead = 0) {return TokenOk(look_ahead) ? str == g_tokens[g_tokens_nth + look_ahead] : 0;}
 
 // Board_t
 
@@ -314,12 +314,12 @@ void BuildCastlingBitboards() {
 
 int Piece(const char piece) {for (auto i = 0; i < 6; i++) {if (piece == "pnbrqk"[i]) return -i - 1; else if (piece == "PNBRQK"[i]) return +i + 1;} return 0;}
 
-void FenBoard(const std::string fen) {
+void FenBoard(const std::string &fen) {
   int sq = 56;
   for (std::size_t i = 0; i < fen.length() && sq >= 0; i++) if (fen[i] == '/') sq -= 16; else if (isdigit(fen[i])) sq += fen[i] - '0'; else m_board->pieces[sq++] = Piece(fen[i]);
 }
 
-void FenKQkq(const std::string fen) {
+void FenKQkq(const std::string &fen) {
   for (std::size_t i = 0; i < fen.length(); i++)
     if (     fen[i] == 'K') {m_rook_w[0] = 7;      m_board->castle |= 1;}
     else if (fen[i] == 'Q') {m_rook_w[1] = 0;      m_board->castle |= 2;}
@@ -334,17 +334,17 @@ void FenKQkq(const std::string fen) {
     }
 }
 
-void FenEp(const std::string fen) {
+void FenEp(const std::string &fen) {
   if (fen.length() != 2) return;
   m_board->epsq = (fen[0] - 'a') + 8 * (fen[1] - '1');
 }
 
-void FenRule50(const std::string fen) {
+void FenRule50(const std::string &fen) {
   if (fen.length() == 0 || fen[0] == '-') return;
   m_board->rule50 = Between<std::uint8_t>(0, std::stoi(fen), 100);
 }
 
-void FenGen(const std::string str) {
+void FenGen(const std::string &str) {
   std::vector<std::string> fentokens = {};
   Splitter<std::vector<std::string>>(std::string(str), fentokens, " ");
   Assert(fentokens.size() >= 3, "Error #1: Bad fen !");
@@ -370,7 +370,7 @@ void FenReset() {
   std::memset(m_board->black, 0, sizeof(m_board->black));
 }
 
-void Fen(const std::string fen) {
+void Fen(const std::string &fen) {
   FenReset();
   FenGen(fen);
   BuildBitboards();
@@ -989,7 +989,7 @@ int QSearchB(const int alpha, int beta, const int depth) {
   return beta;
 }
 
-void UpdateSort(Hash_t *entry, enum Move_e type, const std::uint64_t hash, const std::uint8_t index) {
+void UpdateSort(Hash_t *entry, enum Move_t type, const std::uint64_t hash, const std::uint8_t index) {
   entry->sort_hash = hash;
   switch (type) {case kKiller: entry->killer = index + 1; break; case kGood: entry->good = index + 1; break; case kQuiet: entry->quiet = index + 1; break;}
 }
@@ -1402,5 +1402,5 @@ void PrintHelp() {
   for (auto str : help) std::cout << str << std::endl;
 }
 void PrintVersion() {std::cout << kName << std::endl;}
-void PrintList(const std::string fen) {Fen(fen); MgenRoot(); PrintRoot();}
-void PrintEval(const std::string fen) {Fen(fen); std::cout << Evaluation(m_wtm) << std::endl;}}
+void PrintList(const std::string &fen) {Fen(fen); MgenRoot(); PrintRoot();}
+void PrintEval(const std::string &fen) {Fen(fen); std::cout << Evaluation(m_wtm) << std::endl;}}
