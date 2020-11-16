@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <ctype.h>
 
-#include "misc.h"
+#include "misc.hpp"
 
 FD open_file(const char *name)
 {
@@ -77,3 +77,4 @@ void unmap_file(const void *data, map_t map)
 
 #endif
 }
+

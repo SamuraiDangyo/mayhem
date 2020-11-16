@@ -1,10 +1,9 @@
-#ifndef NNUE_H
-#define NNUE_H
+#pragma once
 
 #include <stdbool.h>
 #include <stdalign.h>
 
-#include "misc.h"
+#include "misc.hpp"
 
 #ifdef __cplusplus
 #   define EXTERNC extern "C"
@@ -116,6 +115,3 @@ int nnue_evaluate(
 #ifdef __cplusplus
 }
 #endif
-
-#endif
-

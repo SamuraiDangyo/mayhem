@@ -1,5 +1,4 @@
-#ifndef MISC_H
-#define MISC_H
+#pragma once
 
 #include <inttypes.h>
 
@@ -49,10 +48,5 @@ INLINE uint16_t readu_le_u16(const void *p)
   return q[0] | (q[1] << 8);
 }
 
-void decode_fen(const char* fen_str, int* player, int* castle,
-       int* fifty, int* move_number, int* piece, int* square);
 
 #define clamp(a, b, c) ((a) < (b) ? (b) : (a) > (c) ? (c) : (a))
-
-#endif
-

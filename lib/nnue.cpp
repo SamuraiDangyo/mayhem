@@ -27,7 +27,7 @@
 #endif
 
 #define DLL_EXPORT
-#include "nnue.h"
+#include "nnue.hpp"
 #undef DLL_EXPORT
 
 // Old gcc on Windows is unable to provide a 32-byte aligned stack.
@@ -1153,3 +1153,4 @@ DLLExport int _CDECL nnue_evaluate(int player, int* pieces, int* squares)
   pos.squares = squares;
   return nnue_evaluate_pos(&pos);
 }
+
