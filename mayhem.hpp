@@ -135,7 +135,7 @@ int
   g_level = 100, g_move_overhead = 10, m_rook_w[2] = {}, m_rook_b[2] = {}, m_root_n = 0, m_king_w = 0, m_king_b = 0, m_moves_n = 0, s_max_depth = kDepthLimit, s_qs_depth = 6, s_depth = 0, s_best_score = 0;
 
 std::uint32_t
-  h_hash_key = 0;
+  g_hash_key = 0;
 
 std::uint64_t
   g_seed = 131783, m_black = 0, m_both = 0, m_empty = 0, m_good = 0, m_pawn_sq = 0, m_white = 0, m_pawn_1_moves_w[64] = {}, m_pawn_1_moves_b[64] = {}, m_pawn_2_moves_w[64] = {}, m_pawn_2_moves_b[64] = {},
@@ -144,7 +144,7 @@ std::uint64_t
   s_r50_positions[128] = {}, s_nodes = 0;
 
 bool
-  g_chess960 = 0, m_wtm = 0, s_stop = 0, s_activate_help = 0, s_underpromos = 1, s_nullmove = 0, s_is_pv = 0, s_look_for_draws = 1, s_analyzing = 0;
+  g_chess960 = false, m_wtm = false, s_stop = false, s_activate_help = false, s_underpromos = true, s_nullmove = false, s_is_pv = false, s_look_for_draws = true, s_analyzing = false;
 
 std::size_t
   g_tokens_nth = 0;
@@ -156,10 +156,10 @@ Board_t
   m_board_tmp = {}, *m_board = &m_board_tmp, *m_moves = 0, *m_board_orig = 0, m_root[kMaxMoves] = {};
 
 std::unique_ptr<Hash_t[]>
-  h_hash;
+  g_hash;
 
 std::string
-  e_eval_file = "nn-c3ca321c51c9.nnue";
+  g_eval_file = "nn-c3ca321c51c9.nnue";
 
 // Function Prototypes
 
@@ -229,9 +229,9 @@ std::uint32_t PowerOf2(const std::uint32_t number) {std::uint32_t ret = 1; if (n
 
 void HashtableSetSize(const std::uint32_t mb) {
   const auto hashsize = (1 << 20) * Between<std::uint32_t>(1, PowerOf2(mb), 1024 * 1024), hash_count = PowerOf2(hashsize / sizeof(Hash_t));
-  h_hash_key = hash_count - 1;
-  h_hash.reset(new Hash_t[hash_count]);
-  for (std::size_t i = 0; i < hash_count; i++) {h_hash[i].eval_hash = h_hash[i].sort_hash = h_hash[i].score = h_hash[i].killer = h_hash[i].good = h_hash[i].quiet = 0;}
+  g_hash_key = hash_count - 1;
+  g_hash.reset(new Hash_t[hash_count]);
+  for (std::size_t i = 0; i < hash_count; i++) {g_hash[i].eval_hash = g_hash[i].sort_hash = g_hash[i].score = g_hash[i].killer = g_hash[i].good = g_hash[i].quiet = 0;}
 }
 
 const std::string MoveName(const Board_t *move) {
@@ -269,9 +269,9 @@ inline std::uint64_t Hash(const int wtm) {
 bool TokenOk(const int look_ahead = 0) {return g_tokens_nth + look_ahead < g_tokens.size();}
 const std::string TokenCurrent(const int look_ahead = 1) {return TokenOk(look_ahead) ? g_tokens[g_tokens_nth + look_ahead] : "";}
 void TokenPop(const int pop_howmany = 1) {g_tokens_nth += pop_howmany;}
-bool Token(const std::string &token, const int pop_howmany = 1) {if (TokenOk(0) && token == TokenCurrent(0)) {TokenPop(pop_howmany); return 1;} return 0;}
+bool Token(const std::string &token, const int pop_howmany = 1) {if (TokenOk(0) && token == TokenCurrent(0)) {TokenPop(pop_howmany); return true;} return false;}
 int TokenInt(const int look_ahead = 0) {return TokenOk(look_ahead) ? std::stoi(g_tokens[g_tokens_nth + look_ahead]) : 0;}
-bool TokenPeek(const std::string &str, const int look_ahead = 0) {return TokenOk(look_ahead) ? str == g_tokens[g_tokens_nth + look_ahead] : 0;}
+bool TokenPeek(const std::string &str, const int look_ahead = 0) {return TokenOk(look_ahead) ? str == g_tokens[g_tokens_nth + look_ahead] : false;}
 
 // Board_t
 
@@ -389,8 +389,8 @@ inline bool ChecksHereB(const int sq) {
           (RookMagicMoves(sq, both) & (m_board->black[3] | m_board->black[4])) | (m_king[sq] & m_board->black[5]));
 }
 
-bool ChecksCastleW(std::uint64_t squares) {for (; squares; squares = ClearBit(squares)) {if (ChecksHereW(Lsb(squares))) return 1;} return 0;}
-bool ChecksCastleB(std::uint64_t squares) {for (; squares; squares = ClearBit(squares)) {if (ChecksHereB(Lsb(squares))) return 1;} return 0;}
+bool ChecksCastleW(std::uint64_t squares) {for (; squares; squares = ClearBit(squares)) {if (ChecksHereW(Lsb(squares))) return true;} return false;}
+bool ChecksCastleB(std::uint64_t squares) {for (; squares; squares = ClearBit(squares)) {if (ChecksHereB(Lsb(squares))) return true;} return false;}
 bool ChecksW() {return ChecksHereW(Lsb(m_board->black[5]));}
 bool ChecksB() {return ChecksHereB(Lsb(m_board->white[5]));}
 
@@ -852,8 +852,10 @@ int MgenCapturesB(Board_t *moves) {
 int MgenTacticalW(Board_t *moves) {return ChecksB() ? MgenW(moves) : MgenCapturesW(moves);}
 int MgenTacticalB(Board_t *moves) {return ChecksW() ? MgenB(moves) : MgenCapturesB(moves);}
 
-void MgenRoot() {
-  m_root_n = m_wtm ? MgenW(m_root) : MgenB(m_root);
+void MgenRoot() {m_root_n = m_wtm ? MgenW(m_root) : MgenB(m_root);}
+
+void MgenRootAll() {
+  MgenRoot();
   EvalRootMoves();
   SortAll();
 }
@@ -865,14 +867,14 @@ void PrintRoot() {for (auto i = 0; i < m_root_n; i++) std::cout << i << ": " << 
 std::uint64_t DrawKey(const int n_knights_w, const int n_bishops_w, const int n_knights_b, const int n_bishops_b) {return z_board[0][n_knights_w] ^ z_board[1][n_bishops_w] ^ z_board[2][n_knights_b] ^ z_board[3][n_bishops_b];}
 
 bool DrawMaterial(const bool wtm) {
-  if (m_board->white[3] | m_board->white[4] | m_board->black[3] | m_board->black[4]) return 0;
+  if (m_board->white[3] | m_board->white[4] | m_board->black[3] | m_board->black[4]) return false;
   if (!(m_board->white[0] | m_board->black[0])) {
-    if (!(m_board->white[1] | m_board->white[2] | m_board->black[1] | m_board->black[2])) return 1;
+    if (!(m_board->white[1] | m_board->white[2] | m_board->black[1] | m_board->black[2])) return true;
     const auto hash = DrawKey(PopCount(m_board->white[1]), PopCount(m_board->white[2]), PopCount(m_board->black[1]), PopCount(m_board->black[2]));
-    for (auto i = 0; i < 13; i++) {if (s_sure_draws[i] == hash) return 1;}
-    return 0;
+    for (auto i = 0; i < 13; i++) {if (s_sure_draws[i] == hash) return true;}
+    return false;
   }
-  if (PopCount(m_board->white[0] | m_board->black[0]) >= 2) return 0;
+  if (PopCount(m_board->white[0] | m_board->black[0]) >= 2) return false;
   return m_board->white[0] ? eucalyptus::probe(Lsb(m_board->white[5]), Lsb(m_board->white[0]), Lsb(m_board->black[5]), wtm) // Probe KPK
                            : eucalyptus::probe(63 - Lsb(m_board->black[5]), 63 - Lsb(m_board->black[0]), 63 - Lsb(m_board->white[5]), !wtm);
 }
@@ -918,7 +920,7 @@ int ProbeNNUE(const bool wtm) {
 
 int EvaluateNNUE(const bool wtm) {
   const auto hash = Hash(wtm);
-  auto *entry = &h_hash[(std::uint32_t) (hash & h_hash_key)];
+  auto *entry = &g_hash[(std::uint32_t) (hash & g_hash_key)];
   if (entry->eval_hash == hash) return entry->score;
   entry->eval_hash = hash;
   return entry->score = DrawMaterial(wtm) ? 0 : ProbeNNUE(wtm);
@@ -934,10 +936,10 @@ void Speak(const int score, const std::uint64_t search_time) {
 }
 
 bool Draw() {
-  if (m_board->rule50 >= 100) return 1;
+  if (m_board->rule50 >= 100) return true;
   const auto hash = s_r50_positions[m_board->rule50];
-  for (auto i = m_board->rule50 - 2; i >= 0; i -= 2) {if (s_r50_positions[i] == hash) return 1;}
-  return 0;
+  for (auto i = m_board->rule50 - 2; i >= 0; i -= 2) {if (s_r50_positions[i] == hash) return true;}
+  return false;
 }
 
 #if defined WINDOWS
@@ -956,16 +958,16 @@ bool InputAvailable() {
 #endif
 
 bool UserStop() {
-  if (!s_analyzing || !InputAvailable()) return 0;
+  if (!s_analyzing || !InputAvailable()) return false;
   Input();
-  if (Token("stop")) return 1;
-  return 0;
+  if (Token("stop")) return true;
+  return false;
 }
 
 bool TimeCheckSearch() {
   static std::uint64_t ticks = 0;
-  if (++ticks & 0xFFULL) return 0;
-  if ((Now() >= s_stop_time) || UserStop()) s_stop = 1;
+  if (++ticks & 0xFFULL) return false;
+  if ((Now() >= s_stop_time) || UserStop()) s_stop = true;
   return s_stop;
 }
 
@@ -1005,7 +1007,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   const auto moves_n = MgenW(moves);
   if (!moves_n) return checks ? -kInf : 0; else if (moves_n == 1 || (ply < 5 && checks)) depth++;
   auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  auto *entry = &h_hash[(std::uint32_t) (hash & h_hash_key)];
+  auto *entry = &g_hash[(std::uint32_t) (hash & g_hash_key)];
   SortByScore(entry, hash);
   for (auto i = 0; i < moves_n; i++) {
     m_board = moves + i;
@@ -1058,7 +1060,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   const auto moves_n = MgenB(moves);
   if (!moves_n) return checks ? kInf : 0; else if (moves_n == 1 || (ply < 5 && checks)) depth++;
   auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  auto *entry = &h_hash[(std::uint32_t) (hash & h_hash_key)];
+  auto *entry = &g_hash[(std::uint32_t) (hash & g_hash_key)];
   SortByScore(entry, hash);
   for (auto i = 0; i < moves_n; i++) {
     m_board = moves + i;
@@ -1125,13 +1127,13 @@ int BestB() {
 
 bool ActivateHelper() {
   const auto black_n = PopCount(Black()), white_n = PopCount(White());
-  if (m_wtm) {if (black_n >= 2 || (white_n == 3 && m_board->white[1] && m_board->white[2])) return 0;} // Black has pieces, KNBK
-  else       {if (white_n >= 2 || (black_n == 3 && m_board->black[1] && m_board->black[2])) return 0;}
-  return 1;
+  if (m_wtm) {if (black_n >= 2 || (white_n == 3 && m_board->white[1] && m_board->white[2])) return false;} // Black has pieces, KNBK
+  else       {if (white_n >= 2 || (black_n == 3 && m_board->black[1] && m_board->black[2])) return false;}
+  return true;
 }
 
 void ThinkSetup(const int think_time) {
-  s_stop = s_nullmove = s_is_pv = 0;
+  s_stop = s_nullmove = s_is_pv = false;
   s_best_score = s_nodes = s_depth = 0;
   s_qs_depth = 4;
   s_stop_time = Now() + (std::uint64_t) std::max(0, think_time);
@@ -1139,17 +1141,17 @@ void ThinkSetup(const int think_time) {
 }
 
 bool ThinkRandomMove() {
-  if (g_level) return 0;
+  if (g_level) return false;
   const auto root_i = Random(0, m_root_n - 1);
   if (root_i) Swap(m_root, m_root + root_i);
-  return 1;
+  return true;
 }
 
 void Think(const int think_time) {
   auto *tmp = m_board;
   const auto start = Now();
   ThinkSetup(think_time);
-  MgenRoot();
+  MgenRootAll();
   if (m_root_n <= 1) {Speak(0, 0); return;}
   if (ThinkRandomMove()) return;
   s_underpromos = 0;
@@ -1187,7 +1189,7 @@ void UciSetoption() {
   else if (TokenPeek("name") && TokenPeek("Level", 1)        && TokenPeek("value", 2)) {g_level = Between<int>(0, TokenInt(3), 100); TokenPop(4);}
   else if (TokenPeek("name") && TokenPeek("Hash", 1)         && TokenPeek("value", 2)) {HashtableSetSize(TokenInt(3)); TokenPop(4);}
   else if (TokenPeek("name") && TokenPeek("MoveOverhead", 1) && TokenPeek("value", 2)) {g_move_overhead = Between<int>(0, TokenInt(3), 5000); TokenPop(4);}
-  else if (TokenPeek("name") && TokenPeek("EvalFile", 1)     && TokenPeek("value", 2)) {e_eval_file = TokenCurrent(3); nnue_init(e_eval_file.c_str()); TokenPop(4);}
+  else if (TokenPeek("name") && TokenPeek("EvalFile", 1)     && TokenPeek("value", 2)) {g_eval_file = TokenCurrent(3); nnue_init(g_eval_file.c_str()); TokenPop(4);}
 }
 
 void UciGo() {
@@ -1214,7 +1216,7 @@ void UciUci() {
   std::cout << "option name Level type spin default 100 min 0 max 100" << std::endl;
   std::cout << "option name Hash type spin default 256 min 1 max 1048576" << std::endl;
   std::cout << "option name MoveOverhead type spin default 10 min 0 max 5000" << std::endl;
-  std::cout << "option name EvalFile type string default " << e_eval_file << std::endl;
+  std::cout << "option name EvalFile type string default " << g_eval_file << std::endl;
   std::cout << "uciok" << std::endl;
 }
 
@@ -1225,10 +1227,10 @@ bool UciCommands() {
     else if (Token("isready"))   {std::cout << "readyok" << std::endl;}
     else if (Token("setoption")) {UciSetoption();}
     else if (Token("uci"))       {UciUci();}
-    else if (Token("quit"))      {return 0;}
+    else if (Token("quit"))      {return false;}
   }
   while (TokenOk()) TokenPop();
-  return 1;
+  return true;
 }
 
 bool Uci() {
@@ -1374,7 +1376,7 @@ void Init() {
   InitJumpMoves();
   Fen(kStartpos);
   HashtableSetSize(256);
-  nnue_init(e_eval_file.c_str());
+  nnue_init(g_eval_file.c_str());
 }
 
 void Bench() {
@@ -1401,5 +1403,5 @@ void PrintHelp() {
   const std::vector<std::string> help = {":: Help ::", "> mayhem # Enter UCI mode", "--version Show version", "--bench   Run benchmarks", "-list [FEN] Show root list", "-eval [FEN] Show evaluation"};
   for (auto str : help) std::cout << str << std::endl;
 }
-void PrintList(const std::string &fen) {Fen(fen); MgenRoot(); PrintRoot();}
+void PrintList(const std::string &fen) {Fen(fen); MgenRootAll(); PrintRoot();}
 void PrintEval(const std::string &fen) {Fen(fen); std::cout << Evaluate(m_wtm) << std::endl;}}
