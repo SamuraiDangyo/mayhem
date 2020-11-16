@@ -1,5 +1,5 @@
 /*
-Mayhem, Linux UCI Chess960 program. Mayhem is Sapeli written in C++14 with SF NNUE evaluation. 
+Mayhem, Linux UCI Chess960 program. Mayhem is Sapeli written in C++14 with SF NNUE evaluation.
 Copyright (C) 2020 Toni Helminen
 
 This program is free software: you can redistribute it and/or modify
@@ -28,10 +28,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <fstream>
 #include <ctime>
 #include <cmath>
-#include <cstring>
 #include <unistd.h>
 #include <sys/time.h>
-#include "nnue.h"
+#include "lib/nnue.hpp"
+#include "lib/eucalyptus.hpp"
 
 // Namespace
 
@@ -132,19 +132,19 @@ enum Move_t {kKiller, kGood, kQuiet};
 // Variables
 
 int
-  g_level = 100, g_move_overhead = 10, m_rook_w[2] = {0}, m_rook_b[2] = {0}, m_root_n = 0, m_king_w = 0, m_king_b = 0, m_moves_n = 0, s_max_depth = kDepthLimit, s_qs_depth = 6, s_depth = 0, s_best_score = 0;
+  g_level = 100, g_move_overhead = 10, m_rook_w[2] = {}, m_rook_b[2] = {}, m_root_n = 0, m_king_w = 0, m_king_b = 0, m_moves_n = 0, s_max_depth = kDepthLimit, s_qs_depth = 6, s_depth = 0, s_best_score = 0;
 
 std::uint32_t
   h_hash_key = 0;
 
 std::uint64_t
-  g_seed = 131783, m_black = 0, m_both = 0, m_empty = 0, m_good = 0, m_pawn_sq = 0, m_white = 0, m_pawn_1_moves_w[64] = {0}, m_pawn_1_moves_b[64] = {0}, m_pawn_2_moves_w[64] = {0}, m_pawn_2_moves_b[64] = {0},
-  m_bishop[64] = {0}, m_rook[64] = {0}, m_queen[64] = {0}, m_knight[64] = {0}, m_king[64] = {0}, m_pawn_checks_w[64] = {0}, m_pawn_checks_b[64] = {0}, m_castle_w[2] = {0}, m_castle_b[2] = {0}, m_castle_empty_w[2] = {0},
-  m_castle_empty_b[2] = {0}, m_bishop_magic_moves[64][512] = {{0}}, m_rook_magic_moves[64][4096] = {{0}}, z_ep[64] = {0}, z_castle[16] = {0}, z_wtm[2] = {0}, z_board[13][64] = {{0}}, s_stop_time = 0, s_sure_draws[15] = {0},
-  s_r50_positions[128] = {0}, s_nodes = 0;
+  g_seed = 131783, m_black = 0, m_both = 0, m_empty = 0, m_good = 0, m_pawn_sq = 0, m_white = 0, m_pawn_1_moves_w[64] = {}, m_pawn_1_moves_b[64] = {}, m_pawn_2_moves_w[64] = {}, m_pawn_2_moves_b[64] = {},
+  m_bishop[64] = {}, m_rook[64] = {}, m_queen[64] = {}, m_knight[64] = {}, m_king[64] = {}, m_pawn_checks_w[64] = {}, m_pawn_checks_b[64] = {}, m_castle_w[2] = {}, m_castle_b[2] = {}, m_castle_empty_w[2] = {},
+  m_castle_empty_b[2] = {}, m_bishop_magic_moves[64][512] = {}, m_rook_magic_moves[64][4096] = {}, z_ep[64] = {}, z_castle[16] = {}, z_wtm[2] = {}, z_board[13][64] = {}, s_stop_time = 0, s_sure_draws[13] = {},
+  s_r50_positions[128] = {}, s_nodes = 0;
 
 bool
-  g_chess960 = 0, m_wtm = 0, s_stop = 0, s_activate_help = 0, s_underpromos = 1, s_nullmove = 0, s_is_pv = 0, s_analyzing = 0;
+  g_chess960 = 0, m_wtm = 0, s_stop = 0, s_activate_help = 0, s_underpromos = 1, s_nullmove = 0, s_is_pv = 0, s_look_for_draws = 1, s_analyzing = 0;
 
 std::size_t
   g_tokens_nth = 0;
@@ -153,7 +153,7 @@ std::vector<std::string>
   g_tokens = {};
 
 Board_t
-  m_board_tmp = {{0},{0},0,{0},0,0,0,0,0,0,0}, *m_board = &m_board_tmp, *m_moves = 0, *m_board_orig = 0, m_root[kMaxMoves] = {{{0},{0},0,{0},0,0,0,0,0,0,0}};
+  m_board_tmp = {}, *m_board = &m_board_tmp, *m_moves = 0, *m_board_orig = 0, m_root[kMaxMoves] = {};
 
 std::unique_ptr<Hash_t[]>
   h_hash;
@@ -166,7 +166,7 @@ std::string
 int SearchB(const int, int, const int, const int);
 int SearchW(int, const int, const int, const int);
 int QSearchB(const int, int, const int);
-int Evaluation(const bool);
+int Evaluate(const bool);
 void MakeMove();
 std::uint64_t RookMagicMoves(const int, const std::uint64_t);
 std::uint64_t BishopMagicMoves(const int, const std::uint64_t);
@@ -194,7 +194,7 @@ std::uint64_t Random64() {
   return mixer(va) ^ mixer(vb) ^ mixer(vc);
 }
 std::uint64_t Random8x64() {std::uint64_t val = 0; for (auto i = 0; i < 8; i++) val ^= Random64() << (8 * i); return val;}
-int Random(const int max) {const std::uint64_t rnum = (g_seed ^ Random64()) & 0xFFFFFFFFULL; g_seed = (g_seed << 5) ^ (g_seed + 1) ^ (g_seed >> 3); return (int) (max * (0.0001 * (float) (rnum % 10000)));}
+int Random(const int max) {const std::uint64_t rnum = (g_seed ^ Random64()) & 0xFFFFFFFFULL; g_seed = (g_seed << 5) ^ (g_seed + 1) ^ (g_seed >> 3); return (int) (max * (0.0001f * (float) (rnum % 10000)));}
 int Random(const int x, const int y) {return x + Random(y - x + 1);}
 bool OnBoard(const int x, const int y) {return x >= 0 && x <= 7 && y >= 0 && y <= 7;}
 
@@ -316,7 +316,7 @@ int Piece(const char piece) {for (auto i = 0; i < 6; i++) {if (piece == "pnbrqk"
 
 void FenBoard(const std::string &fen) {
   int sq = 56;
-  for (std::size_t i = 0; i < fen.length() && sq >= 0; i++) if (fen[i] == '/') sq -= 16; else if (isdigit(fen[i])) sq += fen[i] - '0'; else m_board->pieces[sq++] = Piece(fen[i]);
+  for (std::size_t i = 0; i < fen.length() && sq >= 0; i++) if (fen[i] == '/') sq -= 16; else if (std::isdigit(fen[i])) sq += fen[i] - '0'; else m_board->pieces[sq++] = Piece(fen[i]);
 }
 
 void FenKQkq(const std::string &fen) {
@@ -358,16 +358,14 @@ void FenGen(const std::string &str) {
 }
 
 void FenReset() {
-  constexpr Board_t empty = {{0},{0},0,{0},0,0,0,0,0,0,0};
+  constexpr Board_t empty = {};
   m_board_tmp   = empty;
   m_board       = &m_board_tmp;
   m_wtm         = 1;
   m_board->epsq = -1;
   m_king_w = m_king_b = 0;
-  std::memset(m_rook_w, 0, sizeof(m_rook_w));
-  std::memset(m_rook_b, 0, sizeof(m_rook_b));
-  std::memset(m_board->white, 0, sizeof(m_board->white));
-  std::memset(m_board->black, 0, sizeof(m_board->black));
+  for (auto i = 0; i < 2; i++) m_rook_w[i] = m_rook_b[i] = 0;
+  for (auto i = 0; i < 6; i++) m_board->white[i] = m_board->black[i] = 0;
 }
 
 void Fen(const std::string &fen) {
@@ -415,7 +413,7 @@ void EvalRootMoves() {
   auto *tmp = m_board;
   for (auto i = 0; i < m_root_n; i++) {
     m_board = m_root + i;
-    m_board->score += (m_board->type == 8 ? 1000 : 0) + (m_board->type >= 1 && m_board->type <= 4 ? 100 : 0) + (m_board->type >= 5 && m_board->type <= 7 ? -5000 : 0) + (m_wtm ? +1 : -1) * Evaluation(m_wtm) + Random(+2, -2);
+    m_board->score += (m_board->type == 8 ? 1000 : 0) + (m_board->type >= 1 && m_board->type <= 4 ? 100 : 0) + (m_board->type >= 5 && m_board->type <= 7 ? -5000 : 0) + (m_wtm ? +1 : -1) * Evaluate(m_wtm) + Random(+2, -2);
   }
   m_board = tmp;
 }
@@ -862,19 +860,25 @@ void MgenRoot() {
 
 void PrintRoot() {for (auto i = 0; i < m_root_n; i++) std::cout << i << ": " << MoveName(m_root + i) << " : " << m_root[i].score << std::endl;}
 
-// Evaluation
+// Evaluate
 
 std::uint64_t DrawKey(const int n_knights_w, const int n_bishops_w, const int n_knights_b, const int n_bishops_b) {return z_board[0][n_knights_w] ^ z_board[1][n_bishops_w] ^ z_board[2][n_knights_b] ^ z_board[3][n_bishops_b];}
 
-bool DrawMaterial() {
-  if (m_board->white[0] | m_board->white[3] | m_board->white[4] | m_board->black[0] | m_board->black[3] | m_board->black[4]) return 0;
-  const auto hash = DrawKey(PopCount(m_board->white[1]), PopCount(m_board->white[2]), PopCount(m_board->black[1]), PopCount(m_board->black[2]));
-  for (auto i = 0; i < 15; i++) {if (s_sure_draws[i] == hash) return 1;}
-  return 0;
+bool DrawMaterial(const bool wtm) {
+  if (m_board->white[3] | m_board->white[4] | m_board->black[3] | m_board->black[4]) return 0;
+  if (!(m_board->white[0] | m_board->black[0])) {
+    if (!(m_board->white[1] | m_board->white[2] | m_board->black[1] | m_board->black[2])) return 1;
+    const auto hash = DrawKey(PopCount(m_board->white[1]), PopCount(m_board->white[2]), PopCount(m_board->black[1]), PopCount(m_board->black[2]));
+    for (auto i = 0; i < 13; i++) {if (s_sure_draws[i] == hash) return 1;}
+    return 0;
+  }
+  if (PopCount(m_board->white[0] | m_board->black[0]) >= 2) return 0;
+  return m_board->white[0] ? eucalyptus::probe(Lsb(m_board->white[5]), Lsb(m_board->white[0]), Lsb(m_board->black[5]), wtm) // Probe KPK
+                           : eucalyptus::probe(63 - Lsb(m_board->black[5]), 63 - Lsb(m_board->black[0]), 63 - Lsb(m_board->white[5]), !wtm);
 }
 
-int EvaluationClassical(const bool wtm) {
-  if (DrawMaterial()) return 0;
+int EvaluateClassical(const bool wtm) {
+  if (DrawMaterial(wtm)) return 0;
   const auto white = White(), black = Black(), both = white | black;
   const auto white_king_sq = Lsb(m_board->white[5]), black_king_sq = Lsb(m_board->black[5]);
   int score = (wtm ? +5 : -5) + (s_nodes & 0x1);
@@ -912,25 +916,25 @@ int ProbeNNUE(const bool wtm) {
   return (wtm ? 1 : -1) * nnue_evaluate(!wtm, pieces, squares);
 }
 
-int EvaluationNNUE(const bool wtm) {
+int EvaluateNNUE(const bool wtm) {
   const auto hash = Hash(wtm);
   auto *entry = &h_hash[(std::uint32_t) (hash & h_hash_key)];
   if (entry->eval_hash == hash) return entry->score;
   entry->eval_hash = hash;
-  return entry->score = DrawMaterial() ? 0 : ProbeNNUE(wtm);
+  return entry->score = DrawMaterial(wtm) ? 0 : ProbeNNUE(wtm);
 }
 
-int Evaluation(const bool wtm) {return (int) ((1.0 - (((float) m_board->rule50) / 100.0)) * (s_activate_help ? EvaluationClassical(wtm) : EvaluationNNUE(wtm)));}
+int Evaluate(const bool wtm) {return (int) ((1.0f - (((float) m_board->rule50) / 100.0f)) * (s_activate_help ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)));}
 
 // Search
 
 void Speak(const int score, const std::uint64_t search_time) {
-  std::cout << "info depth " << std::min(s_max_depth, s_depth + 1) << " nodes " << s_nodes << " time " << search_time << " nps " << Nps(s_nodes, search_time) 
-            << " score cp " << ((m_wtm ? 1 : -1) * (int) ((std::abs(score) >= kInf ? 0.01 : 0.5) * score)) << " pv " << MoveName(m_root) << std::endl;
+  std::cout << "info depth " << std::min(s_max_depth, s_depth + 1) << " nodes " << s_nodes << " time " << search_time << " nps " << Nps(s_nodes, search_time)
+            << " score cp " << ((m_wtm ? 1 : -1) * (int) ((std::abs(score) >= kInf ? 0.01f : 0.5f) * score)) << " pv " << MoveName(m_root) << std::endl;
 }
 
 bool Draw() {
-  if (m_board->rule50 > 99) return 1;
+  if (m_board->rule50 >= 100) return 1;
   const auto hash = s_r50_positions[m_board->rule50];
   for (auto i = m_board->rule50 - 2; i >= 0; i -= 2) {if (s_r50_positions[i] == hash) return 1;}
   return 0;
@@ -968,7 +972,7 @@ bool TimeCheckSearch() {
 int QSearchW(int alpha, const int beta, const int depth) {
   s_nodes++;
   if (s_stop || TimeCheckSearch()) return 0;
-  alpha = std::max(alpha, Evaluation(1));
+  alpha = std::max(alpha, Evaluate(1));
   if (depth <= 0 || alpha >= beta) return alpha;
   Board_t moves[64];
   const auto moves_n = MgenTacticalW(moves);
@@ -980,7 +984,7 @@ int QSearchW(int alpha, const int beta, const int depth) {
 int QSearchB(const int alpha, int beta, const int depth) {
   s_nodes++;
   if (s_stop) return 0;
-  beta = std::min(beta, Evaluation(0));
+  beta = std::min(beta, Evaluate(0));
   if (depth <= 0 || alpha >= beta) return beta;
   Board_t moves[64];
   const auto moves_n = MgenTacticalB(moves);
@@ -1012,7 +1016,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
       alpha  = score;
       ok_lmr = 0;
       if (alpha >= beta) {UpdateSort(entry, kKiller, hash, moves[i].index); return alpha;}
-      if (moves[i].score) UpdateSort(entry, kGood, hash, moves[i].index); else UpdateSort(entry, kQuiet, hash, moves[i].index);
+      UpdateSort(entry, moves[i].score ? kGood : kQuiet, hash, moves[i].index);
     }
   }
   return alpha;
@@ -1065,7 +1069,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
       beta   = score;
       ok_lmr = 0;
       if (alpha >= beta) {UpdateSort(entry, kKiller, hash, moves[i].index); return beta;}
-      if (moves[i].score) UpdateSort(entry, kGood, hash, moves[i].index); else UpdateSort(entry, kQuiet, hash, moves[i].index);
+      UpdateSort(entry, moves[i].score ? kGood : kQuiet, hash, moves[i].index);
     }
   }
   return beta;
@@ -1119,11 +1123,19 @@ int BestB() {
   return beta;
 }
 
+bool ActivateHelper() {
+  const auto black_n = PopCount(Black()), white_n = PopCount(White());
+  if (m_wtm) {if (black_n >= 2 || (white_n == 3 && m_board->white[1] && m_board->white[2])) return 0;} // Black has pieces, KNBK
+  else       {if (white_n >= 2 || (black_n == 3 && m_board->black[1] && m_board->black[2])) return 0;}
+  return 1;
+}
+
 void ThinkSetup(const int think_time) {
-  s_stop = s_nullmove = s_is_pv = s_activate_help = 0;
+  s_stop = s_nullmove = s_is_pv = 0;
   s_best_score = s_nodes = s_depth = 0;
-  s_qs_depth = 6;
+  s_qs_depth = 4;
   s_stop_time = Now() + (std::uint64_t) std::max(0, think_time);
+  s_activate_help = s_nullmove = ActivateHelper(); // vs bare king = active mate help + disable null move
 }
 
 bool ThinkRandomMove() {
@@ -1133,32 +1145,21 @@ bool ThinkRandomMove() {
   return 1;
 }
 
-bool ActivateHelper() {
-  const auto black_n = PopCount(Black()), white_n = PopCount(White());
-  if (m_wtm) {
-    if (black_n >= 2 || (white_n == 2 && m_board->white[0]) || (white_n == 3 && m_board->white[1] && m_board->white[2])) return 0; // Black has pieces, KPK, KNBK
-  } else {
-    if (white_n >= 2 || (black_n == 2 && m_board->black[0]) || (black_n == 3 && m_board->black[1] && m_board->black[2])) return 0;
-  }
-  return 1;
-}
-
 void Think(const int think_time) {
   auto *tmp = m_board;
   const auto start = Now();
   ThinkSetup(think_time);
-  s_activate_help = s_nullmove = ActivateHelper(); // vs bare king = active mate help + disable null move
   MgenRoot();
   if (m_root_n <= 1) {Speak(0, 0); return;}
   if (ThinkRandomMove()) return;
   s_underpromos = 0;
-  for (; std::abs(s_best_score) < 0.5 * kInf && s_depth < s_max_depth && !s_stop; s_depth++) {
+  for (; std::abs(s_best_score) < 0.5f * kInf && s_depth < s_max_depth && !s_stop; s_depth++) {
     s_best_score = m_wtm ? BestW() : BestB();
     Speak(s_best_score, Now() - start);
     s_qs_depth = std::min(s_qs_depth + 2, 12);
   }
   s_underpromos = 1;
-  if (g_level >= 1 && g_level <= 99) {auto nth = Random(0, std::max(1, (int) (m_root_n * (1.0 - g_level / 100.0)))); if (Random(0, 100) > g_level && nth) Swap(m_root, m_root + nth);}
+  if (g_level >= 1 && g_level <= 99) {auto nth = Random(0, std::max(1, (int) (m_root_n * (1.0f - g_level / 100.0f)))); if (Random(0, 100) > g_level && nth) Swap(m_root, m_root + nth);}
   m_board = tmp;
   Speak(s_best_score, Now() - start);
 }
@@ -1246,13 +1247,13 @@ void MakeMove() {
   const auto move = TokenCurrent(0);
   MgenRoot();
   for (auto i = 0; i < m_root_n; i++) {if (move == MoveName(m_root + i)) {Make(i); return;}}
-  Assert(0, "Error #4: Bad move !");
+  Assert(0, "Error #3: Bad move !");
 }
 
 // Init
 
 std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
-  int total = 0, good[64] = {0};
+  int total = 0, good[64] = {};
   std::uint64_t permutations = 0;
   for (auto i = 0; i < 64; i++) {if (moves & Bit(i)) good[total++] = i;}
   const int popn = PopCount(moves);
@@ -1352,9 +1353,7 @@ void InitDraws() {
     makedraw(draws[4 * i    ], draws[4 * i + 1], draws[4 * i + 2], draws[4 * i + 3]);
     makedraw(draws[4 * i + 2], draws[4 * i + 3], draws[4 * i    ], draws[4 * i + 1]);
   }
-  makedraw(0,0,0,0); // KK, KNNKNN, KBKB
-  makedraw(2,0,2,0);
-  makedraw(0,1,0,1);
+  makedraw(0,1,0,1); // KBKB
 }
 
 void InitZobrist() {
@@ -1396,11 +1395,11 @@ void Bench() {
   std::cout << "Nps: " << Nps(nodes, Now() - start) << std::endl;
 }
 
-void Loop() {while (Uci());}
+void PrintVersion() {std::cout << kName << " by Toni Helminen" << std::endl;}
+void Loop() {PrintVersion(); while (Uci());}
 void PrintHelp() {
   const std::vector<std::string> help = {":: Help ::", "> mayhem # Enter UCI mode", "--version Show version", "--bench   Run benchmarks", "-list [FEN] Show root list", "-eval [FEN] Show evaluation"};
   for (auto str : help) std::cout << str << std::endl;
 }
-void PrintVersion() {std::cout << kName << std::endl;}
 void PrintList(const std::string &fen) {Fen(fen); MgenRoot(); PrintRoot();}
-void PrintEval(const std::string &fen) {Fen(fen); std::cout << Evaluation(m_wtm) << std::endl;}}
+void PrintEval(const std::string &fen) {Fen(fen); std::cout << Evaluate(m_wtm) << std::endl;}}
