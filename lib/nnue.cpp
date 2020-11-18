@@ -1122,22 +1122,14 @@ static bool load_eval_file(const char *evalFile)
 /*
 Interfaces
 */
-static char *loadedFile = NULL;
+static char loadedFile[16] = {0};
 
 DLLExport void _CDECL nnue_init(const char* evalFile)
 {
-  if (loadedFile && strcmp(evalFile, loadedFile) == 0)
-    return;
+  if (strncmp(evalFile, loadedFile, 15) == 0) return; // Leave room for null byte
 
-  if (loadedFile)
-    free(loadedFile);
-
-  //printf("Loading NNUE : %s\n", evalFile);
-  //fflush(stdout);
   if (load_eval_file(evalFile)) {
-    loadedFile = strdup(evalFile);
-    //printf("NNUE loaded !\n");
-    //fflush(stdout);
+    strncpy(loadedFile, evalFile, 15);
     return;
   }
 
