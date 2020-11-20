@@ -24,7 +24,6 @@ valgrind:
 	g++ -Wall -O1 -mpopcnt -ggdb3 $(FILES)
 	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=valgrind-out.txt ./a.out --bench
 
-
 xboard: all
 	xboard -fUCI -fcp ./$(EXE)
 

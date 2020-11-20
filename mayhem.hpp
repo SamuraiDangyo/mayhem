@@ -1,5 +1,5 @@
 /*
-Mayhem is Sapeli written in C++14 with SF NNUE evaluation. Linux UCI Chess960 program.
+Mayhem is a Linux UCI Chess960 engine. Written in C++14 with SF NNUE evaluation
 Copyright (C) 2020 Toni Helminen
 
 This program is free software: you can redistribute it and/or modify
@@ -40,7 +40,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem 1.1", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem 1.2", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 35, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
@@ -134,7 +134,7 @@ int
   g_level = 100, g_move_overhead = 15, g_rook_w[2] = {}, g_rook_b[2] = {}, g_root_n = 0, g_king_w = 0, g_king_b = 0, g_moves_n = 0, g_max_depth = kDepthLimit, g_qs_depth = 6, g_depth = 0, g_best_score = 0;
 
 std::uint32_t
-  g_hash_key = 0;
+  g_hash_key = 0, g_tokens_nth = 0;
 
 std::uint64_t
   g_seed = 131783, g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_pawn_sq = 0, g_pawn_1_moves_w[64] = {}, g_pawn_1_moves_b[64] = {}, g_pawn_2_moves_w[64] = {}, g_pawn_2_moves_b[64] = {},
@@ -144,9 +144,6 @@ std::uint64_t
 
 bool
   g_chess960 = false, g_wtm = false, g_stop_search = false, g_activate_help = false, g_underpromos = true, g_nullmove_on = false, g_is_pv = false, g_analyzing = false;
-
-std::size_t
-  g_tokens_nth = 0;
 
 std::vector<std::string>
   g_tokens = {};
@@ -166,7 +163,6 @@ int SearchB(const int, int, const int, const int);
 int SearchW(int, const int, const int, const int);
 int QSearchB(const int, int, const int);
 int Evaluate(const bool);
-void MakeMove();
 std::uint64_t RookMagicMoves(const int, const std::uint64_t);
 std::uint64_t BishopMagicMoves(const int, const std::uint64_t);
 
@@ -188,18 +184,19 @@ const std::string MoveStr(const int from, const int to) {char str[5]; str[0] = '
 std::uint64_t Now() {struct timeval tv; if (gettimeofday(&tv, NULL)) return 0; return (std::uint64_t) (1000 * tv.tv_sec + tv.tv_usec / 1000);}
 std::uint64_t Random64() {
   static std::uint64_t va = 0X12311227ULL, vb = 0X1931311ULL, vc = 0X13138141ULL;
-  auto mixer = [](std::uint64_t num) {return (num << 7) ^ (num >> 5);};
-  va ^= vb + vc; vb ^= vb * vc + 0x1717711ULL; vc  = (3 * vc) + 1;
+  const auto mixer = [](std::uint64_t num) {return (num << 7) ^ (num >> 5);};
+  va ^= vb + vc; 
+  vb ^= vb * vc + 0x1717711ULL;
+  vc = (3 * vc) + 1;
   return mixer(va) ^ mixer(vb) ^ mixer(vc);
 }
-std::uint64_t Random8x64() {std::uint64_t val = 0; for (auto i = 0; i < 8; i++) val ^= Random64() << (8 * i); return val;}
-int Random(const int max) {const std::uint64_t rnum = (g_seed ^ Random64()) & 0xFFFFFFFFULL; g_seed = (g_seed << 5) ^ (g_seed + 1) ^ (g_seed >> 3); return (int) (max * (0.0001f * (float) (rnum % 10000)));}
+std::uint64_t Random8x64() {std::uint64_t ret = 0; for (auto i = 0; i < 8; i++) ret ^= Random64() << (8 * i); return ret;}
+int Random(const int max) {const std::uint64_t ret = (g_seed ^ Random64()) & 0xFFFFFFFFULL; g_seed = (g_seed << 5) ^ (g_seed + 1) ^ (g_seed >> 3); return (int) (max * (0.0001f * (float) (ret % 10000)));}
 int Random(const int x, const int y) {return x + Random(y - x + 1);}
 bool OnBoard(const int x, const int y) {return x >= 0 && x <= 7 && y >= 0 && y <= 7;}
 
 template <class Type> void Splitter(const std::string& str, Type& container, const std::string& delims = " ") {
-  std::size_t current, previous = 0;
-  current = str.find_first_of(delims);
+  std::size_t current = str.find_first_of(delims), previous = 0;
   while (current != std::string::npos) {
     container.push_back(str.substr(previous, current - previous));
     previous = current + 1;
@@ -224,7 +221,9 @@ char PromoLetter(const char piece) {
   default: return 'q';}
 }
 
-std::uint32_t PowerOf2(const std::uint32_t number) {std::uint32_t ret = 1; if (number <= 1) return 1; while (ret < number) {if ((ret *= 2) == number) return ret;} return ret / 2;}
+// Hash
+
+std::uint32_t PowerOf2(const std::uint32_t num) {std::uint32_t ret = 1; if (num <= 1) return num; while (ret < num) {if ((ret *= 2) == num) return ret;} return ret / 2;}
 
 void HashtableSetSize(const std::uint32_t mb) {
   const auto hashsize = (1 << 20) * Between<std::uint32_t>(1, PowerOf2(mb), 1024 * 1024), hash_count = PowerOf2(hashsize / sizeof(Hash_t));
@@ -236,24 +235,11 @@ void HashtableSetSize(const std::uint32_t mb) {
 const std::string MoveName(const Board_t *move) {
   auto from = move->from, to = move->to;
   switch (move->type) {
-  case 1:
-    from = g_king_w;
-    to   = g_chess960 ? g_rook_w[0] : 6;
-    break;
-  case 2:
-    from = g_king_w;
-    to   = g_chess960 ? g_rook_w[1] : 2;
-    break;
-  case 3:
-    from = g_king_b;
-    to   = g_chess960 ? g_rook_b[0] : 56 + 6;
-    break;
-  case 4:
-    from = g_king_b;
-    to   = g_chess960 ? g_rook_b[1] : 56 + 2;
-    break;
-  case 5: case 6: case 7: case 8:
-    return MoveStr(from, to) + PromoLetter(move->pieces[to]);}
+  case 1: from = g_king_w; to = g_chess960 ? g_rook_w[0] : 6; break;
+  case 2: from = g_king_w; to = g_chess960 ? g_rook_w[1] : 2; break;
+  case 3: from = g_king_b; to = g_chess960 ? g_rook_b[0] : 56 + 6; break;
+  case 4: from = g_king_b; to = g_chess960 ? g_rook_b[1] : 56 + 2; break;
+  case 5: case 6: case 7: case 8: return MoveStr(from, to) + PromoLetter(move->pieces[to]);}
   return MoveStr(from, to);
 }
 
@@ -266,9 +252,9 @@ inline std::uint64_t Hash(const int wtm) {
 // Tokenizer
 
 bool TokenOk(const int look_ahead = 0) {return g_tokens_nth + look_ahead < g_tokens.size();}
-const std::string TokenCurrent(const int look_ahead = 1) {return TokenOk(look_ahead) ? g_tokens[g_tokens_nth + look_ahead] : "";}
+const std::string TokenCurrent(const int look_ahead = 0) {return TokenOk(look_ahead) ? g_tokens[g_tokens_nth + look_ahead] : "";}
 void TokenPop(const int pop_howmany = 1) {g_tokens_nth += pop_howmany;}
-bool Token(const std::string &token, const int pop_howmany = 1) {if (TokenOk(0) && token == TokenCurrent(0)) {TokenPop(pop_howmany); return true;} return false;}
+bool Token(const std::string &token, const int pop_howmany = 1) {if (TokenOk(0) && token == TokenCurrent()) {TokenPop(pop_howmany); return true;} return false;}
 int TokenNumber(const int look_ahead = 0) {return TokenOk(look_ahead) ? std::stoi(g_tokens[g_tokens_nth + look_ahead]) : 0;}
 bool TokenPeek(const std::string &str, const int look_ahead = 0) {return TokenOk(look_ahead) ? str == g_tokens[g_tokens_nth + look_ahead] : false;}
 
@@ -276,7 +262,7 @@ bool TokenPeek(const std::string &str, const int look_ahead = 0) {return TokenOk
 
 void BuildBitboards() {
   for (auto i = 0; i < 64; i++)
-    if (     g_board->pieces[i] > 0) g_board->white[ g_board->pieces[i] - 1] |= Bit(i);
+    if (     g_board->pieces[i] > 0) g_board->white[+g_board->pieces[i] - 1] |= Bit(i);
     else if (g_board->pieces[i] < 0) g_board->black[-g_board->pieces[i] - 1] |= Bit(i);
 }
 
@@ -313,47 +299,47 @@ void BuildCastlingBitboards() {
 
 int Piece(const char piece) {for (auto i = 0; i < 6; i++) {if (piece == "pnbrqk"[i]) return -i - 1; else if (piece == "PNBRQK"[i]) return +i + 1;} return 0;}
 
-void FenBoard(const std::string &fen) {
+void FenBoard(const std::string &board) {
   int sq = 56;
-  for (std::size_t i = 0; i < fen.length() && sq >= 0; i++) if (fen[i] == '/') sq -= 16; else if (std::isdigit(fen[i])) sq += fen[i] - '0'; else g_board->pieces[sq++] = Piece(fen[i]);
+  for (std::size_t i = 0; i < board.length() && sq >= 0; i++) if (board[i] == '/') sq -= 16; else if (std::isdigit(board[i])) sq += board[i] - '0'; else g_board->pieces[sq++] = Piece(board[i]);
 }
 
-void FenKQkq(const std::string &fen) {
-  for (std::size_t i = 0; i < fen.length(); i++)
-    if (     fen[i] == 'K') {g_rook_w[0] = 7;      g_board->castle |= 1;}
-    else if (fen[i] == 'Q') {g_rook_w[1] = 0;      g_board->castle |= 2;}
-    else if (fen[i] == 'k') {g_rook_b[0] = 56 + 7; g_board->castle |= 4;}
-    else if (fen[i] == 'q') {g_rook_b[1] = 56 + 0; g_board->castle |= 8;}
-    else if (fen[i] >= 'A' && fen[i] <= 'H') {
-      const auto tmp = fen[i] - 'A';
+void FenKQkq(const std::string &kqkq) {
+  for (std::size_t i = 0; i < kqkq.length(); i++)
+    if (     kqkq[i] == 'K') {g_rook_w[0] = 7;      g_board->castle |= 1;}
+    else if (kqkq[i] == 'Q') {g_rook_w[1] = 0;      g_board->castle |= 2;}
+    else if (kqkq[i] == 'k') {g_rook_b[0] = 56 + 7; g_board->castle |= 4;}
+    else if (kqkq[i] == 'q') {g_rook_b[1] = 56 + 0; g_board->castle |= 8;}
+    else if (kqkq[i] >= 'A' && kqkq[i] <= 'H') {
+      const auto tmp = kqkq[i] - 'A';
       if (tmp > g_king_w) {g_rook_w[0] = tmp; g_board->castle |= 1;} else if (tmp < g_king_w) {g_rook_w[1] = tmp; g_board->castle |= 2;}
-    } else if (fen[i] >= 'a' && fen[i] <= 'h') {
-      const auto tmp = fen[i] - 'a';
+    } else if (kqkq[i] >= 'a' && kqkq[i] <= 'h') {
+      const auto tmp = kqkq[i] - 'a';
       if (tmp > Xcoord(g_king_b)) {g_rook_b[0] = 56 + tmp; g_board->castle |= 4;} else if (tmp < Xcoord(g_king_b)) {g_rook_b[1] = 56 + tmp; g_board->castle |= 8;}
     }
 }
 
-void FenEp(const std::string &fen) {
-  if (fen.length() != 2) return;
-  g_board->epsq = (fen[0] - 'a') + 8 * (fen[1] - '1');
+void FenEp(const std::string &ep) {
+  if (ep.length() != 2) return;
+  g_board->epsq = (ep[0] - 'a') + 8 * (ep[1] - '1');
 }
 
-void FenRule50(const std::string &fen) {
-  if (fen.length() == 0 || fen[0] == '-') return;
-  g_board->rule50 = Between<std::uint8_t>(0, std::stoi(fen), 100);
+void FenRule50(const std::string &rule50) {
+  if (rule50.length() == 0 || rule50[0] == '-') return;
+  g_board->rule50 = Between<std::uint8_t>(0, std::stoi(rule50), 100);
 }
 
-void FenGen(const std::string &str) {
-  std::vector<std::string> fentokens = {};
-  Splitter<std::vector<std::string>>(std::string(str), fentokens, " ");
-  Assert(fentokens.size() >= 3, "Error #1: Bad fen !");
-  FenBoard(fentokens[0]);
-  g_wtm = fentokens[1][0] == 'w';
+void FenGen(const std::string &fen) {
+  std::vector<std::string> tokens = {};
+  Splitter<std::vector<std::string>>(std::string(fen), tokens, " ");
+  Assert(tokens.size() >= 3, "Error #1: Bad fen !");
+  FenBoard(tokens[0]);
+  g_wtm = tokens[1][0] == 'w';
   FindKings();
-  FenKQkq(fentokens[2]);
+  FenKQkq(tokens[2]);
   BuildCastlingBitboards();
-  FenEp(fentokens[3]);
-  FenRule50(fentokens[4]);
+  FenEp(tokens[3]);
+  FenRule50(tokens[4]);
 }
 
 void FenReset() {
@@ -412,7 +398,7 @@ void EvalRootMoves() {
   auto *tmp = g_board;
   for (auto i = 0; i < g_root_n; i++) {
     g_board = g_root + i;
-    g_board->score += (g_board->type == 8 ? 1000 : 0) + (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) + (g_board->type >= 5 && g_board->type <= 7 ? -5000 : 0) + (g_wtm ? +1 : -1) * Evaluate(g_wtm) + Random(+2, -2);
+    g_board->score += (g_board->type == 8 ? 1000 : 0) + (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) + (g_board->type >= 5 && g_board->type <= 7 ? -5000 : 0) + (g_wtm ? +1 : -1) * Evaluate(g_wtm) + Random(-2, +2);
   }
   g_board = tmp;
 }
@@ -859,8 +845,6 @@ void MgenRootAll() {
   SortAll();
 }
 
-void PrintRoot() {for (auto i = 0; i < g_root_n; i++) std::cout << i << ": " << MoveName(g_root + i) << " : " << g_root[i].score << std::endl;}
-
 // Evaluate
 
 std::uint64_t DrawKey(const int wnn, const int wbn, const int bnn, const int bbn) {return g_zobrist_board[0][wnn] ^ g_zobrist_board[1][wbn] ^ g_zobrist_board[2][bnn] ^ g_zobrist_board[3][bbn];}
@@ -1169,11 +1153,25 @@ void Think(const int think_time) {
 
 // UCI
 
+void Make(const int root_i) {
+  g_r50_positions[g_board->rule50] = Hash(g_wtm);
+  g_board_tmp = g_root[root_i];
+  g_board     = &g_board_tmp;
+  g_wtm       = !g_wtm;
+}
+
+void MakeMove() {
+  const auto move = TokenCurrent();
+  MgenRoot();
+  for (auto i = 0; i < g_root_n; i++) {if (move == MoveName(g_root + i)) {Make(i); return;}}
+  Assert(0, "Error #3: Bad move !");
+}
+
 void UciFen() {
   if (Token("startpos")) return;
   TokenPop();
   std::string fen = "";
-  for (; TokenOk() && !Token("moves", 0); TokenPop()) fen += TokenCurrent(0) + " ";
+  for (; TokenOk() && !Token("moves", 0); TokenPop()) fen += TokenCurrent() + " ";
   Fen(fen);
 }
 
@@ -1237,20 +1235,6 @@ bool UciCommands() {
 bool Uci() {
   Input();
   return UciCommands();
-}
-
-void Make(const int root_i) {
-  g_r50_positions[g_board->rule50] = Hash(g_wtm);
-  g_board_tmp = g_root[root_i];
-  g_board     = &g_board_tmp;
-  g_wtm       = !g_wtm;
-}
-
-void MakeMove() {
-  const auto move = TokenCurrent(0);
-  MgenRoot();
-  for (auto i = 0; i < g_root_n; i++) {if (move == MoveName(g_root + i)) {Make(i); return;}}
-  Assert(0, "Error #3: Bad move !");
 }
 
 // Init
@@ -1380,7 +1364,8 @@ void Init() {
 }
 
 void Bench() {
-  std::uint64_t nodes = 0, start = Now();
+  const std::uint64_t start = Now();
+  std::uint64_t nodes = 0;
   const std::vector<std::string> suite = {
     "brnnkbrq/pppppppp/8/8/8/8/PPPPPPPP/BRNNKBRQ w GBgb - 0 1",
     "qnnrkrbb/pppppppp/8/8/8/8/PPPPPPPP/QNNRKRBB w DFdf - 0 1",
@@ -1389,7 +1374,7 @@ void Bench() {
   for (const auto fen : suite) {
     std::cout << "[ " << fen << " ]" << std::endl;
     Fen(fen);
-    Think(5000);
+    Think(10000);
     nodes += g_nodes;
     std::cout << std::endl;
   }
@@ -1398,9 +1383,6 @@ void Bench() {
 
 void PrintVersion() {std::cout << kName << " by Toni Helminen" << std::endl;}
 void UciLoop() {PrintVersion(); while (Uci());}
-void PrintHelp() {
-  const std::vector<std::string> help = {":: Help() ::", "> mayhem # Enter UCI mode", "--version Show version", "--bench   Run benchmarks", "-list [FEN] Show root list", "-eval [FEN] Show evaluation"};
-  for (auto str : help) std::cout << str << std::endl;
-}
-void PrintList(const std::string &fen) {Fen(fen); MgenRootAll(); PrintRoot();}
+void PrintHelp() {std::cout << ":: Help ::\n> mayhem: Enter UCI mode\n--version: Show version\n--bench: Run benchmarks\n-list [FEN]: Show root list\n-eval [FEN]: Show evaluation" << std::endl;}
+void PrintList(const std::string &fen) {Fen(fen); MgenRootAll(); for (auto i = 0; i < g_root_n; i++) std::cout << i << ": " << MoveName(g_root + i) << " : " << g_root[i].score << std::endl;}
 void PrintEval(const std::string &fen) {Fen(fen); std::cout << Evaluate(g_wtm) << std::endl;}}
