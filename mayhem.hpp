@@ -1139,8 +1139,7 @@ void Think(const int think_time) {
   const auto start = Now();
   ThinkSetup(think_time);
   MgenRootAll();
-  if (g_root_n <= 1) {Speak(0, 0); return;}
-  if (ThinkRandomMove()) return;
+  if (g_root_n <= 1 || ThinkRandomMove()) {Speak(0, 0); return;}
   g_underpromos = false;
   for (; std::abs(g_best_score) < 0.5f * kInf && g_depth < g_max_depth && !g_stop_search; g_depth++) {
     g_best_score = g_wtm ? BestW() : BestB();
