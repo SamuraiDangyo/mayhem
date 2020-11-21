@@ -1,5 +1,5 @@
 /*
-Mayhem is a Linux UCI Chess960 engine. Written in C++14 with SF NNUE evaluation
+Mayhem is a Linux UCI Chess960 engine. Written in C++14. Credits for NNUE evaluation !
 Copyright (C) 2020 Toni Helminen
 
 This program is free software: you can redistribute it and/or modify
@@ -104,25 +104,25 @@ constexpr std::uint64_t
 
 // Structures
 
-typedef struct {
+struct Board_t {
   std::uint64_t
     white[6],   // White bitboards
     black[6];   // Black bitboards
   std::int32_t
-    score;      // Sorting
+    score;      // Sorting score
   std::int8_t
     pieces[64], // Pieces black and white
     epsq;       // En passant square
   std::uint8_t
-    index,      // Sorting
+    index,      // Sorting index
     from,       // From square
     to,         // To square
     type,       // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
-    castle,     // Castling rights
+    castle,     // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
     rule50;     // Rule 50 counter
-} Board_t;
+};
 
-typedef struct {std::uint64_t eval_hash, sort_hash; std::int32_t score; std::uint8_t killer, good, quiet;} Hash_t;
+struct Hash_t {std::uint64_t eval_hash, sort_hash; std::int32_t score; std::uint8_t killer, good, quiet;};
 
 // Enums
 
@@ -139,8 +139,8 @@ std::uint32_t
 std::uint64_t
   g_seed = 131783, g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_pawn_sq = 0, g_pawn_1_moves_w[64] = {}, g_pawn_1_moves_b[64] = {}, g_pawn_2_moves_w[64] = {}, g_pawn_2_moves_b[64] = {},
   g_bishop_moves[64] = {}, g_rook_moves[64] = {}, g_queen_moves[64] = {}, g_knight_moves[64] = {}, g_king_moves[64] = {}, g_pawn_checks_w[64] = {}, g_pawn_checks_b[64] = {}, g_castle_w[2] = {}, g_castle_b[2] = {},
-  g_castle_empty_w[2] = {}, g_castle_empty_b[2] = {}, g_bishop_magic_moves[64][512] = {}, g_rook_magic_moves[64][4096] = {}, g_zobrist_ep[64] = {}, g_zobrist_castle[16] = {}, g_zobrist_wtm[2] = {}, g_zobrist_board[13][64] = {},
-  g_stop_search_time = 0, g_easy_draws[13] = {}, g_r50_positions[128] = {}, g_nodes = 0;
+  g_castle_empty_w[2] = {}, g_castle_empty_b[2] = {}, g_bishop_magic_moves[64][512] = {}, g_rook_magic_moves[64][4096] = {}, g_zobrist_ep[64] = {}, g_zobrist_castle[16] = {}, g_zobrist_wtm[2] = {}, 
+  g_zobrist_board[13][64] = {}, g_stop_search_time = 0, g_easy_draws[13] = {}, g_r50_positions[128] = {}, g_nodes = 0;
 
 bool
   g_chess960 = false, g_wtm = false, g_stop_search = false, g_activate_help = false, g_underpromos = true, g_nullmove_on = false, g_is_pv = false, g_analyzing = false;
@@ -148,16 +148,16 @@ bool
 std::vector<std::string>
   g_tokens = {};
 
-Board_t
+struct Board_t
   g_board_tmp = {}, *g_board = &g_board_tmp, *g_moves = 0, *g_board_orig = 0, g_root[kMaxMoves] = {};
 
-std::unique_ptr<Hash_t[]>
+std::unique_ptr<struct Hash_t[]>
   g_hash;
 
 std::string
   g_eval_file = "nn-c3ca321c51c9.nnue";
 
-// Function Prototypes
+// Prototypes
 
 int SearchB(const int, int, const int, const int);
 int SearchW(int, const int, const int, const int);
@@ -226,13 +226,13 @@ char PromoLetter(const char piece) {
 std::uint32_t PowerOf2(const std::uint32_t num) {std::uint32_t ret = 1; if (num <= 1) return num; while (ret < num) {if ((ret *= 2) == num) return ret;} return ret / 2;}
 
 void HashtableSetSize(const std::uint32_t mb) {
-  const auto hashsize = (1 << 20) * Between<std::uint32_t>(1, PowerOf2(mb), 1024 * 1024), hash_count = PowerOf2(hashsize / sizeof(Hash_t));
+  const auto hashsize = (1 << 20) * Between<std::uint32_t>(1, PowerOf2(mb), 1024 * 1024), hash_count = PowerOf2(hashsize / sizeof(struct Hash_t));
   g_hash_key = hash_count - 1;
-  g_hash.reset(new Hash_t[hash_count]);
+  g_hash.reset(new struct Hash_t[hash_count]);
   for (std::size_t i = 0; i < hash_count; i++) {g_hash[i].eval_hash = g_hash[i].sort_hash = g_hash[i].score = g_hash[i].killer = g_hash[i].good = g_hash[i].quiet = 0;}
 }
 
-const std::string MoveName(const Board_t *move) {
+const std::string MoveName(const struct Board_t *move) {
   auto from = move->from, to = move->to;
   switch (move->type) {
   case 1: from = g_king_w; to = g_chess960 ? g_rook_w[0] : 6; break;
@@ -258,7 +258,7 @@ bool Token(const std::string &token, const int pop_howmany = 1) {if (TokenOk(0) 
 int TokenNumber(const int look_ahead = 0) {return TokenOk(look_ahead) ? std::stoi(g_tokens[g_tokens_nth + look_ahead]) : 0;}
 bool TokenPeek(const std::string &str, const int look_ahead = 0) {return TokenOk(look_ahead) ? str == g_tokens[g_tokens_nth + look_ahead] : false;}
 
-// Board_t
+// Board
 
 void BuildBitboards() {
   for (auto i = 0; i < 64; i++)
@@ -343,7 +343,7 @@ void FenGen(const std::string &fen) {
 }
 
 void FenReset() {
-  constexpr Board_t empty = {};
+  constexpr struct Board_t empty = {};
   g_board_tmp   = empty;
   g_board       = &g_board_tmp;
   g_wtm         = 1;
@@ -381,12 +381,12 @@ bool ChecksB() {return ChecksHereB(Ctz(g_board->white[5]));}
 
 // Sorting
 
-inline void Swap(Board_t *brda, Board_t *brdb) {const auto tmp = *brda; *brda = *brdb; *brdb = tmp;}
+inline void Swap(struct Board_t *brda, struct Board_t *brdb) {const auto tmp = *brda; *brda = *brdb; *brdb = tmp;}
 void SortNthMoves(const int nth) {for (auto i = 0; i < nth; i++) {for (auto j = i + 1; j < g_moves_n; j++) {if (g_moves[j].score > g_moves[i].score) {Swap(g_moves + j, g_moves + i);}}}}
 int EvaluateMoves() {int tactics = 0; for (auto i = 0; i < g_moves_n; i++) {if (g_moves[i].score) {tactics++;} g_moves[i].index = i;} return tactics;}
 void SortAll() {SortNthMoves(g_moves_n);}
 
-void SortByScore(const Hash_t *entry, const std::uint64_t hash) {
+void SortByScore(const struct Hash_t *entry, const std::uint64_t hash) {
   if (entry->sort_hash == hash) {
     if (entry->killer) {g_moves[entry->killer - 1].score += 10000;} else if (entry->good) {g_moves[entry->good - 1].score += 1000;}
     if (entry->quiet) {g_moves[entry->quiet - 1].score += 500;}
@@ -802,7 +802,7 @@ void MgenAllCapturesB() {
   MgenKingB();
 }
 
-int MgenW(Board_t *moves) {
+int MgenW(struct Board_t *moves) {
   g_moves_n    = 0;
   g_moves      = moves;
   g_board_orig = g_board;
@@ -810,7 +810,7 @@ int MgenW(Board_t *moves) {
   return g_moves_n;
 }
 
-int MgenB(Board_t *moves) {
+int MgenB(struct Board_t *moves) {
   g_moves_n    = 0;
   g_moves      = moves;
   g_board_orig = g_board;
@@ -818,7 +818,7 @@ int MgenB(Board_t *moves) {
   return g_moves_n;
 }
 
-int MgenCapturesW(Board_t *moves) {
+int MgenCapturesW(struct Board_t *moves) {
   g_moves_n    = 0;
   g_moves      = moves;
   g_board_orig = g_board;
@@ -826,7 +826,7 @@ int MgenCapturesW(Board_t *moves) {
   return g_moves_n;
 }
 
-int MgenCapturesB(Board_t *moves) {
+int MgenCapturesB(struct Board_t *moves) {
   g_moves_n    = 0;
   g_moves      = moves;
   g_board_orig = g_board;
@@ -834,8 +834,8 @@ int MgenCapturesB(Board_t *moves) {
   return g_moves_n;
 }
 
-int MgenTacticalW(Board_t *moves) {return ChecksB() ? MgenW(moves) : MgenCapturesW(moves);}
-int MgenTacticalB(Board_t *moves) {return ChecksW() ? MgenB(moves) : MgenCapturesB(moves);}
+int MgenTacticalW(struct Board_t *moves) {return ChecksB() ? MgenW(moves) : MgenCapturesW(moves);}
+int MgenTacticalB(struct Board_t *moves) {return ChecksW() ? MgenB(moves) : MgenCapturesB(moves);}
 
 void MgenRoot() {g_root_n = g_wtm ? MgenW(g_root) : MgenB(g_root);}
 
@@ -968,7 +968,7 @@ int QSearchW(int alpha, const int beta, const int depth) {
   if (g_stop_search || TimeCheckSearch()) return 0;
   alpha = std::max(alpha, Evaluate(1));
   if (depth <= 0 || alpha >= beta) return alpha;
-  Board_t moves[64];
+  struct Board_t moves[64];
   const auto moves_n = MgenTacticalW(moves);
   SortAll();
   for (auto i = 0; i < moves_n; i++) {g_board = moves + i; if ((alpha = std::max(alpha, QSearchB(alpha, beta, depth - 1))) >= beta) return alpha;}
@@ -980,14 +980,14 @@ int QSearchB(const int alpha, int beta, const int depth) {
   if (g_stop_search) return 0;
   beta = std::min(beta, Evaluate(0));
   if (depth <= 0 || alpha >= beta) return beta;
-  Board_t moves[64];
+  struct Board_t moves[64];
   const auto moves_n = MgenTacticalB(moves);
   SortAll();
   for (auto i = 0; i < moves_n; i++) {g_board = moves + i; if (alpha >= (beta = std::min(beta, QSearchW(alpha, beta, depth - 1)))) return beta;}
   return beta;
 }
 
-void UpdateSort(Hash_t *entry, enum Move_t type, const std::uint64_t hash, const std::uint8_t index) {
+void UpdateSort(struct Hash_t *entry, enum Move_t type, const std::uint64_t hash, const std::uint8_t index) {
   entry->sort_hash = hash;
   switch (type) {case kKiller: entry->killer = index + 1; break; case kGood: entry->good = index + 1; break; case kQuiet: entry->quiet = index + 1; break;}
 }
@@ -995,7 +995,7 @@ void UpdateSort(Hash_t *entry, enum Move_t type, const std::uint64_t hash, const
 int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   const auto hash = g_r50_positions[g_board->rule50];
   const auto checks = ChecksB();
-  Board_t moves[kMaxMoves];
+  struct Board_t moves[kMaxMoves];
   const auto moves_n = MgenW(moves);
   if (!moves_n) return checks ? -kInf : 0; else if (moves_n == 1 || (ply < 5 && checks)) depth++;
   auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
@@ -1048,7 +1048,7 @@ int SearchW(int alpha, const int beta, const int depth, const int ply) {
 int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   const auto hash = g_r50_positions[g_board->rule50];
   const auto checks = ChecksW();
-  Board_t moves[kMaxMoves];
+  struct Board_t moves[kMaxMoves];
   const auto moves_n = MgenB(moves);
   if (!moves_n) return checks ? kInf : 0; else if (moves_n == 1 || (ply < 5 && checks)) depth++;
   auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
