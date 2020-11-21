@@ -40,7 +40,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem 1.3", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem 1.4", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 35, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
@@ -134,7 +134,7 @@ int
   g_level = 100, g_move_overhead = 15, g_rook_w[2] = {}, g_rook_b[2] = {}, g_root_n = 0, g_king_w = 0, g_king_b = 0, g_moves_n = 0, g_max_depth = kDepthLimit, g_qs_depth = 6, g_depth = 0, g_best_score = 0;
 
 std::uint32_t
-  g_hash_key = 0, g_tokens_nth = 0;
+  g_hash_key = 0, g_tokens_nth = 0, g_hash_mb = 256;
 
 std::uint64_t
   g_seed = 131783, g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_pawn_sq = 0, g_pawn_1_moves_w[64] = {}, g_pawn_1_moves_b[64] = {}, g_pawn_2_moves_w[64] = {}, g_pawn_2_moves_b[64] = {},
@@ -225,8 +225,9 @@ char PromoLetter(const char piece) {
 
 std::uint32_t PowerOf2(const std::uint32_t num) {std::uint32_t ret = 1; if (num <= 1) return num; while (ret < num) {if ((ret *= 2) == num) return ret;} return ret / 2;}
 
-void HashtableSetSize(const std::uint32_t mb) {
-  const auto hashsize = (1 << 20) * Between<std::uint32_t>(1, PowerOf2(mb), 1024 * 1024), hash_count = PowerOf2(hashsize / sizeof(struct Hash_t));
+void HashtableSetSize() {
+  g_hash_mb = Between<std::uint32_t>(1, g_hash_mb, 1024 * 1024);
+  const auto hashsize = (1 << 20) * Between<std::uint32_t>(1, g_hash_mb, 1024 * 1024), hash_count = PowerOf2(hashsize / sizeof(struct Hash_t));
   g_hash_key = hash_count - 1;
   g_hash.reset(new struct Hash_t[hash_count]);
   for (std::size_t i = 0; i < hash_count; i++) {g_hash[i].eval_hash = g_hash[i].sort_hash = g_hash[i].score = g_hash[i].killer = g_hash[i].good = g_hash[i].quiet = 0;}
@@ -847,6 +848,7 @@ void MgenRootAll() {
 
 // Evaluate
 
+void SetupNNUE() {nnue_init(g_eval_file.c_str());}
 std::uint64_t DrawKey(const int wnn, const int wbn, const int bnn, const int bbn) {return g_zobrist_board[0][wnn] ^ g_zobrist_board[1][wbn] ^ g_zobrist_board[2][bnn] ^ g_zobrist_board[3][bbn];}
 
 bool EasyDraw(const bool wtm) {
@@ -1186,9 +1188,9 @@ void UciPosition() {
 void UciSetoption() {
   if (     TokenPeek("name") && TokenPeek("UCI_Chess960", 1) && TokenPeek("value", 2)) {g_chess960 = TokenPeek("true", 3); TokenPop(4);}
   else if (TokenPeek("name") && TokenPeek("Level", 1)        && TokenPeek("value", 2)) {g_level = Between<int>(0, TokenNumber(3), 100); TokenPop(4);}
-  else if (TokenPeek("name") && TokenPeek("Hash", 1)         && TokenPeek("value", 2)) {HashtableSetSize(TokenNumber(3)); TokenPop(4);}
+  else if (TokenPeek("name") && TokenPeek("Hash", 1)         && TokenPeek("value", 2)) {g_hash_mb = TokenNumber(3); HashtableSetSize(); TokenPop(4);}
   else if (TokenPeek("name") && TokenPeek("MoveOverhead", 1) && TokenPeek("value", 2)) {g_move_overhead = Between<int>(0, TokenNumber(3), 5000); TokenPop(4);}
-  else if (TokenPeek("name") && TokenPeek("EvalFile", 1)     && TokenPeek("value", 2)) {g_eval_file = TokenCurrent(3); nnue_init(g_eval_file.c_str()); TokenPop(4);}
+  else if (TokenPeek("name") && TokenPeek("EvalFile", 1)     && TokenPeek("value", 2)) {g_eval_file = TokenCurrent(3); SetupNNUE(); TokenPop(4);}
 }
 
 void UciGo() {
@@ -1211,10 +1213,10 @@ void UciGo() {
 void UciUci() {
   std::cout << "id name " << kName << std::endl;
   std::cout << "id author Toni Helminen" << std::endl;
-  std::cout << "option name UCI_Chess960 type check default false" << std::endl;
-  std::cout << "option name Level type spin default 100 min 0 max 100" << std::endl;
-  std::cout << "option name Hash type spin default 256 min 1 max 1048576" << std::endl;
-  std::cout << "option name MoveOverhead type spin default 15 min 0 max 5000" << std::endl;
+  std::cout << "option name UCI_Chess960 type check default " << (g_chess960 ? "true" : "false") << std::endl;
+  std::cout << "option name Level type spin default " << g_level << " min 0 max 100" << std::endl;
+  std::cout << "option name Hash type spin default " << g_hash_mb << " min 1 max 1048576" << std::endl;
+  std::cout << "option name MoveOverhead type spin default " << g_move_overhead << " min 0 max 5000" << std::endl;
   std::cout << "option name EvalFile type string default " << g_eval_file << std::endl;
   std::cout << "uciok" << std::endl;
 }
@@ -1359,8 +1361,8 @@ void Init() {
   InitSliderMoves();
   InitJumpMoves();
   Fen(kStartpos);
-  HashtableSetSize(256);
-  nnue_init(g_eval_file.c_str());
+  HashtableSetSize();
+  SetupNNUE();
 }
 
 void Bench() {
