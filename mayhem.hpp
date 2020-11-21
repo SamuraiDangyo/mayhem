@@ -40,7 +40,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem 1.2", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem 1.3", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 35, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
@@ -301,7 +301,7 @@ int Piece(const char piece) {for (auto i = 0; i < 6; i++) {if (piece == "pnbrqk"
 
 void FenBoard(const std::string &board) {
   int sq = 56;
-  for (std::size_t i = 0; i < board.length() && sq >= 0; i++) if (board[i] == '/') sq -= 16; else if (std::isdigit(board[i])) sq += board[i] - '0'; else g_board->pieces[sq++] = Piece(board[i]);
+  for (std::size_t i = 0; i < board.length() && sq >= 0; i++) {if (board[i] == '/') sq -= 16; else if (std::isdigit(board[i])) sq += board[i] - '0'; else g_board->pieces[sq++] = Piece(board[i]);}
 }
 
 void FenKQkq(const std::string &kqkq) {
@@ -1383,6 +1383,6 @@ void Bench() {
 
 void PrintVersion() {std::cout << kName << " by Toni Helminen" << std::endl;}
 void UciLoop() {PrintVersion(); while (Uci());}
-void PrintHelp() {std::cout << ":: Help ::\n> mayhem: Enter UCI mode\n--version: Show version\n--bench: Run benchmarks\n-list [FEN]: Show root list\n-eval [FEN]: Show evaluation" << std::endl;}
+void PrintHelp() {std::cout << "> mayhem: Enter UCI mode\n--version: Show version\n--bench: Run benchmarks\n-list [FEN]: Show root list\n-eval [FEN]: Show evaluation" << std::endl;}
 void PrintList(const std::string &fen) {Fen(fen); MgenRootAll(); for (auto i = 0; i < g_root_n; i++) std::cout << i << ": " << MoveName(g_root + i) << " : " << g_root[i].score << std::endl;}
 void PrintEval(const std::string &fen) {Fen(fen); std::cout << Evaluate(g_wtm) << std::endl;}}
