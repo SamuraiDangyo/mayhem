@@ -848,19 +848,25 @@ void MgenRootAll() {
 
 // Evaluate
 
-void SetupNNUE() {nnue_init(g_eval_file.c_str());}
+void SetupNNUE() {
+  static std::string filename = "-";
+  if (filename == g_eval_file) return;
+  filename = g_eval_file;
+  nnue_init(g_eval_file.c_str());
+}
+
 std::uint64_t DrawKey(const int wnn, const int wbn, const int bnn, const int bbn) {return g_zobrist_board[0][wnn] ^ g_zobrist_board[1][wbn] ^ g_zobrist_board[2][bnn] ^ g_zobrist_board[3][bbn];}
 
 bool EasyDraw(const bool wtm) {
   if (g_board->white[3] | g_board->white[4] | g_board->black[3] | g_board->black[4]) return false;
-  if (g_board->white[1] | g_board->white[2] | g_board->black[1] | g_board->black[2]) {
+  if (g_board->white[1] | g_board->white[2] | g_board->black[1] | g_board->black[2]) { // NB draws ?
     if (g_board->white[0] | g_board->black[0]) return false;
     const auto hash = DrawKey(PopCount(g_board->white[1]), PopCount(g_board->white[2]), PopCount(g_board->black[1]), PopCount(g_board->black[2]));
     for (auto i = 0; i < 13; i++) {if (g_easy_draws[i] == hash) return true;}
     return false;
   }
-  if (PopCount(g_board->white[0] | g_board->black[0]) == 1) {
-    return g_board->white[0] ? eucalyptus::probe(Ctz(g_board->white[5]), Ctz(g_board->white[0]), Ctz(g_board->black[5]), wtm) // Probe KPK
+  if (PopCount(g_board->white[0] | g_board->black[0]) == 1) { // Probe KPK
+    return g_board->white[0] ? eucalyptus::probe(Ctz(g_board->white[5]), Ctz(g_board->white[0]), Ctz(g_board->black[5]), wtm)
                              : eucalyptus::probe(63 - Ctz(g_board->black[5]), 63 - Ctz(g_board->black[0]), 63 - Ctz(g_board->white[5]), !wtm);
   }
   return false;
@@ -870,8 +876,8 @@ int CloserBonus(const int sq1, const int sq2) {return std::pow(7 - std::abs(Xcoo
 int AnyCornerBonus(const int sq) {return std::max(std::max(CloserBonus(sq, 0), CloserBonus(sq, 7)), std::max(CloserBonus(sq, 56), CloserBonus(sq, 63)));}
 int BonusKNBK(const bool is_white) {
   const auto wk = Ctz(g_board->white[5]), bk = Ctz(g_board->black[5]);
-  return is_white ? (2 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloserBonus(0, bk), CloserBonus(63, bk)) : std::max(CloserBonus(7, bk), CloserBonus(56, bk))))
-                  : (2 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloserBonus(0, wk), CloserBonus(63, wk)) : std::max(CloserBonus(7, wk), CloserBonus(56, wk))));
+  return is_white ? 2 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloserBonus(0, bk), CloserBonus(63, bk)) : std::max(CloserBonus(7, bk), CloserBonus(56, bk)))
+                  : 2 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloserBonus(0, wk), CloserBonus(63, wk)) : std::max(CloserBonus(7, wk), CloserBonus(56, wk)));
 }
 
 int EvaluateClassical(const bool wtm) {

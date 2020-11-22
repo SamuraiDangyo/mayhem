@@ -14,11 +14,8 @@ release:
 	x86_64-w64-mingw32-g++ $(CXXFLAGS) -static -DWINDOWS $(FILES) -o $(EXE)-$(VER)-x86-windows-modern-64bit.exe
 	$(CXX) $(CXXFLAGS) -static $(FILES) -o $(EXE)-$(VER)-x86-unix-modern-64bit
 
-clean:
-	rm -f $(EXE) $(EXE)-* *.pgn game.* log.* *.out *.txt
-
 test:
-	cutechess-cli -engine cmd=./$(EXE) dir=. proto=uci -engine cmd=fruit proto=uci -repeat -each tc=10+.5 -rounds 100 -openings file=lib/book.pgn format=pgn -resign movecount=8 score=500 -draw movenumber=40 movecount=10 score=30 -pgnout games.pgn
+	cutechess-cli -engine cmd=./$(EXE) dir=. proto=uci -engine cmd=fruit proto=uci -repeat -each tc=10+.5 -rounds 100 -openings file=lib/openings.pgn format=pgn -resign movecount=8 score=500 -draw movenumber=40 movecount=10 score=30 -pgnout games.pgn
 
 valgrind:
 	g++ -Wall -O1 -mpopcnt -ggdb3 $(FILES)
@@ -27,4 +24,7 @@ valgrind:
 xboard:
 	xboard -fUCI -fcp ./$(EXE)
 
-.PHONY: all release clean test valgrind xboard
+clean:
+	rm -f $(EXE) $(EXE)-* *.pgn game.* log.* *.out *.txt
+
+.PHONY: all release test valgrind xboard clean
