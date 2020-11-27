@@ -243,16 +243,17 @@ const std::string MoveName(const struct Board_t *move) {
 // Lib
 
 void SetupBook() {
-  g_own_book = g_book_file == "-" ? false : g_book.open_book(g_book_file);
-  if (!g_own_book) std::cerr << "Warning: Missing BookFile! Using no book!" << std::endl;
+  static std::string filename = "???";
+  if (filename == g_book_file) return;
+  if (g_book_file == "-") {g_own_book = false;} else {g_own_book = g_book.open_book(g_book_file); filename = g_book_file;}
+  if (!g_own_book) std::cerr << "Warning: Missing BookFile !" << std::endl;
 }
 
 void SetupNNUE() {
   static std::string filename = "???";
   if (filename == g_eval_file) return;
-  filename = g_eval_file;
-  g_nnue_exists = g_eval_file == "-" ? false : nnue_init(g_eval_file.c_str());
-  if (!g_nnue_exists) std::cerr << "Warning: Missing NNUE EvalFile! Using Classical evaluation!" << std::endl;
+  if (g_eval_file == "-") {g_nnue_exists = false;} else {g_nnue_exists = nnue_init(g_eval_file.c_str()); filename = g_eval_file;}
+  if (!g_nnue_exists) std::cerr << "Warning: Missing NNUE EvalFile !" << std::endl;
 }
 
 // Hash
