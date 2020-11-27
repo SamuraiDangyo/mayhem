@@ -44,11 +44,12 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem 1.5", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem 1.6", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 35, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
-  kBishopVectors[8] = {1,1,-1,-1,1,-1,-1,1}, kRookVectors[8] = {1,0,0,1,0,-1,-1,0}, kMvv[6][6] = {{85,96,97,98,99,100},{84,86,93,94,95,100},{82,83,87,91,92,100},{79,80,81,88,90,100},{75,76,77,78,89,100},{70,71,72,73,74,100}};
+  kBishopVectors[8] = {1,1,-1,-1,1,-1,-1,1}, kRookVectors[8] = {1,0,0,1,0,-1,-1,0}, kMvv[6][6] = {{85,96,97,98,99,100},{84,86,93,94,95,100},{82,83,87,91,92,100},{79,80,81,88,90,100},{75,76,77,78,89,100},{70,71,72,73,74,100}},
+  kCenter[64] = {0,1,3,4,4,3,1,0,1,2,4,5,5,4,2,1,3,4,6,7,7,6,4,3,4,5,7,8,8,7,5,4,4,5,7,8,8,7,5,4,3,4,6,7,7,6,4,3,1,2,4,5,5,4,2,1,0,1,3,4,4,3,1,0};
 
 constexpr std::uint64_t
   kRookMagic[64] =
@@ -135,7 +136,7 @@ enum Move_t {kKiller, kGood, kQuiet};
 // Variables
 
 int
-  g_level = 100, g_move_overhead = 15, g_rook_w[2] = {}, g_rook_b[2] = {}, g_root_n = 0, g_king_w = 0, g_king_b = 0, g_moves_n = 0, g_max_depth = kDepthLimit, g_qs_depth = 6, g_depth = 0, g_best_score = 0;
+  g_level = 10, g_move_overhead = 15, g_rook_w[2] = {}, g_rook_b[2] = {}, g_root_n = 0, g_king_w = 0, g_king_b = 0, g_moves_n = 0, g_max_depth = kDepthLimit, g_qs_depth = 6, g_depth = 0, g_best_score = 0;
 
 std::uint32_t
   g_hash_key = 0, g_tokens_nth = 0, g_hash_mb = 256;
@@ -147,7 +148,7 @@ std::uint64_t
   g_zobrist_board[13][64] = {}, g_stop_search_time = 0, g_easy_draws[13] = {}, g_r50_positions[128] = {}, g_nodes = 0;
 
 bool
-  g_chess960 = false, g_wtm = false, g_stop_search = false, g_activate_help = false, g_underpromos = true, g_nullmove_on = false, g_is_pv = false, g_analyzing = false, g_own_book = true;
+  g_chess960 = false, g_wtm = false, g_stop_search = false, g_underpromos = true, g_nullmove_on = false, g_is_pv = false, g_analyzing = false, g_own_book = true, g_bare_king = false, g_nnue_exists = true, g_classical = false;
 
 std::vector<std::string>
   g_tokens = {};
@@ -162,7 +163,7 @@ std::unique_ptr<struct Hash_t[]>
   g_hash;
 
 std::string
-  g_eval_file = "nn-c3ca321c51c9.nnue", g_book_file = "book.bin";
+  g_eval_file = "nn-c3ca321c51c9.nnue", g_book_file = "performance.bin";
 
 // Prototypes
 
@@ -242,21 +243,23 @@ const std::string MoveName(const struct Board_t *move) {
 // Lib
 
 void SetupBook() {
-  g_own_book = g_book.open_book(g_book_file);
+  g_own_book = g_book_file == "-" ? false : g_book.open_book(g_book_file);
+  if (!g_own_book) std::cerr << "Warning: Missing BookFile! Using no book!" << std::endl;
 }
 
 void SetupNNUE() {
-  static std::string filename = "-";
+  static std::string filename = "???";
   if (filename == g_eval_file) return;
   filename = g_eval_file;
-  nnue_init(g_eval_file.c_str());
+  g_nnue_exists = g_eval_file == "-" ? false : nnue_init(g_eval_file.c_str());
+  if (!g_nnue_exists) std::cerr << "Warning: Missing NNUE EvalFile! Using Classical evaluation!" << std::endl;
 }
 
 // Hash
 
 std::uint32_t PowerOf2(const std::uint32_t num) {std::uint32_t ret = 1; if (num <= 1) return num; while (ret < num) {if ((ret *= 2) == num) return ret;} return ret / 2;}
 
-void HashtableSetSize() {
+void SetupHashtable() {
   g_hash_mb = Between<std::uint32_t>(1, g_hash_mb, 1024 * 1024);
   const auto hashsize = (1 << 20) * g_hash_mb, hash_count = PowerOf2(hashsize / sizeof(struct Hash_t));
   g_hash_key = hash_count - 1;
@@ -901,20 +904,23 @@ int EvaluateClassical(const bool wtm) {
   for (auto pieces = both; pieces; pieces = ClearBit(pieces)) {
     const auto sq = Ctz(pieces);
     switch (g_board->pieces[sq]) {
-    case +1: score += 100 + 10 * Ycoord(sq); break;
-    case +2: score += 300; break;
-    case +3: score += 300 + ((PopCount(both) == 4 && g_board->white[1] && g_board->white[2]) ? BonusKNBK(true) : 0); break;
-    case +4: score += 500; break;
-    case +5: score += 900; break;
+    case +1: score += 100 +     (g_bare_king ? 10 : 1) * Ycoord(sq); break;
+    case +2: score += 300 + 2 * (g_bare_king ? 0  : kCenter[sq] + PopCount(g_knight_moves[sq] & (~white))); break;
+    case +3: score += 300 + 2 * (g_bare_king ? 0  : kCenter[sq] + PopCount(BishopMagicMoves(sq, both) & (~white)))
+                      + ((PopCount(both) == 4 && g_board->white[1] && g_board->white[2]) ? BonusKNBK(true) : 0); break;
+    case +4: score += 500 + 2 * (g_bare_king ? 0  : kCenter[sq] + PopCount(RookMagicMoves(sq, both) & (~white))); break;
+    case +5: score += 900 + 2 * (g_bare_king ? 0  : kCenter[sq] + PopCount((BishopMagicMoves(sq, both) | RookMagicMoves(sq, both)) & (~white))); break;
     case +6: score += PopCount(g_king_moves[sq]); break;
-    case -1: score -= 100 + 10 * (7 - Ycoord(sq)); break;
-    case -2: score -= 300; break;
-    case -3: score -= 300 + ((PopCount(both) == 4 && g_board->black[1] && g_board->black[2]) ? BonusKNBK(false) : 0); break;
-    case -4: score -= 500; break;
-    case -5: score -= 900; break;
+    case -1: score -= 100 +     (g_bare_king ? 10 : 1) * (7 - Ycoord(sq)); break;
+    case -2: score -= 300 + 2 * (g_bare_king ? 0  : kCenter[sq] + PopCount(g_knight_moves[sq] & (~black))); break;
+    case -3: score -= 300 + 2 * (g_bare_king ? 0  : kCenter[sq] + PopCount(BishopMagicMoves(sq, both) & (~black)))
+                      + ((PopCount(both) == 4 && g_board->black[1] && g_board->black[2]) ? BonusKNBK(false) : 0); break;
+    case -4: score -= 500 + 2 * (g_bare_king ? 0  : kCenter[sq] + PopCount(RookMagicMoves(sq, both) & (~black))); break;
+    case -5: score -= 900 + 2 * (g_bare_king ? 0  : kCenter[sq] + PopCount((BishopMagicMoves(sq, both) | RookMagicMoves(sq, both)) & (~black))); break;
     case -6: score -= PopCount(g_king_moves[sq]); break;}
   }
   if (ChecksW()) score += 10; else if (ChecksB()) score -= 10;
+  if (!g_bare_king) return score;
   return PopCount(white) >= 2 ? score + 5 * AnyCornerBonus(bk) + 2 * CloserBonus(wk, bk) : score - 5 * AnyCornerBonus(wk) - 2 * CloserBonus(bk, wk);
 }
 
@@ -939,7 +945,7 @@ int EvaluateNNUE(const bool wtm) {
   return entry->score = EasyDraw(wtm) ? 0 : ProbeNNUE(wtm);
 }
 
-int Evaluate(const bool wtm) {return (int) ((1.0f - (((float) g_board->rule50) / 100.0f)) * (g_activate_help ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)));}
+int Evaluate(const bool wtm) {return (int) ((1.0f - (((float) g_board->rule50) / 100.0f)) * (g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)));}
 
 // Search
 
@@ -1142,7 +1148,8 @@ void ThinkSetup(const int think_time) {
   g_best_score = g_nodes = g_depth = 0;
   g_qs_depth = 4;
   g_stop_search_time = Now() + (std::uint64_t) std::max(0, think_time);
-  g_activate_help = g_nullmove_on = ((g_wtm && PopCount(Black()) == 1) || (!g_wtm && PopCount(White()) == 1)); // vs bare king = active mate help + disable null move
+  g_bare_king = g_nullmove_on = (g_wtm && PopCount(Black()) == 1) || (!g_wtm && PopCount(White()) == 1); // vs bare king = active mate help + disable null move
+  g_classical = g_bare_king || !g_nnue_exists;
 }
 
 bool ThinkRandomMove() {
@@ -1153,18 +1160,15 @@ bool ThinkRandomMove() {
 }
 
 bool ProbeBook() {
-  const int move = g_book.probe(g_board->pieces, g_board->castle, g_board->epsq, g_wtm, false);
+  const int move = g_book.probe(g_board->pieces, g_board->castle, g_board->epsq, g_wtm, Random(0, 7) > 5);
   if (!move) return false;
   const std::uint8_t from = 8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7), 
                      to   = 8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7);
   std::uint8_t type = 0;
-  if (     move & (0x1 << 12)) type = 5; // Promos
-  else if (move & (0x1 << 13)) type = 6;
-  else if (move & (0x1 << 14)) type = 7;
-  else if (move & (0x1 << 15)) type = 8;
+  for (auto i = 0; i < 4; i++) {if (move & (0x1 << (12 + i))) type = 5 + i;} // Promos
   for (auto i = 0; i < g_root_n; i++) {
     if (g_root[i].from == from && g_root[i].to == to) {
-      if (type >= 5 && type <= 8 && g_root[i].type != type) continue;
+      if (type && g_root[i].type != type) continue;
       SortRoot(i);
       return true;
     }
@@ -1186,7 +1190,7 @@ void Think(const int think_time) {
     g_qs_depth = std::min(g_qs_depth + 2, 12);
   }
   g_underpromos = true;
-  if (g_level >= 1 && g_level <= 99) {auto nth = Random(0, std::max(1, (int) (g_root_n * (1.0f - g_level / 100.0f)))); if (Random(0, 100) > g_level && nth) Swap(g_root, g_root + nth);}
+  if (g_level >= 1 && g_level <= 9) {if (Random(0, 9) >= g_level) Swap(g_root, g_root + 1);}
   g_board = tmp;
   Speak(g_best_score, Now() - start);
 }
@@ -1225,8 +1229,8 @@ void UciPosition() {
 
 void UciSetoption() {
   if (     TokenPeek("name") && TokenPeek("UCI_Chess960", 1) && TokenPeek("value", 2)) {g_chess960 = TokenPeek("true", 3); TokenPop(4);}
-  else if (TokenPeek("name") && TokenPeek("Level", 1)        && TokenPeek("value", 2)) {g_level = Between<int>(0, TokenNumber(3), 100); TokenPop(4);}
-  else if (TokenPeek("name") && TokenPeek("Hash", 1)         && TokenPeek("value", 2)) {g_hash_mb = TokenNumber(3); HashtableSetSize(); TokenPop(4);}
+  else if (TokenPeek("name") && TokenPeek("Level", 1)        && TokenPeek("value", 2)) {g_level = Between<int>(0, TokenNumber(3), 10); TokenPop(4);}
+  else if (TokenPeek("name") && TokenPeek("Hash", 1)         && TokenPeek("value", 2)) {g_hash_mb = TokenNumber(3); SetupHashtable(); TokenPop(4);}
   else if (TokenPeek("name") && TokenPeek("MoveOverhead", 1) && TokenPeek("value", 2)) {g_move_overhead = Between<int>(0, TokenNumber(3), 5000); TokenPop(4);}
   else if (TokenPeek("name") && TokenPeek("EvalFile", 1)     && TokenPeek("value", 2)) {g_eval_file = TokenCurrent(3); SetupNNUE(); TokenPop(4);}
   else if (TokenPeek("name") && TokenPeek("BookFile", 1)     && TokenPeek("value", 2)) {g_book_file = TokenCurrent(3); SetupBook(); TokenPop(4);}
@@ -1253,7 +1257,7 @@ void UciUci() {
   std::cout << "id name " << kName << std::endl;
   std::cout << "id author Toni Helminen" << std::endl;
   std::cout << "option name UCI_Chess960 type check default " << (g_chess960 ? "true" : "false") << std::endl;
-  std::cout << "option name Level type spin default " << g_level << " min 0 max 100" << std::endl;
+  std::cout << "option name Level type spin default " << g_level << " min 0 max 10" << std::endl;
   std::cout << "option name Hash type spin default " << g_hash_mb << " min 1 max 1048576" << std::endl;
   std::cout << "option name MoveOverhead type spin default " << g_move_overhead << " min 0 max 5000" << std::endl;
   std::cout << "option name EvalFile type string default " << g_eval_file << std::endl;
@@ -1401,7 +1405,7 @@ void Init() {
   InitSliderMoves();
   InitJumpMoves();
   Fen(kStartpos);
-  HashtableSetSize();
+  SetupHashtable();
   SetupNNUE();
   SetupBook();
 }

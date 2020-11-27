@@ -15,7 +15,7 @@ release:
 	$(CXX) $(CXXFLAGS) -static $(FILES) -o $(EXE)-$(VER)-x86-unix-modern-64bit
 
 test:
-	cutechess-cli -engine cmd=./$(EXE) dir=. proto=uci -engine cmd=fruit proto=uci -repeat -each tc=30+.1 -rounds 100 -resign movecount=8 score=500 -draw movenumber=40 movecount=10 score=30 -pgnout games.pgn
+	cutechess-cli -engine cmd=./$(EXE) dir=. proto=uci -engine cmd=fruit proto=uci -repeat -each tc=60+.1 -rounds 100 -resign movecount=8 score=500 -draw movenumber=40 movecount=10 score=30 -pgnout games.pgn
 
 valgrind:
 	g++ -Wall -O1 -mpopcnt -ggdb3 $(FILES)
@@ -28,4 +28,3 @@ clean:
 	rm -f $(EXE) $(EXE)-* *.pgn game.* log.* *.out *.txt
 
 .PHONY: all release test valgrind xboard clean
-
