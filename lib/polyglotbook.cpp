@@ -37,10 +37,10 @@ namespace {
   // stored in big-endian format, with the highest byte first (regardless of
   // size). The entries are ordered according to the key in ascending order.
   struct Entry {
-    uint64_t key;
-    uint16_t move;
-    uint16_t count;
-    uint32_t learn;
+    std::uint64_t key;
+    std::uint16_t move;
+    std::uint16_t count;
+    std::uint32_t learn;
   };
 
   // Random numbers from PolyGlot, used to compute book hash keys
@@ -384,9 +384,10 @@ bool PolyglotBook::open(const std::string &file) {
 
   std::ifstream::open(file, std::ifstream::in | std::ifstream::binary);
 
-  fileName = is_open() ? file : "";
+  const auto opened = is_open();
   std::ifstream::clear(); // Reset any error flag to allow a retry ifstream::open()
-  return !fileName.empty();
+
+  return opened;
 }
 
 
@@ -396,7 +397,6 @@ bool PolyglotBook::open(const std::string &file) {
 /// move score.
 
 bool PolyglotBook::open_book(const std::string &file) {
-  if (fileName == file) return false;
   return open(file);
 }
 
@@ -412,7 +412,7 @@ bool PolyglotBook::ep_legal(const std::int8_t pieces[64],  const std::int8_t eps
 int PolyglotBook::probe(const std::int8_t pieces[64], const std::uint8_t castling, const std::int8_t epsq, const bool wtm, bool pickBest) {
   if (!is_open()) return 0;
   Entry e;
-  uint16_t best = 0;
+  std::uint16_t best = 0;
   unsigned sum = 0;
   int move = 0;
   std::uint64_t key = polyglot_key(pieces, castling, ep_legal(pieces, epsq, wtm) ? epsq : -1, wtm);

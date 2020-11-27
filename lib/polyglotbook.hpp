@@ -27,7 +27,6 @@ Copyright (C) 2020 Toni Helminen (Mayhem author / Modifications)
 #include <string>
 #include <algorithm>
 #include <iostream>
-#include <cstdlib>
 #include <ctime>
 
 class PolyglotBook : private std::ifstream {
@@ -38,8 +37,6 @@ public:
   bool open_book(const std::string&);
 
 private:
-  std::string fileName;
-
   template<typename T> PolyglotBook& operator>>(T&);
 
   bool open(const std::string&);
