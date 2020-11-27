@@ -404,7 +404,7 @@ bool PolyglotBook::on_board(const int x, const int y) {return x >= 0 && x <= 7 &
 
 bool PolyglotBook::ep_legal(const std::int8_t pieces[64],  const std::int8_t epsq, const bool wtm) {
   if (epsq == -1) return false;
-  const auto x = epsq % 8, y = epsq % 8;
+  const int x = epsq % 8, y = epsq / 8;
   return wtm ? (on_board(x - 1, y) && pieces[8 * y + x - 1] == -1) || (on_board(x + 1, y) && pieces[8 * y + x + 1] == -1)
              : (on_board(x - 1, y) && pieces[8 * y + x - 1] == +1) || (on_board(x + 1, y) && pieces[8 * y + x + 1] == +1);
 }
