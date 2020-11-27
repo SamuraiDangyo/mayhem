@@ -363,7 +363,7 @@ PolyglotBook::~PolyglotBook() { if (is_open()) close(); }
 template<typename T> PolyglotBook& PolyglotBook::operator>>(T& n) {
 
   n = 0;
-  for (size_t i = 0; i < sizeof(T); ++i)
+  for (std::size_t i = 0; i < sizeof(T); ++i)
       n = T((n << 8) + std::ifstream::get());
 
   return *this;
@@ -417,7 +417,7 @@ int PolyglotBook::probe(const std::int8_t pieces[64], const std::uint8_t castlin
   int move = 0;
   std::uint64_t key = polyglot_key(pieces, castling, ep_legal(pieces, epsq, wtm) ? epsq : -1, wtm);
 
-  seekg(find_first(key) * sizeof(Entry), ios_base::beg);
+  seekg(find_first(key) * sizeof(Entry), std::ios_base::beg);
 
   while (*this >> e, e.key == key && good()) {
       best = std::max(best, e.count);
@@ -451,11 +451,11 @@ int PolyglotBook::probe(const std::int8_t pieces[64], const std::uint8_t castlin
 /// the book file for the given key. Returns the index of the leftmost book
 /// entry with the same key as the input.
 
-size_t PolyglotBook::find_first(std::uint64_t key) {
+std::size_t PolyglotBook::find_first(std::uint64_t key) {
 
   seekg(0, std::ios::end); // Move pointer to end, so tellg() gets file's size
 
-  size_t low = 0, mid, high = (size_t)tellg() / sizeof(Entry) - 1;
+  std::size_t low = 0, mid, high = (std::size_t)tellg() / sizeof(Entry) - 1;
   Entry e;
 
   //assert(low <= high);
