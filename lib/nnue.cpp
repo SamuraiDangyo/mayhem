@@ -1122,11 +1122,9 @@ static bool load_eval_file(const char *evalFile)
 /*
 Interfaces
 */
-DLLExport void _CDECL nnue_init(const char* evalFile)
+DLLExport bool _CDECL nnue_init(const char* evalFile)
 {
-  if (load_eval_file(evalFile)) return;
-  printf("NNUE file not found!\n");
-  fflush(stdout);
+  return load_eval_file(evalFile);
 }
 
 DLLExport int _CDECL nnue_evaluate(int player, int* pieces, int* squares)

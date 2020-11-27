@@ -70,7 +70,7 @@ int nnue_evaluate_pos(Position* pos);
 extern "C" {
 #endif
 
-void nnue_init(
+bool nnue_init(
   const char * evalFile             /** Path to NNUE file */
 );
 

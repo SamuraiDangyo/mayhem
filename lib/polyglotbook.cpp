@@ -29,7 +29,7 @@ Copyright (C) 2020 Toni Helminen (Mayhem author / Modifications)
 
 #include "polyglotbook.hpp"
 
-using namespace std;
+//using namespace std;
 
 namespace {
 
@@ -364,7 +364,7 @@ template<typename T> PolyglotBook& PolyglotBook::operator>>(T& n) {
 
   n = 0;
   for (size_t i = 0; i < sizeof(T); ++i)
-      n = T((n << 8) + ifstream::get());
+      n = T((n << 8) + std::ifstream::get());
 
   return *this;
 }
@@ -382,10 +382,10 @@ bool PolyglotBook::open(const std::string &file) {
   if (is_open()) // Cannot close an already closed file
       close();
 
-  ifstream::open(file, ifstream::in | ifstream::binary);
+  std::ifstream::open(file, std::ifstream::in | std::ifstream::binary);
 
   fileName = is_open() ? file : "";
-  ifstream::clear(); // Reset any error flag to allow a retry ifstream::open()
+  std::ifstream::clear(); // Reset any error flag to allow a retry ifstream::open()
   return !fileName.empty();
 }
 
@@ -420,7 +420,7 @@ int PolyglotBook::probe(const std::int8_t pieces[64], const std::uint8_t castlin
   seekg(find_first(key) * sizeof(Entry), ios_base::beg);
 
   while (*this >> e, e.key == key && good()) {
-      best = max(best, e.count);
+      best = std::max(best, e.count);
       sum += e.count;
 
       // Choose book move according to its score. If a move has a very high
@@ -453,7 +453,7 @@ int PolyglotBook::probe(const std::int8_t pieces[64], const std::uint8_t castlin
 
 size_t PolyglotBook::find_first(std::uint64_t key) {
 
-  seekg(0, ios::end); // Move pointer to end, so tellg() gets file's size
+  seekg(0, std::ios::end); // Move pointer to end, so tellg() gets file's size
 
   size_t low = 0, mid, high = (size_t)tellg() / sizeof(Entry) - 1;
   Entry e;
