@@ -1,5 +1,5 @@
 /*
-Mayhem is a Linux UCI Chess960 engine. Written in C++14. Credits for NNUE evaluation !
+Mayhem. Linux UCI Chess960 engine. Written in C++14
 Copyright (C) 2020 Toni Helminen
 
 This program is free software: you can redistribute it and/or modify
@@ -29,9 +29,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <ctime>
 #include <cmath>
 #include <unistd.h>
+#ifdef WINDOWS
+#include <conio.h>
+#endif
 #include <sys/time.h>
 #include "lib/nnue.hpp"
 #include "lib/eucalyptus.hpp"
+#include "lib/polyglotbook.hpp"
 
 // Namespace
 
@@ -143,7 +147,7 @@ std::uint64_t
   g_zobrist_board[13][64] = {}, g_stop_search_time = 0, g_easy_draws[13] = {}, g_r50_positions[128] = {}, g_nodes = 0;
 
 bool
-  g_chess960 = false, g_wtm = false, g_stop_search = false, g_activate_help = false, g_underpromos = true, g_nullmove_on = false, g_is_pv = false, g_analyzing = false;
+  g_chess960 = false, g_wtm = false, g_stop_search = false, g_activate_help = false, g_underpromos = true, g_nullmove_on = false, g_is_pv = false, g_analyzing = false, g_own_book = true;
 
 std::vector<std::string>
   g_tokens = {};
@@ -151,11 +155,14 @@ std::vector<std::string>
 struct Board_t
   g_board_tmp = {}, *g_board = &g_board_tmp, *g_moves = 0, *g_board_orig = 0, g_root[kMaxMoves] = {};
 
+PolyglotBook 
+  g_book;
+
 std::unique_ptr<struct Hash_t[]>
   g_hash;
 
 std::string
-  g_eval_file = "nn-c3ca321c51c9.nnue";
+  g_eval_file = "nn-c3ca321c51c9.nnue", g_book_file = "book.bin";
 
 // Prototypes
 
@@ -221,18 +228,6 @@ char PromoLetter(const char piece) {
   default: return 'q';}
 }
 
-// Hash
-
-std::uint32_t PowerOf2(const std::uint32_t num) {std::uint32_t ret = 1; if (num <= 1) return num; while (ret < num) {if ((ret *= 2) == num) return ret;} return ret / 2;}
-
-void HashtableSetSize() {
-  g_hash_mb = Between<std::uint32_t>(1, g_hash_mb, 1024 * 1024);
-  const auto hashsize = (1 << 20) * Between<std::uint32_t>(1, g_hash_mb, 1024 * 1024), hash_count = PowerOf2(hashsize / sizeof(struct Hash_t));
-  g_hash_key = hash_count - 1;
-  g_hash.reset(new struct Hash_t[hash_count]);
-  for (std::size_t i = 0; i < hash_count; i++) {g_hash[i].eval_hash = g_hash[i].sort_hash = g_hash[i].score = g_hash[i].killer = g_hash[i].good = g_hash[i].quiet = 0;}
-}
-
 const std::string MoveName(const struct Board_t *move) {
   auto from = move->from, to = move->to;
   switch (move->type) {
@@ -242,6 +237,31 @@ const std::string MoveName(const struct Board_t *move) {
   case 4: from = g_king_b; to = g_chess960 ? g_rook_b[1] : 56 + 2; break;
   case 5: case 6: case 7: case 8: return MoveStr(from, to) + PromoLetter(move->pieces[to]);}
   return MoveStr(from, to);
+}
+
+// Lib
+
+void SetupBook() {
+  g_own_book = g_book.open_book(g_book_file);
+}
+
+void SetupNNUE() {
+  static std::string filename = "-";
+  if (filename == g_eval_file) return;
+  filename = g_eval_file;
+  nnue_init(g_eval_file.c_str());
+}
+
+// Hash
+
+std::uint32_t PowerOf2(const std::uint32_t num) {std::uint32_t ret = 1; if (num <= 1) return num; while (ret < num) {if ((ret *= 2) == num) return ret;} return ret / 2;}
+
+void HashtableSetSize() {
+  g_hash_mb = Between<std::uint32_t>(1, g_hash_mb, 1024 * 1024);
+  const auto hashsize = (1 << 20) * g_hash_mb, hash_count = PowerOf2(hashsize / sizeof(struct Hash_t));
+  g_hash_key = hash_count - 1;
+  g_hash.reset(new struct Hash_t[hash_count]);
+  for (std::size_t i = 0; i < hash_count; i++) {g_hash[i].eval_hash = g_hash[i].sort_hash = g_hash[i].score = g_hash[i].killer = g_hash[i].good = g_hash[i].quiet = 0;}
 }
 
 inline std::uint64_t Hash(const int wtm) {
@@ -848,13 +868,6 @@ void MgenRootAll() {
 
 // Evaluate
 
-void SetupNNUE() {
-  static std::string filename = "-";
-  if (filename == g_eval_file) return;
-  filename = g_eval_file;
-  nnue_init(g_eval_file.c_str());
-}
-
 std::uint64_t DrawKey(const int wnn, const int wbn, const int bnn, const int bbn) {return g_zobrist_board[0][wnn] ^ g_zobrist_board[1][wbn] ^ g_zobrist_board[2][bnn] ^ g_zobrist_board[3][bbn];}
 
 bool EasyDraw(const bool wtm) {
@@ -943,7 +956,6 @@ bool Draw() {
 }
 
 #if defined WINDOWS
-#include <conio.h>
 bool InputAvailable() {return _kbhit();}
 #else
 bool InputAvailable() {
@@ -1140,14 +1152,35 @@ bool ThinkRandomMove() {
   return true;
 }
 
+bool ProbeBook() {
+  const int move = g_book.probe(g_board->pieces, g_board->castle, g_board->epsq, g_wtm, false);
+  if (!move) return false;
+  const std::uint8_t from = 8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7), 
+                     to   = 8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7);
+  std::uint8_t type = 0;
+  if (     move & (0x1 << 12)) type = 5; // Promos
+  else if (move & (0x1 << 13)) type = 6;
+  else if (move & (0x1 << 14)) type = 7;
+  else if (move & (0x1 << 15)) type = 8;
+  for (auto i = 0; i < g_root_n; i++) {
+    if (g_root[i].from == from && g_root[i].to == to) {
+      if (type >= 5 && type <= 8 && g_root[i].type != type) continue;
+      SortRoot(i);
+      return true;
+    }
+  }
+  return false;
+}
+
 void Think(const int think_time) {
   auto *tmp = g_board;
   const auto start = Now();
   ThinkSetup(think_time);
   MgenRootAll();
   if (g_root_n <= 1 || ThinkRandomMove()) {Speak(0, 0); return;}
+  if (g_own_book && think_time > 10 && !g_analyzing && ProbeBook()) {Speak(0, 0); return;}
   g_underpromos = false;
-  for (; std::abs(g_best_score) < 0.5f * kInf && g_depth < g_max_depth && !g_stop_search; g_depth++) {
+  for (; std::abs(g_best_score) < kInf / 2 && g_depth < g_max_depth && !g_stop_search; g_depth++) {
     g_best_score = g_wtm ? BestW() : BestB();
     Speak(g_best_score, Now() - start);
     g_qs_depth = std::min(g_qs_depth + 2, 12);
@@ -1196,6 +1229,7 @@ void UciSetoption() {
   else if (TokenPeek("name") && TokenPeek("Hash", 1)         && TokenPeek("value", 2)) {g_hash_mb = TokenNumber(3); HashtableSetSize(); TokenPop(4);}
   else if (TokenPeek("name") && TokenPeek("MoveOverhead", 1) && TokenPeek("value", 2)) {g_move_overhead = Between<int>(0, TokenNumber(3), 5000); TokenPop(4);}
   else if (TokenPeek("name") && TokenPeek("EvalFile", 1)     && TokenPeek("value", 2)) {g_eval_file = TokenCurrent(3); SetupNNUE(); TokenPop(4);}
+  else if (TokenPeek("name") && TokenPeek("BookFile", 1)     && TokenPeek("value", 2)) {g_book_file = TokenCurrent(3); SetupBook(); TokenPop(4);}
 }
 
 void UciGo() {
@@ -1223,6 +1257,7 @@ void UciUci() {
   std::cout << "option name Hash type spin default " << g_hash_mb << " min 1 max 1048576" << std::endl;
   std::cout << "option name MoveOverhead type spin default " << g_move_overhead << " min 0 max 5000" << std::endl;
   std::cout << "option name EvalFile type string default " << g_eval_file << std::endl;
+  std::cout << "option name BookFile type string default " << g_book_file << std::endl;
   std::cout << "uciok" << std::endl;
 }
 
@@ -1368,6 +1403,7 @@ void Init() {
   Fen(kStartpos);
   HashtableSetSize();
   SetupNNUE();
+  SetupBook();
 }
 
 void Bench() {
