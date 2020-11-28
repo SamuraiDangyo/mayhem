@@ -40,7 +40,7 @@ private:
   template<typename T> PolyglotBook& operator>>(T&);
 
   bool open(const std::string&);
-  std::size_t find_first(std::uint64_t);
+  std::size_t find_first(const std::uint64_t);
   bool on_board(const int, const int);
   bool ep_legal(const std::int8_t[64], const std::int8_t, const bool);
 };

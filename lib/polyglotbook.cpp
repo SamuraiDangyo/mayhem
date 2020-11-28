@@ -451,18 +451,18 @@ int PolyglotBook::probe(const std::int8_t pieces[64], const std::uint8_t castlin
 /// the book file for the given key. Returns the index of the leftmost book
 /// entry with the same key as the input.
 
-std::size_t PolyglotBook::find_first(std::uint64_t key) {
+std::size_t PolyglotBook::find_first(const std::uint64_t key) {
 
   seekg(0, std::ios::end); // Move pointer to end, so tellg() gets file's size
 
-  std::size_t low = 0, mid, high = (std::size_t)tellg() / sizeof(Entry) - 1;
-  Entry e;
+  std::size_t low = 0, high = (std::size_t)tellg() / sizeof(Entry) - 1;
 
   //assert(low <= high);
 
   while (low < high && good())
   {
-      mid = (low + high) / 2;
+      const std::size_t mid = (low + high) / 2;
+      Entry e;
 
       //assert(mid >= low && mid < high);
 
