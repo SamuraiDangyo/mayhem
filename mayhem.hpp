@@ -144,11 +144,11 @@ std::uint32_t
 std::uint64_t
   g_seed = 131783, g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_pawn_sq = 0, g_pawn_1_moves_w[64] = {}, g_pawn_1_moves_b[64] = {}, g_pawn_2_moves_w[64] = {}, g_pawn_2_moves_b[64] = {},
   g_bishop_moves[64] = {}, g_rook_moves[64] = {}, g_queen_moves[64] = {}, g_knight_moves[64] = {}, g_king_moves[64] = {}, g_pawn_checks_w[64] = {}, g_pawn_checks_b[64] = {}, g_castle_w[2] = {}, g_castle_b[2] = {},
-  g_castle_empty_w[2] = {}, g_castle_empty_b[2] = {}, g_bishop_magic_moves[64][512] = {}, g_rook_magic_moves[64][4096] = {}, g_zobrist_ep[64] = {}, g_zobrist_castle[16] = {}, g_zobrist_wtm[2] = {}, 
+  g_castle_empty_w[2] = {}, g_castle_empty_b[2] = {}, g_bishop_magic_moves[64][512] = {}, g_rook_magic_moves[64][4096] = {}, g_zobrist_ep[64] = {}, g_zobrist_castle[16] = {}, g_zobrist_wtm[2] = {},
   g_zobrist_board[13][64] = {}, g_stop_search_time = 0, g_easy_draws[13] = {}, g_r50_positions[128] = {}, g_nodes = 0;
 
 bool
-  g_chess960 = false, g_wtm = false, g_stop_search = false, g_underpromos = true, g_nullmove_on = false, g_is_pv = false, g_analyzing = false, g_own_book = true, g_bare_king = false, g_nnue_exists = true, g_classical = false;
+  g_chess960 = false, g_wtm = false, g_stop_search = false, g_underpromos = true, g_nullmove_on = false, g_is_pv = false, g_analyzing = false, g_book_exist = true, g_bare_king = false, g_nnue_exist = true, g_classical = false;
 
 std::vector<std::string>
   g_tokens = {};
@@ -156,7 +156,7 @@ std::vector<std::string>
 struct Board_t
   g_board_tmp = {}, *g_board = &g_board_tmp, *g_moves = 0, *g_board_orig = 0, g_root[kMaxMoves] = {};
 
-PolyglotBook 
+PolyglotBook
   g_book;
 
 std::unique_ptr<struct Hash_t[]>
@@ -193,7 +193,7 @@ std::uint64_t Now() {struct timeval tv; if (gettimeofday(&tv, NULL)) return 0; r
 std::uint64_t Random64() {
   static std::uint64_t va = 0X12311227ULL, vb = 0X1931311ULL, vc = 0X13138141ULL;
   const auto mixer = [](std::uint64_t num) {return (num << 7) ^ (num >> 5);};
-  va ^= vb + vc; 
+  va ^= vb + vc;
   vb ^= vb * vc + 0x1717711ULL;
   vc = (3 * vc) + 1;
   return mixer(va) ^ mixer(vb) ^ mixer(vc);
@@ -245,15 +245,15 @@ const std::string MoveName(const struct Board_t *move) {
 void SetupBook() {
   static std::string filename = "???";
   if (filename == g_book_file) return;
-  if (g_book_file == "-") {g_own_book = false;} else {g_own_book = g_book.open_book(g_book_file); filename = g_book_file;}
-  if (!g_own_book) std::cerr << "Warning: Missing BookFile !" << std::endl;
+  if (g_book_file == "-") {g_book_exist = false;} else {g_book_exist = g_book.open_book(g_book_file); filename = g_book_file;}
+  if (!g_book_exist) std::cerr << "Warning: Missing BookFile !" << std::endl;
 }
 
 void SetupNNUE() {
   static std::string filename = "???";
   if (filename == g_eval_file) return;
-  if (g_eval_file == "-") {g_nnue_exists = false;} else {g_nnue_exists = nnue_init(g_eval_file.c_str()); filename = g_eval_file;}
-  if (!g_nnue_exists) std::cerr << "Warning: Missing NNUE EvalFile !" << std::endl;
+  if (g_eval_file == "-") {g_nnue_exist = false;} else {g_nnue_exist = nnue_init(g_eval_file.c_str()); filename = g_eval_file;}
+  if (!g_nnue_exist) std::cerr << "Warning: Missing NNUE EvalFile !" << std::endl;
 }
 
 // Hash
@@ -864,12 +864,6 @@ int MgenTacticalB(struct Board_t *moves) {return ChecksW() ? MgenB(moves) : Mgen
 
 void MgenRoot() {g_root_n = g_wtm ? MgenW(g_root) : MgenB(g_root);}
 
-void MgenRootAll() {
-  MgenRoot();
-  EvalRootMoves();
-  SortAll();
-}
-
 // Evaluate
 
 std::uint64_t DrawKey(const int wnn, const int wbn, const int bnn, const int bbn) {return g_zobrist_board[0][wnn] ^ g_zobrist_board[1][wbn] ^ g_zobrist_board[2][bnn] ^ g_zobrist_board[3][bbn];}
@@ -962,7 +956,7 @@ bool Draw() {
   return false;
 }
 
-#if defined WINDOWS
+#ifdef WINDOWS
 bool InputAvailable() {return _kbhit();}
 #else
 bool InputAvailable() {
@@ -1150,7 +1144,7 @@ void ThinkSetup(const int think_time) {
   g_qs_depth = 4;
   g_stop_search_time = Now() + (std::uint64_t) std::max(0, think_time);
   g_bare_king = g_nullmove_on = (g_wtm && PopCount(Black()) == 1) || (!g_wtm && PopCount(White()) == 1); // vs bare king = active mate help + disable null move
-  g_classical = g_bare_king || !g_nnue_exists;
+  g_classical = g_bare_king || !g_nnue_exist;
 }
 
 bool ThinkRandomMove() {
@@ -1163,7 +1157,7 @@ bool ThinkRandomMove() {
 bool ProbeBook() {
   const int move = g_book.probe(g_board->pieces, g_board->castle, g_board->epsq, g_wtm, Random(0, 7) > 5);
   if (!move) return false;
-  const std::uint8_t from = 8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7), 
+  const std::uint8_t from = 8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7),
                      to   = 8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7);
   std::uint8_t type = 0;
   for (auto i = 0; i < 4; i++) {if (move & (0x1 << (12 + i))) type = 5 + i;} // Promos
@@ -1181,9 +1175,11 @@ void Think(const int think_time) {
   auto *tmp = g_board;
   const auto start = Now();
   ThinkSetup(think_time);
-  MgenRootAll();
+  MgenRoot();
   if (g_root_n <= 1 || ThinkRandomMove()) {Speak(0, 0); return;}
-  if (g_own_book && think_time > 10 && !g_analyzing && ProbeBook()) {Speak(0, 0); return;}
+  if (g_book_exist && think_time > 10 && !g_analyzing && ProbeBook()) {Speak(0, 0); return;}
+  EvalRootMoves();
+  SortAll();
   g_underpromos = false;
   for (; std::abs(g_best_score) < kInf / 2 && g_depth < g_max_depth && !g_stop_search; g_depth++) {
     g_best_score = g_wtm ? BestW() : BestB();
@@ -1251,7 +1247,7 @@ void UciGo() {
     else if (Token("depth"))     {g_max_depth = Between<int>(1, TokenNumber(), kDepthLimit); Think(kInf); g_max_depth = kDepthLimit; TokenPop(); print_best_move(); return;}
   }
   Think(std::max(0, g_wtm ? wtime / mtg + winc : btime / mtg + binc));
-  print_best_move(); 
+  print_best_move();
 }
 
 void UciUci() {
@@ -1432,5 +1428,5 @@ void Bench() {
 void PrintVersion() {std::cout << kName << " by Toni Helminen" << std::endl;}
 void UciLoop() {PrintVersion(); while (Uci());}
 void PrintHelp() {std::cout << "> mayhem: Enter UCI mode\n--version: Show version\n--bench: Run benchmarks\n-list [FEN]: Show root list\n-eval [FEN]: Show evaluation" << std::endl;}
-void PrintList(const std::string &fen) {Fen(fen); MgenRootAll(); for (auto i = 0; i < g_root_n; i++) std::cout << i << ": " << MoveName(g_root + i) << " : " << g_root[i].score << std::endl;}
+void PrintList(const std::string &fen) {Fen(fen); MgenRoot(); EvalRootMoves(); SortAll(); for (auto i = 0; i < g_root_n; i++) std::cout << i << ": " << MoveName(g_root + i) << " : " << g_root[i].score << std::endl;}
 void PrintEval(const std::string &fen) {Fen(fen); std::cout << Evaluate(g_wtm) << std::endl;}}
