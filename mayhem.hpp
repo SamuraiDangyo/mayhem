@@ -44,7 +44,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem 1.7", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem 1.8", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 35, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
@@ -172,7 +172,7 @@ std::unique_ptr<struct Hash_t[]>
   g_hash;
 
 std::string
-  g_eval_file = "nn-c3ca321c51c9.nnue", g_book_file = "performance.bin";
+  g_eval_file = "nn-62ef826d1a6d.nnue", g_book_file = "performance.bin";
 
 // Prototypes
 
