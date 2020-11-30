@@ -221,7 +221,7 @@ inline std::uint64_t Bit(const int nbits) {
   return 0x1ULL << nbits;
 }
 
-template <class Type> Type Between(const Type x, const Type y, const Type z) {
+template <class T> T Between(const T x, const T y, const T z) {
   return std::max(x, std::min(y, z));
 }
 
@@ -274,7 +274,7 @@ int Random(const int x, const int y) {
   return x + Random(y - x + 1);
 }
 
-template <class Type> void Splitter(const std::string& str, Type& container, const std::string& delims = " ") {
+template <class Type> void Splitter(const std::string& str, Type& container, const std::string& delims = " \n") {
   std::size_t current = str.find_first_of(delims), previous = 0;
   while (current != std::string::npos) {
     container.push_back(str.substr(previous, current - previous));
@@ -408,7 +408,11 @@ std::uint64_t Fill(int from, const int to) {
   return ret;
 }
 
-void FindKings() {for (auto i = 0; i < 64; i++) if (g_board->pieces[i] == +6) g_king_w = i; else if (g_board->pieces[i] == -6) g_king_b = i;}
+void FindKings() {
+  for (auto i = 0; i < 64; i++) 
+    if (     g_board->pieces[i] == +6) g_king_w = i; 
+    else if (g_board->pieces[i] == -6) g_king_b = i;
+}
 
 void BuildCastlingBitboards() {
   g_castle_w[0]       = Fill(g_king_w, 6);
@@ -427,7 +431,13 @@ void BuildCastlingBitboards() {
   }
 }
 
-int Piece(const char piece) {for (auto i = 0; i < 6; i++) {if (piece == "pnbrqk"[i]) return -i - 1; else if (piece == "PNBRQK"[i]) return +i + 1;} return 0;}
+int Piece(const char piece) {
+  for (auto i = 0; i < 6; i++) {
+    if (     piece == "pnbrqk"[i]) return -i - 1; 
+    else if (piece == "PNBRQK"[i]) return +i + 1;
+  } 
+  return 0;
+}
 
 void FenBoard(const std::string &board) {
   int sq = 56;
@@ -499,19 +509,19 @@ void Fen(const std::string &fen) {
 inline bool ChecksHereW(const int sq) {
   const auto both = Both();
   return ((g_pawn_checks_b[sq] & g_board->white[0]) 
-         | (g_knight_moves[sq] & g_board->white[1]) 
-         | (BishopMagicMoves(sq, both) & (g_board->white[2] | g_board->white[4]))
-         | (RookMagicMoves(sq, both) & (g_board->white[3] | g_board->white[4])) 
-         | (g_king_moves[sq] & g_board->white[5]));
+          | (g_knight_moves[sq] & g_board->white[1]) 
+          | (BishopMagicMoves(sq, both) & (g_board->white[2] | g_board->white[4]))
+          | (RookMagicMoves(sq, both) & (g_board->white[3] | g_board->white[4])) 
+          | (g_king_moves[sq] & g_board->white[5]));
 }
 
 inline bool ChecksHereB(const int sq) {
   const auto both = Both();
   return ((g_pawn_checks_w[sq] & g_board->black[0]) 
-         | (g_knight_moves[sq] & g_board->black[1]) 
-         | (BishopMagicMoves(sq, both) & (g_board->black[2] | g_board->black[4]))
-         | (RookMagicMoves(sq, both) & (g_board->black[3] | g_board->black[4])) 
-         | (g_king_moves[sq] & g_board->black[5]));
+          | (g_knight_moves[sq] & g_board->black[1]) 
+          | (BishopMagicMoves(sq, both) & (g_board->black[2] | g_board->black[4]))
+          | (RookMagicMoves(sq, both) & (g_board->black[3] | g_board->black[4])) 
+          | (g_king_moves[sq] & g_board->black[5]));
 }
 
 bool ChecksCastleW(std::uint64_t squares) {
@@ -528,8 +538,13 @@ bool ChecksCastleB(std::uint64_t squares) {
   return false;
 }
 
-inline bool ChecksW() {return ChecksHereW(Ctz(g_board->black[5]));}
-inline bool ChecksB() {return ChecksHereB(Ctz(g_board->white[5]));}
+inline bool ChecksW() {
+  return ChecksHereW(Ctz(g_board->black[5]));
+}
+
+inline bool ChecksB() {
+  return ChecksHereB(Ctz(g_board->white[5]));
+}
 
 // Sorting
 
@@ -592,10 +607,21 @@ void SortRoot(const int index) {
 
 // Move generator
 
-inline std::uint64_t BishopMagicIndex(const int position, const std::uint64_t mask) {return ((mask & kBishopMask[position]) * kBishopMagic[position]) >> 55;}
-inline std::uint64_t RookMagicIndex(const int position, const std::uint64_t mask) {return ((mask & kRookMask[position]) * kRookMagic[position]) >> 52;}
-inline std::uint64_t BishopMagicMoves(const int position, const std::uint64_t mask) {return g_bishop_magic_moves[position][BishopMagicIndex(position, mask)];}
-inline std::uint64_t RookMagicMoves(const int position, const std::uint64_t mask) {return g_rook_magic_moves[position][RookMagicIndex(position, mask)];}
+inline std::uint64_t BishopMagicIndex(const int position, const std::uint64_t mask) {
+  return ((mask & kBishopMask[position]) * kBishopMagic[position]) >> 55;
+}
+
+inline std::uint64_t RookMagicIndex(const int position, const std::uint64_t mask) {
+  return ((mask & kRookMask[position]) * kRookMagic[position]) >> 52;
+}
+
+inline std::uint64_t BishopMagicMoves(const int position, const std::uint64_t mask) {
+  return g_bishop_magic_moves[position][BishopMagicIndex(position, mask)];
+}
+
+inline std::uint64_t RookMagicMoves(const int position, const std::uint64_t mask) {
+  return g_rook_magic_moves[position][RookMagicIndex(position, mask)];
+}
 
 void HandleCastlingW(const int mtype, const int from, const int to) {
   g_moves[g_moves_n] = *g_board;
@@ -737,7 +763,10 @@ void AddPromotionW(const int from, const int to, const int piece) {
 void AddPromotionStuffW(const int from, const int to) {
   if (!g_underpromos) {AddPromotionW(from, to, 5); return;}
   auto *tmp = g_board;
-  for (auto piece = 2; piece <= 5; piece++) {AddPromotionW(from, to, piece); g_board = tmp;}
+  for (auto piece = 2; piece <= 5; piece++) {
+    AddPromotionW(from, to, piece); 
+    g_board = tmp;
+  }
 }
 
 void AddNormalStuffW(const int from, const int to) {
@@ -826,7 +855,10 @@ void AddPromotionB(const int from, const int to, const int piece) {
 void AddPromotionStuffB(const int from, const int to) {
   if (!g_underpromos) {AddPromotionB(from, to, -5); return;}
   auto *tmp = g_board;
-  for (auto piece = 2; piece <= 5; piece++) {AddPromotionB(from, to, -piece); g_board = tmp;}
+  for (auto piece = 2; piece <= 5; piece++) {
+    AddPromotionB(from, to, -piece); 
+    g_board = tmp;
+  }
 }
 
 void AddW(const int from, const int to) {
@@ -1037,10 +1069,17 @@ int MgenCapturesB(struct Board_t *moves) {
   return g_moves_n;
 }
 
-int MgenTacticalW(struct Board_t *moves) {return ChecksB() ? MgenW(moves) : MgenCapturesW(moves);}
-int MgenTacticalB(struct Board_t *moves) {return ChecksW() ? MgenB(moves) : MgenCapturesB(moves);}
+int MgenTacticalW(struct Board_t *moves) {
+  return ChecksB() ? MgenW(moves) : MgenCapturesW(moves);
+}
 
-void MgenRoot() {g_root_n = g_wtm ? MgenW(g_root) : MgenB(g_root);}
+int MgenTacticalB(struct Board_t *moves) {
+  return ChecksW() ? MgenB(moves) : MgenCapturesB(moves);
+}
+
+void MgenRoot() {
+  g_root_n = g_wtm ? MgenW(g_root) : MgenB(g_root);
+}
 
 // Evaluate
 
@@ -1154,7 +1193,9 @@ bool Draw() {
 }
 
 #ifdef WINDOWS
-bool InputAvailable() {return _kbhit();}
+bool InputAvailable() {
+  return _kbhit();
+}
 #else
 bool InputAvailable() {
   fd_set fd;
@@ -1431,7 +1472,12 @@ void UciFen() {
   Fen(fen);
 }
 
-void UciMoves() {while (TokenOk()) {MakeMove(); TokenPop();}}
+void UciMoves() {
+  while (TokenOk()) {
+    MakeMove(); 
+    TokenPop();
+  }
+}
 
 void UciPosition() {
   Fen(kStartpos);
@@ -1640,7 +1686,16 @@ void Bench() {
   std::cout << "===\n\n" << "Nps: " << Nps(nodes, Now() - start) << std::endl;
 }
 
-void PrintVersion() {std::cout << kName << " by Toni Helminen" << std::endl;}
-void UciLoop() {PrintVersion(); while (Uci());}
-void PrintList(const std::string &fen) {Fen(fen); MgenRoot(); EvalRootMoves(); SortAll(); for (auto i = 0; i < g_root_n; i++) std::cout << i << ": " << MoveName(g_root + i) << " : " << g_root[i].score << std::endl;}
-void PrintEval(const std::string &fen) {Fen(fen); std::cout << Evaluate(g_wtm) << std::endl;}}
+void PrintVersion() {
+  std::cout << kName << " by Toni Helminen" << std::endl;
+}
+
+void UciLoop() {
+  PrintVersion(); 
+  while (Uci());
+}
+
+void PrintEval(const std::string &fen) {
+  Fen(fen); 
+  std::cout << Evaluate(g_wtm) << std::endl;
+}}
