@@ -304,7 +304,7 @@ static constexpr union {
     0xF8D626AAAF278509ULL
   }};
 
-PolyglotBook::PolyglotBook() {
+PolyglotBook::PolyglotBook() : polyboard{} {
 
   std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
