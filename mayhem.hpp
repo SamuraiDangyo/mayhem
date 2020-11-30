@@ -44,7 +44,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem 1.8", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem 1.9", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 35, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
@@ -550,7 +550,7 @@ void SortNthMoves(const int nth) {
 }
 
 int EvaluateMoves() {
-  int tactics = 0; 
+  auto tactics = 0; 
   for (auto i = 0; i < g_moves_n; i++) {
     if (g_moves[i].score) tactics++;
     g_moves[i].index = i;
@@ -1110,7 +1110,7 @@ int EvaluateClassical(const bool wtm) {
 int ProbeNNUE(const bool wtm) {
   int pieces[33], squares[33], index = 2;
   for (auto both = Both(); both; both = ClearBit(both)) {
-    const int sq = Ctz(both);
+    const auto sq = Ctz(both);
     switch (g_board->pieces[sq]) {
     case +1: case +2: case +3: case +4: case +5: pieces[index] = 7  - ((int) g_board->pieces[sq]); squares[index++] = sq; break;
     case -1: case -2: case -3: case -4: case -5: pieces[index] = 13 + ((int) g_board->pieces[sq]); squares[index++] = sq; break;
@@ -1148,7 +1148,7 @@ bool Draw() {
   if (g_board->rule50 >= 100) return true;
   const auto hash = g_r50_positions[g_board->rule50];
   for (auto i = g_board->rule50 - 2; i >= 0; i -= 2) {
-      if (g_r50_positions[i] == hash) return true;
+    if (g_r50_positions[i] == hash) return true;
   }
   return false;
 }
@@ -1208,9 +1208,8 @@ void UpdateSort(struct Hash_t *entry, enum Move_t type, const std::uint64_t hash
   entry->sort_hash = hash;
   switch (type) {
     case kKiller: entry->killer = index + 1; break; 
-    case kGood: entry->good = index + 1; break; 
-    case kQuiet: entry->quiet = index + 1; break;
-  }
+    case kGood:   entry->good = index + 1;   break; 
+    case kQuiet:  entry->quiet = index + 1;  break;}
 }
 
 int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
