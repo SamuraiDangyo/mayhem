@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2020 Toni Helminen (Mayhem author / Modifications)
+  Copyright (C) 2020 Toni Helminen (Mayhem author / Modifications)
 */
 
 /*
@@ -31,20 +31,8 @@ Copyright (C) 2020 Toni Helminen (Mayhem author / Modifications)
 
 //using namespace std;
 
-namespace {
-
-  // A Polyglot book is a series of "entries" of 16 bytes. All integers are
-  // stored in big-endian format, with the highest byte first (regardless of
-  // size). The entries are ordered according to the key in ascending order.
-  struct Entry {
-    std::uint64_t key;
-    std::uint16_t move;
-    std::uint16_t count;
-    std::uint32_t learn;
-  };
-
-  // Random numbers from PolyGlot, used to compute book hash keys
-  const union {
+// Random numbers from PolyGlot, used to compute book hash keys
+static constexpr union {
     std::uint64_t PolyGlotRandoms[781];
     struct {
       std::uint64_t psq[12][64];  // [piece][square]
@@ -316,44 +304,17 @@ namespace {
     0xF8D626AAAF278509ULL
   }};
 
-  std::uint64_t polyglot_key(const std::int8_t pieces[64], const std::uint8_t castling, const std::int8_t epsq, const bool wtm) {
-    std::uint64_t key = 0;
-
-    for (auto i = 0; i < 64; i++) {
-      switch (pieces[i]) {
-      case -1: key ^= PG.Zobrist.psq[0][i];  break;
-      case +1: key ^= PG.Zobrist.psq[1][i];  break;
-      case -2: key ^= PG.Zobrist.psq[2][i];  break;
-      case +2: key ^= PG.Zobrist.psq[3][i];  break;
-      case -3: key ^= PG.Zobrist.psq[4][i];  break;
-      case +3: key ^= PG.Zobrist.psq[5][i];  break;
-      case -4: key ^= PG.Zobrist.psq[6][i];  break;
-      case +4: key ^= PG.Zobrist.psq[7][i];  break;
-      case -5: key ^= PG.Zobrist.psq[8][i];  break;
-      case +5: key ^= PG.Zobrist.psq[9][i];  break;
-      case -6: key ^= PG.Zobrist.psq[10][i]; break;
-      case +6: key ^= PG.Zobrist.psq[11][i]; break;}
-    }
-
-    if (castling & 0x1) key ^= PG.Zobrist.castling[0];
-    if (castling & 0x2) key ^= PG.Zobrist.castling[1];
-    if (castling & 0x4) key ^= PG.Zobrist.castling[2];
-    if (castling & 0x8) key ^= PG.Zobrist.castling[3];
-
-    if (epsq != -1) key ^= PG.Zobrist.enpassant[epsq % 8];
-
-    if (wtm) key ^= PG.Zobrist.turn;
-
-    return key;
-  }
-
-} // namespace
-
 PolyglotBook::PolyglotBook() {
+
   std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
 }
 
-PolyglotBook::~PolyglotBook() { if (is_open()) close(); }
+PolyglotBook::~PolyglotBook() { 
+
+  if (is_open()) close();
+
+}
 
 
 /// operator>>() reads sizeof(T) chars from the file's binary byte stream and
@@ -367,12 +328,60 @@ template<typename T> PolyglotBook& PolyglotBook::operator>>(T& n) {
       n = T((n << 8) + std::ifstream::get());
 
   return *this;
+
 }
 
 template<> PolyglotBook& PolyglotBook::operator>>(Entry& e) {
+
   return *this >> e.key >> e.move >> e.count >> e.learn;
+
 }
 
+inline int PolyglotBook::ctz(const std::uint64_t bb) {
+
+  return __builtin_ctzll(bb);
+
+}
+
+inline std::uint64_t PolyglotBook::clear_bit(const std::uint64_t bb) {
+
+  return bb & (bb - 0x1ULL);
+
+}
+
+std::uint64_t PolyglotBook::polyglot_key() {
+
+  std::uint64_t key = 0;
+
+  for (auto both = polyboard.both; both; both = clear_bit(both)) {
+    const int sq = ctz(both);
+    switch (polyboard.pieces[sq]) {
+    case -1: key ^= PG.Zobrist.psq[0][sq];  break;
+    case +1: key ^= PG.Zobrist.psq[1][sq];  break;
+    case -2: key ^= PG.Zobrist.psq[2][sq];  break;
+    case +2: key ^= PG.Zobrist.psq[3][sq];  break;
+    case -3: key ^= PG.Zobrist.psq[4][sq];  break;
+    case +3: key ^= PG.Zobrist.psq[5][sq];  break;
+    case -4: key ^= PG.Zobrist.psq[6][sq];  break;
+    case +4: key ^= PG.Zobrist.psq[7][sq];  break;
+    case -5: key ^= PG.Zobrist.psq[8][sq];  break;
+    case +5: key ^= PG.Zobrist.psq[9][sq];  break;
+    case -6: key ^= PG.Zobrist.psq[10][sq]; break;
+    case +6: key ^= PG.Zobrist.psq[11][sq]; break;}
+  }
+
+  if (polyboard.castle & 0x1) key ^= PG.Zobrist.castling[0];
+  if (polyboard.castle & 0x2) key ^= PG.Zobrist.castling[1];
+  if (polyboard.castle & 0x4) key ^= PG.Zobrist.castling[2];
+  if (polyboard.castle & 0x8) key ^= PG.Zobrist.castling[3];
+
+  if (ep_legal()) key ^= PG.Zobrist.enpassant[polyboard.epsq % 8];
+
+  if (polyboard.wtm) key ^= PG.Zobrist.turn;
+
+  return key;
+
+}
 
 /// open() tries to open a book file with the given name after closing any
 /// existing one.
@@ -388,8 +397,8 @@ bool PolyglotBook::open(const std::string &file) {
   std::ifstream::clear(); // Reset any error flag to allow a retry ifstream::open()
 
   return opened;
-}
 
+}
 
 /// probe() tries to find a book move for the given position. If no move is
 /// found, it returns MOVE_NONE. If pickBest is true, then it always returns
@@ -397,25 +406,44 @@ bool PolyglotBook::open(const std::string &file) {
 /// move score.
 
 bool PolyglotBook::open_book(const std::string &file) {
+
   return open(file);
+
 }
 
-bool PolyglotBook::on_board(const int x, const int y) {return x >= 0 && x <= 7 && y >= 0 && y <= 7;}
+bool PolyglotBook::on_board(const int x, const int y) {
 
-bool PolyglotBook::ep_legal(const std::int8_t pieces[64],  const std::int8_t epsq, const bool wtm) {
-  if (epsq == -1) return false;
-  const int x = epsq % 8, y = epsq / 8;
-  return wtm ? (on_board(x - 1, y) && pieces[8 * y + x - 1] == -1) || (on_board(x + 1, y) && pieces[8 * y + x + 1] == -1)
-             : (on_board(x - 1, y) && pieces[8 * y + x - 1] == +1) || (on_board(x + 1, y) && pieces[8 * y + x + 1] == +1);
+  return x >= 0 && x <= 7 && y >= 0 && y <= 7;
+
 }
 
-int PolyglotBook::probe(const std::int8_t pieces[64], const std::uint8_t castling, const std::int8_t epsq, const bool wtm, bool pickBest) {
+bool PolyglotBook::ep_legal() {
+
+  if (polyboard.epsq == -1) return false;
+  const int x = polyboard.epsq % 8, y = polyboard.epsq / 8;
+  return polyboard.wtm ? (on_board(x - 1, y) && polyboard.pieces[8 * y + x - 1] == -1) || (on_board(x + 1, y) && polyboard.pieces[8 * y + x + 1] == -1)
+                       : (on_board(x - 1, y) && polyboard.pieces[8 * y + x - 1] == +1) || (on_board(x + 1, y) && polyboard.pieces[8 * y + x + 1] == +1);
+
+}
+
+void PolyglotBook::setup(std::int8_t *pieces, const std::uint64_t both, const std::uint8_t castle, const std::int8_t epsq, const bool wtm) {
+
+  polyboard.pieces = pieces;
+  polyboard.both   = both;
+  polyboard.castle = castle;
+  polyboard.epsq   = epsq;
+  polyboard.wtm    = wtm;
+
+}
+
+int PolyglotBook::probe(const bool pickBest) {
+
   if (!is_open()) return 0;
   Entry e;
   std::uint16_t best = 0;
   unsigned sum = 0;
   int move = 0;
-  std::uint64_t key = polyglot_key(pieces, castling, ep_legal(pieces, epsq, wtm) ? epsq : -1, wtm);
+  std::uint64_t key = polyglot_key();
 
   seekg(find_first(key) * sizeof(Entry), std::ios_base::beg);
 
@@ -444,6 +472,7 @@ int PolyglotBook::probe(const std::int8_t pieces[64], const std::uint8_t castlin
   // move is a promotion, we have to convert it to our representation and in
   // all other cases, we can directly compare with a Move after having masked
   // out the special Move flags (bit 14-15) that are not supported by PolyGlot.
+
 }
 
 
@@ -459,23 +488,24 @@ std::size_t PolyglotBook::find_first(const std::uint64_t key) {
 
   //assert(low <= high);
 
-  while (low < high && good())
-  {
-      const std::size_t mid = (low + high) / 2;
-      Entry e;
+  while (low < high && good()) {
 
-      //assert(mid >= low && mid < high);
+    const std::size_t mid = (low + high) / 2;
+    Entry e;
 
-      seekg(mid * sizeof(Entry), ios_base::beg);
-      *this >> e;
+    //assert(mid >= low && mid < high);
 
-      if (key <= e.key)
-          high = mid;
-      else
-          low = mid + 1;
+    seekg(mid * sizeof(Entry), ios_base::beg);
+    *this >> e;
+
+    if (key <= e.key)
+        high = mid;
+    else
+        low = mid + 1;
   }
 
   //assert(low == high);
 
   return low;
+
 }

@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2020 Toni Helminen (Mayhem author / Modifications)
+  Copyright (C) 2020 Toni Helminen (Mayhem author / Modifications)
 */
 
 /*
@@ -30,17 +30,41 @@ Copyright (C) 2020 Toni Helminen (Mayhem author / Modifications)
 #include <ctime>
 
 class PolyglotBook : private std::ifstream {
+
 public:
+
   PolyglotBook();
  ~PolyglotBook();
-  int probe(const std::int8_t[64], const std::uint8_t, const std::int8_t, const bool, bool);
+  int probe(const bool);
+  void setup(std::int8_t*, const std::uint64_t, const std::uint8_t, const std::int8_t, const bool);
   bool open_book(const std::string&);
 
 private:
+
   template<typename T> PolyglotBook& operator>>(T&);
 
+  // A Polyglot book is a series of "entries" of 16 bytes. All integers are
+  // stored in big-endian format, with the highest byte first (regardless of
+  // size). The entries are ordered according to the key in ascending order.
+  struct Entry {
+    std::uint64_t key;
+    std::uint16_t move;
+    std::uint16_t count;
+    std::uint32_t learn;
+  };
+
+  struct PolyBoard {
+    std::uint64_t both;
+    std::int8_t *pieces, epsq; 
+    std::uint8_t castle, wtm;
+  } polyboard;
+
+  int ctz(const std::uint64_t);
+  std::uint64_t clear_bit(const std::uint64_t);
+  std::uint64_t polyglot_key();
   bool open(const std::string&);
   std::size_t find_first(const std::uint64_t);
   bool on_board(const int, const int);
-  bool ep_legal(const std::int8_t[64], const std::int8_t, const bool);
+  bool ep_legal();
+
 };
