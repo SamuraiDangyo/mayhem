@@ -455,7 +455,7 @@ int PolyglotBook::probe(const bool pickBest) {
   std::uint16_t best = 0;
   unsigned sum = 0;
   int move = 0;
-  const std::uint64_t key = polyglot_key();
+  const auto key = polyglot_key();
 
   seekg(find_first(key) * sizeof(Entry), std::ios_base::beg);
 
