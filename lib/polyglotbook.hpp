@@ -53,6 +53,7 @@ private:
     std::uint32_t learn;
   };
 
+  // Board for building a hash key
   struct PolyBoard {
     std::uint64_t both;
     std::int8_t *pieces, epsq; 

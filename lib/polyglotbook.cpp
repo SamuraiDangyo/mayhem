@@ -353,8 +353,11 @@ std::uint64_t PolyglotBook::polyglot_key() {
 
   std::uint64_t key = 0;
 
+  //
+  // Board
+  //
   for (auto both = polyboard.both; both; both = clear_bit(both)) {
-    const int sq = ctz(both);
+    const auto sq = ctz(both);
     switch (polyboard.pieces[sq]) {
     case -1: key ^= PG.Zobrist.psq[0][sq];  break;
     case +1: key ^= PG.Zobrist.psq[1][sq];  break;
@@ -370,13 +373,22 @@ std::uint64_t PolyglotBook::polyglot_key() {
     case +6: key ^= PG.Zobrist.psq[11][sq]; break;}
   }
 
+  //
+  // Castling rights
+  // 
   if (polyboard.castle & 0x1) key ^= PG.Zobrist.castling[0];
   if (polyboard.castle & 0x2) key ^= PG.Zobrist.castling[1];
   if (polyboard.castle & 0x4) key ^= PG.Zobrist.castling[2];
   if (polyboard.castle & 0x8) key ^= PG.Zobrist.castling[3];
 
+  //
+  // En passant
+  //
   if (ep_legal()) key ^= PG.Zobrist.enpassant[polyboard.epsq % 8];
 
+  // 
+  // Turn
+  //
   if (polyboard.wtm) key ^= PG.Zobrist.turn;
 
   return key;
@@ -443,7 +455,7 @@ int PolyglotBook::probe(const bool pickBest) {
   std::uint16_t best = 0;
   unsigned sum = 0;
   int move = 0;
-  std::uint64_t key = polyglot_key();
+  const std::uint64_t key = polyglot_key();
 
   seekg(find_first(key) * sizeof(Entry), std::ios_base::beg);
 
