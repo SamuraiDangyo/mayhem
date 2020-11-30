@@ -317,7 +317,7 @@ void SetupBook() {
   static std::string filename = "???";
   if (filename == g_book_file) return;
   if (g_book_file == "-") {g_book_exist = false;} else {g_book_exist = g_book.open_book(g_book_file); filename = g_book_file;}
-  if (!g_book_exist) std::cerr << "Warning: Missing BookFile !" << std::endl;
+  if (!g_book_exist) std::cerr << "Warning: Missing PolyGlot BookFile !" << std::endl;
 }
 
 void SetupNNUE() {
@@ -1411,7 +1411,7 @@ bool ThinkRandomMove() {
 
 bool ProbeBook() {
   g_book.setup(g_board->pieces, Both(), g_board->castle, g_board->epsq, g_wtm);
-  const int move = g_book.probe(Random(0, 7) > 5);
+  const int move = g_book.probe(false);
   if (!move) return false;
   const std::uint8_t from = 8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7),
                      to   = 8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7);
