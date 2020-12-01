@@ -44,7 +44,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem 1.9", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem 2.0", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 35, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
@@ -157,7 +157,8 @@ std::uint64_t
   g_zobrist_board[13][64] = {}, g_stop_search_time = 0, g_easy_draws[13] = {}, g_r50_positions[128] = {}, g_nodes = 0;
 
 bool
-  g_chess960 = false, g_wtm = false, g_stop_search = false, g_underpromos = true, g_nullmove_on = false, g_is_pv = false, g_analyzing = false, g_book_exist = true, g_naked_king = false, g_nnue_exist = true, g_classical = false;
+  g_chess960 = false, g_wtm = false, g_stop_search = false, g_underpromos = true, g_nullmove_on = false, g_is_pv = false, g_analyzing = false, g_book_exist = true, 
+  g_naked_king = false, g_nnue_exist = true, g_classical = false;
 
 std::vector<std::string>
   g_tokens = {};
@@ -165,7 +166,7 @@ std::vector<std::string>
 struct Board_t
   g_board_tmp = {}, *g_board = &g_board_tmp, *g_moves = 0, *g_board_orig = 0, g_root[kMaxMoves] = {};
 
-PolyglotBook
+polyglotbook::PolyglotBook
   g_book;
 
 std::unique_ptr<struct Hash_t[]>
@@ -221,7 +222,8 @@ inline std::uint64_t Bit(const int nbits) {
   return 0x1ULL << nbits;
 }
 
-template <class T> T Between(const T x, const T y, const T z) {
+template <class T> 
+T Between(const T x, const T y, const T z) {
   return std::max(x, std::min(y, z));
 }
 
@@ -251,7 +253,7 @@ void Assert(const bool test, const std::string &msg) {
 
 std::uint64_t Random64() {
   static std::uint64_t va = 0X12311227ULL, vb = 0X1931311ULL, vc = 0X13138141ULL;
-  constexpr auto mixer = [](const std::uint64_t num) {return (num << 7) ^ (num >> 5);};
+  auto mixer = [](const std::uint64_t num) {return (num << 7) ^ (num >> 5);};
   va ^= vb + vc;
   vb ^= vb * vc + 0x1717711ULL;
   vc = (3 * vc) + 1;
@@ -274,7 +276,8 @@ int Random(const int x, const int y) {
   return x + Random(y - x + 1);
 }
 
-template <class Type> void Splitter(const std::string& str, Type& container, const std::string& delims = " \n") {
+template <class T> 
+void Splitter(const std::string& str, T& container, const std::string& delims = " \n") {
   std::size_t current = str.find_first_of(delims), previous = 0;
   while (current != std::string::npos) {
     container.push_back(str.substr(previous, current - previous));
@@ -1410,8 +1413,7 @@ bool ThinkRandomMove() {
 }
 
 bool ProbeBook() {
-  g_book.setup(g_board->pieces, Both(), g_board->castle, g_board->epsq, g_wtm);
-  const int move = g_book.probe(false);
+  const int move = g_book.setup(g_board->pieces, Both(), g_board->castle, g_board->epsq, g_wtm).probe(false); // Always pick best ?
   if (!move) return false;
   const std::uint8_t from = 8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7),
                      to   = 8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7);
@@ -1496,7 +1498,7 @@ void UciSetoption() {
 
 void UciGo() {
   int wtime = 0, btime = 0, winc = 0, binc = 0, mtg = 30;
-  const auto print_best_move = []() {std::cout << "bestmove " << (g_root_n <= 0 ? "0000" : MoveName(g_root)) << std::endl;};
+  auto print_best_move = []() {std::cout << "bestmove " << (g_root_n <= 0 ? "0000" : MoveName(g_root)) << std::endl;};
   for (; TokenOk(); TokenPop()) {
     if (     Token("infinite"))  {g_analyzing = 1; Think(kInf); g_analyzing = 0; print_best_move(); return;}
     else if (Token("wtime"))     {wtime = std::max(0, TokenNumber() - g_move_overhead);}
@@ -1691,7 +1693,7 @@ void PrintVersion() {
 }
 
 void UciLoop() {
-  PrintVersion(); 
+  PrintVersion();
   while (Uci());
 }
 

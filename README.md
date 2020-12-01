@@ -1,6 +1,6 @@
 # Mayhem
 
-Mayhem is a Linux UCI Chess960 engine. Written in C++14. Derivated from Sapeli. Licensed under GPLv3.
+Linux UCI Chess960 engine. Written in C++14. Derivated from Sapeli. Licensed under GPLv3.
 Credits: NNUE library: Dr. Shawul. EvalFile + PolyGlot: Stockfish.
 Mayhem requires EvalFile (NNUE) and BookFile (PolyGlot) for maximum strength. Works w/o them too. Tho much weaker.
 Estimated strength is ~2800+ Elo in Blitz (Against Fruit 2.1). By independent testers: ~2790 Elo (v0.50).
