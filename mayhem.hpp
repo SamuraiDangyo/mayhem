@@ -1,5 +1,5 @@
 /*
-Mayhem. Linux UCI Chess960 engine. Written in C++14
+Mayhem. Linux UCI Chess960 engine. Written in C++14 language
 Copyright (C) 2020 Toni Helminen
 
 This program is free software: you can redistribute it and/or modify
@@ -44,7 +44,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem 2.1", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem 2.2", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 35, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, 
@@ -364,8 +364,8 @@ void SetupHashtable() {
   }
 }
 
-inline std::uint64_t Hash(const int wtm) {
-  auto hash = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[wtm] ^ g_zobrist_castle[g_board->castle], both = Both();
+inline std::uint64_t Hash(const bool wtm) {
+  auto hash = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[wtm ? 1 : 0] ^ g_zobrist_castle[g_board->castle], both = Both();
   for (; both; both = ClearBit(both)) {
     const auto sq = Ctz(both); 
     hash ^= g_zobrist_board[g_board->pieces[sq] + 6][sq];
@@ -1115,11 +1115,8 @@ std::uint64_t DrawKey(const int wnn, const int wbn, const int bnn, const int bbn
 }
 
 bool ProbeKPK(const bool wtm) {
-  if (PopCount(g_board->white[0] | g_board->black[0]) == 1) {
-    return g_board->white[0] ? eucalyptus::probe(Ctz(g_board->white[5]), Ctz(g_board->white[0]), Ctz(g_board->black[5]), wtm)
-                             : eucalyptus::probe(63 - Ctz(g_board->black[5]), 63 - Ctz(g_board->black[0]), 63 - Ctz(g_board->white[5]), !wtm);
-  }
-  return false;
+  return g_board->white[0] ? eucalyptus::probe(     Ctz(g_board->white[5]),      Ctz(g_board->white[0]),      Ctz(g_board->black[5]),  wtm)
+                           : eucalyptus::probe(63 - Ctz(g_board->black[5]), 63 - Ctz(g_board->black[0]), 63 - Ctz(g_board->white[5]), !wtm);
 }
 
 bool EasyDraw(const bool wtm) {
@@ -1132,7 +1129,7 @@ bool EasyDraw(const bool wtm) {
     }
     return false;
   }
-  return ProbeKPK(wtm);
+  return (PopCount(g_board->white[0] | g_board->black[0]) == 1) ? ProbeKPK(wtm) : false;
 }
 
 int CloserBonus(const int sq1, const int sq2) {
@@ -1145,8 +1142,8 @@ int AnyCornerBonus(const int sq) {
 
 int BonusKNBK(const bool is_white) {
   const auto wk = Ctz(g_board->white[5]), bk = Ctz(g_board->black[5]);
-  return is_white ? 2 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloserBonus(0, bk), CloserBonus(63, bk)) : std::max(CloserBonus(7, bk), CloserBonus(56, bk)))
-                  : 2 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloserBonus(0, wk), CloserBonus(63, wk)) : std::max(CloserBonus(7, wk), CloserBonus(56, wk)));
+  if (is_white) return 2 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloserBonus(0, bk), CloserBonus(63, bk)) : std::max(CloserBonus(7, bk), CloserBonus(56, bk)));
+  return 2 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloserBonus(0, wk), CloserBonus(63, wk)) : std::max(CloserBonus(7, wk), CloserBonus(56, wk)));
 }
 
 int EvaluateClassical(const bool wtm) {
@@ -1160,14 +1157,14 @@ int EvaluateClassical(const bool wtm) {
     case +1: score += 100 +     (g_naked_king ? 10 : 1) * Ycoord(sq); break;
     case +2: score += 300 + 2 * (g_naked_king ? 0  : kCenter[sq] + PopCount(g_knight_moves[sq] & (~white))); break;
     case +3: score += 300 + 2 * (g_naked_king ? 0  : kCenter[sq] + PopCount(BishopMagicMoves(sq, both) & (~white)))
-                      + ((PopCount(both) == 4 && g_board->white[1] && g_board->white[2]) ? BonusKNBK(true) : 0); break;
+                          + ((PopCount(both) == 4 && g_board->white[1] && g_board->white[2]) ? BonusKNBK(true) : 0); break;
     case +4: score += 500 + 2 * (g_naked_king ? 0  : kCenter[sq] + PopCount(RookMagicMoves(sq, both) & (~white))); break;
     case +5: score += 900 + 2 * (g_naked_king ? 0  : kCenter[sq] + PopCount((BishopMagicMoves(sq, both) | RookMagicMoves(sq, both)) & (~white))); break;
     case +6: score += PopCount(g_king_moves[sq]); break;
     case -1: score -= 100 +     (g_naked_king ? 10 : 1) * (7 - Ycoord(sq)); break;
     case -2: score -= 300 + 2 * (g_naked_king ? 0  : kCenter[sq] + PopCount(g_knight_moves[sq] & (~black))); break;
     case -3: score -= 300 + 2 * (g_naked_king ? 0  : kCenter[sq] + PopCount(BishopMagicMoves(sq, both) & (~black)))
-                      + ((PopCount(both) == 4 && g_board->black[1] && g_board->black[2]) ? BonusKNBK(false) : 0); break;
+                          + ((PopCount(both) == 4 && g_board->black[1] && g_board->black[2]) ? BonusKNBK(false) : 0); break;
     case -4: score -= 500 + 2 * (g_naked_king ? 0  : kCenter[sq] + PopCount(RookMagicMoves(sq, both) & (~black))); break;
     case -5: score -= 900 + 2 * (g_naked_king ? 0  : kCenter[sq] + PopCount((BishopMagicMoves(sq, both) | RookMagicMoves(sq, both)) & (~black))); break;
     case -6: score -= PopCount(g_king_moves[sq]); break;}
@@ -1360,7 +1357,7 @@ int SearchW(int alpha, const int beta, const int depth, const int ply) {
   const auto tmp = g_r50_positions[rule50];
   const auto null_score = TryNullMoveW(alpha, beta, depth, ply);
   if (null_score >= beta) return null_score;
-  g_r50_positions[rule50] = Hash(1);
+  g_r50_positions[rule50] = Hash(true);
   alpha = Draw() ? 0 : SearchMovesW(alpha, beta, depth, ply);
   g_r50_positions[rule50] = tmp;
   return alpha;
@@ -1404,7 +1401,7 @@ int SearchB(const int alpha, int beta, const int depth, const int ply) {
   const auto tmp = g_r50_positions[rule50];
   const auto null_score = TryNullMoveB(alpha, beta, depth, ply);
   if (alpha >= null_score) return null_score;
-  g_r50_positions[rule50] = Hash(0);
+  g_r50_positions[rule50] = Hash(false);
   beta = Draw() ? 0 : SearchMovesB(alpha, beta, depth, ply);
   g_r50_positions[rule50] = tmp;
   return beta;
