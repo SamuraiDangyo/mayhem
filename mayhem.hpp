@@ -27,12 +27,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <vector>
 #include <fstream>
 #include <ctime>
-#include <cmath>
+extern "C" {
 #include <unistd.h>
+#include <sys/time.h>
 #ifdef WINDOWS
 #include <conio.h>
 #endif
-#include <sys/time.h>
+}
 #include "lib/nnue.hpp"
 #include "lib/eucalyptus.hpp"
 #include "lib/polyglotbook.hpp"
@@ -44,7 +45,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem 2.2", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem 2.3", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 35, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1}, 
@@ -150,7 +151,7 @@ int
   g_max_depth = kDepthLimit, g_qs_depth = 6, g_depth = 0, g_best_score = 0;
 
 std::uint32_t
-  g_hash_key = 0, g_tokens_nth = 0, g_hash_mb = 256;
+  g_hash_key = 0, g_tokens_nth = 0, g_hash_mb = 128;
 
 std::uint64_t
   g_seed = 131783, g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_pawn_sq = 0, g_pawn_1_moves_w[64] = {}, g_pawn_1_moves_b[64] = {}, 
@@ -223,6 +224,10 @@ inline std::uint8_t Ycoord(const std::uint8_t sq) {
 
 inline std::uint64_t Bit(const int nbits) {
   return 0x1ULL << nbits;
+}
+
+std::uint8_t Pow2(const std::uint8_t x) {
+  return x * x;
 }
 
 template <class T> 
@@ -359,9 +364,8 @@ void SetupHashtable() {
   const auto hashsize = (1 << 20) * g_hash_mb, hash_count = PowerOf2(hashsize / sizeof(struct Hash_t));
   g_hash_key = hash_count - 1;
   g_hash.reset(new struct Hash_t[hash_count]);
-  for (std::size_t i = 0; i < hash_count; i++) {
+  for (std::size_t i = 0; i < hash_count; i++)
     g_hash[i].eval_hash = g_hash[i].sort_hash = g_hash[i].score = g_hash[i].killer = g_hash[i].good = g_hash[i].quiet = 0;
-  }
 }
 
 inline std::uint64_t Hash(const bool wtm) {
@@ -1133,7 +1137,7 @@ bool EasyDraw(const bool wtm) {
 }
 
 int CloserBonus(const int sq1, const int sq2) {
-  return std::pow(7 - std::abs(Xcoord(sq1) - Xcoord(sq2)), 2) + std::pow(7 - std::abs(Ycoord(sq1) - Ycoord(sq2)), 2);
+  return Pow2(7 - std::abs(Xcoord(sq1) - Xcoord(sq2))) + Pow2(7 - std::abs(Ycoord(sq1) - Ycoord(sq2)));
 }
 
 int AnyCornerBonus(const int sq) {
@@ -1722,7 +1726,6 @@ void InitZobrist() {
 }
 
 void Init() {
-  if (g_seed != 131783) return; // Init just once
   g_seed += std::time(nullptr);
   InitBishopMagics();
   InitRookMagics();
@@ -1730,24 +1733,27 @@ void Init() {
   InitDraws();
   InitSliderMoves();
   InitJumpMoves();
-  Fen(kStartpos);
   SetupHashtable();
   SetupNNUE();
   SetupBook();
+  Fen(kStartpos);
 }
 
 void Bench() {
   const std::uint64_t start = Now();
   std::uint64_t nodes = 0;
   const std::vector<std::string> suite = {
-    "brnnkbrq/pppppppp/8/8/8/8/PPPPPPPP/BRNNKBRQ w GBgb - 0 1",
-    "qnnrkrbb/pppppppp/8/8/8/8/PPPPPPPP/QNNRKRBB w DFdf - 0 1",
-    "nqbnrbkr/pppppppp/8/8/8/8/PPPPPPPP/NQBNRBKR w EHeh - 0 1"
+    "bbnqrkrn/pppppppp/8/8/8/8/PPPPPPPP/BBNQRKRN w GEge - 0", // 960
+    "2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0", // Nxd4+
+    "nrq4r/2k1p3/1p1pPnp1/pRpP1p2/P1P2P2/2P1BB2/1R2Q1P1/6K1 w - - 0", // Bxc5
+    "r4q1k/p2bR1rp/2p2Q1N/5p2/5p2/2P5/PP3PPP/R5K1 w - - 0", // Rf7
+    "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0", // g3
+    "3r2k1/5p2/6p1/4b3/1P2P3/1R2P2p/P1K1N3/8 b - - 0" // Rd1
   };
   for (const auto fen : suite) {
     std::cout << "[ " << fen << " ]" << std::endl;
     Fen(fen);
-    Think(10000);
+    Think(5000);
     nodes += g_nodes;
     std::cout << std::endl;
   }
