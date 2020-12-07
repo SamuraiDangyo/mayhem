@@ -29,13 +29,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstdint>
 #include <ctime>
 extern "C" {
+#include "lib/nnue.hpp"
 #include <unistd.h>
 #include <sys/time.h>
 #ifdef WINDOWS
 #include <conio.h>
 #endif
 }
-#include "lib/nnue.hpp"
 #include "lib/eucalyptus.hpp"
 #include "lib/polyglotbook.hpp"
 
@@ -1168,10 +1168,8 @@ int BonusKNBK(const bool is_white) {
   return 2 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloserBonus(0, wk), CloserBonus(63, wk)) : std::max(CloserBonus(7, wk), CloserBonus(56, wk)));
 }
 
-int EvaluateClassical(const bool wtm) {
-  if (EasyDraw(wtm)) return 0;
+int PiecesClassical(const bool wtm) {
   const auto white = White(), black = Black(), both = white | black;
-  const auto wk = Ctz(g_board->white[5]), bk = Ctz(g_board->black[5]);
   int score = (wtm ? +5 : -5) + (g_nodes & 0x1);
   for (auto pieces = both; pieces; pieces = ClearBit(pieces)) {
     const auto sq = Ctz(pieces);
@@ -1192,8 +1190,15 @@ int EvaluateClassical(const bool wtm) {
     case -6: score -= PopCount(g_king_moves[sq]); break;}
   }
   if (ChecksW()) score += 10; else if (ChecksB()) score -= 10;
+  return score;
+}
+
+int EvaluateClassical(const bool wtm) {
+  if (EasyDraw(wtm)) return 0;
+  int score = PiecesClassical(wtm);
   if (!g_naked_king) return score;
-  return PopCount(white) >= 2 ? score + 5 * AnyCornerBonus(bk) + 2 * CloserBonus(wk, bk) : score - 5 * AnyCornerBonus(wk) - 2 * CloserBonus(bk, wk);
+  const auto wk = Ctz(g_board->white[5]), bk = Ctz(g_board->black[5]);
+  return score + (PopCount(White()) >= 2 ? 5 * AnyCornerBonus(bk) + 2 * CloserBonus(wk, bk) : -5 * AnyCornerBonus(wk) - 2 * CloserBonus(bk, wk));
 }
 
 int ProbeNNUE(const bool wtm) {

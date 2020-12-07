@@ -1,7 +1,7 @@
 # Definitions
 
 CXX=clang++
-CXXFLAGS=-std=c++14 -O3 -march=native -mpopcnt -Wall -Wextra -pedantic -DNDEBUG -DUSE_SSE41 -msse4.1 -DUSE_SSSE3 -mssse3 -DUSE_SSE2 -msse2 -DUSE_SSE -msse
+CXXFLAGS=-std=c++14 -O3 -march=native -mpopcnt -Wall -Wextra -Wshadow -pedantic -DNDEBUG -DUSE_SSE41 -msse4.1 -DUSE_SSSE3 -mssse3 -DUSE_SSE2 -msse2 -DUSE_SSE -msse
 FILES=*.cpp lib/*.cpp
 EXE=mayhem
 
