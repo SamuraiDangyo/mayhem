@@ -303,7 +303,7 @@ void Input() {
   Splitter<std::vector<std::string>>(line, g_tokens, " ");
 }
 
-char PromoLetter(const char piece) {
+char PromoLetter(const int8_t piece) {
   switch (std::abs(piece)) {
   case 2:  return 'n';
   case 3:  return 'b';
