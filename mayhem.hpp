@@ -249,12 +249,6 @@ bool OnBoard(const int x, const int y) {
 }
 
 extern "C" {
-std::uint64_t Now() {
-  struct timeval tv; 
-  if (gettimeofday(&tv, NULL)) return 0; 
-  return (std::uint64_t) (1000 * tv.tv_sec + tv.tv_usec / 1000);
-}
-
 #ifdef WINDOWS
 bool InputAvailable() {
   return _kbhit();
@@ -270,7 +264,12 @@ bool InputAvailable() {
   return FD_ISSET(STDIN_FILENO, &fd) > 0;
 }
 #endif
-}
+
+std::uint64_t Now() {
+  struct timeval tv; 
+  if (gettimeofday(&tv, NULL)) return 0; 
+  return (std::uint64_t) (1000 * tv.tv_sec + tv.tv_usec / 1000);
+}}
 
 void Assert(const bool test, const std::string& msg) {
   if (test) return;
@@ -470,7 +469,7 @@ void BuildCastlingBitboards() {
   }
 }
 
-int Piece(const char piece) {
+std::int8_t Piece(const char piece) {
   for (auto i = 0; i < 6; i++) {
     if (     piece == "pnbrqk"[i]) return -i - 1; 
     else if (piece == "PNBRQK"[i]) return +i + 1;
