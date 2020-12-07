@@ -26,6 +26,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <iostream>
 #include <vector>
 #include <fstream>
+#include <cstdint>
 #include <ctime>
 extern "C" {
 #include <unistd.h>
@@ -247,10 +248,28 @@ bool OnBoard(const int x, const int y) {
   return x >= 0 && x <= 7 && y >= 0 && y <= 7;
 }
 
+extern "C" {
 std::uint64_t Now() {
   struct timeval tv; 
   if (gettimeofday(&tv, NULL)) return 0; 
   return (std::uint64_t) (1000 * tv.tv_sec + tv.tv_usec / 1000);
+}
+
+#ifdef WINDOWS
+bool InputAvailable() {
+  return _kbhit();
+}
+#else
+bool InputAvailable() {
+  fd_set fd;
+  struct timeval tv;
+  FD_ZERO(&fd);
+  FD_SET(STDIN_FILENO, &fd);
+  tv.tv_sec = tv.tv_usec = 0;
+  select(STDIN_FILENO + 1, &fd, 0, 0, &tv);
+  return FD_ISSET(STDIN_FILENO, &fd) > 0;
+}
+#endif
 }
 
 void Assert(const bool test, const std::string& msg) {
@@ -303,7 +322,7 @@ void Input() {
   Splitter<std::vector<std::string>>(line, g_tokens, " ");
 }
 
-char PromoLetter(const int8_t piece) {
+char PromoLetter(const std::int8_t piece) {
   switch (std::abs(piece)) {
   case 2:  return 'n';
   case 3:  return 'b';
@@ -1223,22 +1242,6 @@ bool Draw() {
   }
   return false;
 }
-
-#ifdef WINDOWS
-bool InputAvailable() {
-  return _kbhit();
-}
-#else
-bool InputAvailable() {
-  fd_set fd;
-  struct timeval tv;
-  FD_ZERO(&fd);
-  FD_SET(STDIN_FILENO, &fd);
-  tv.tv_sec = tv.tv_usec = 0;
-  select(STDIN_FILENO + 1, &fd, 0, 0, &tv);
-  return FD_ISSET(STDIN_FILENO, &fd) > 0;
-}
-#endif
 
 bool UserStop() {
   if (!g_analyzing || !InputAvailable()) return false;
