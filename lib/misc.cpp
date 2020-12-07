@@ -1,3 +1,5 @@
+extern "C" {
+
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -78,3 +80,4 @@ void unmap_file(const void *data, map_t map)
 #endif
 }
 
+}

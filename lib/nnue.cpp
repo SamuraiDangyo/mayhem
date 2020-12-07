@@ -1,3 +1,5 @@
+extern "C" {
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -1136,3 +1138,4 @@ DLLExport int _CDECL nnue_evaluate(int player, int* pieces, int* squares)
   return nnue_evaluate_pos(&pos);
 }
 
+}

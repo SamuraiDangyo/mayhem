@@ -66,31 +66,10 @@ int nnue_evaluate_pos(Position* pos);
 * Load NNUE file
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 bool nnue_init(
   const char * evalFile             /** Path to NNUE file */
 );
 
-#ifdef __cplusplus
-}
-#endif
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 /**
 * Evaluation subroutine suitable for chess engines.
 * -------------------------------------------------
@@ -112,6 +91,3 @@ int nnue_evaluate(
   int* pieces,                      /** Array of pieces */
   int* squares                      /** Corresponding array of squares the piece stand on */
 );
-#ifdef __cplusplus
-}
-#endif
