@@ -29,13 +29,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstdint>
 #include <ctime>
 extern "C" {
-#include "lib/nnue.hpp"
 #include <unistd.h>
 #include <sys/time.h>
 #ifdef WINDOWS
 #include <conio.h>
 #endif
 }
+#include "lib/nnue.hpp"
 #include "lib/eucalyptus.hpp"
 #include "lib/polyglotbook.hpp"
 
@@ -46,7 +46,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName = "Mayhem 2.3", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+  kName = "Mayhem 2.4", kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 constexpr int
   kMaxMoves = 218, kDepthLimit = 35, kInf = 1048576, kKingVectors[16] = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1},
