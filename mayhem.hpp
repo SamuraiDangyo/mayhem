@@ -1269,7 +1269,7 @@ int BonusKNBK(const bool wtm) {
   if (wtm)
     return 10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloserBonus(0, bk), CloserBonus(63, bk))
                                                              : std::max(CloserBonus(7, bk), CloserBonus(56, bk)));
-  return   10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloserBonus(0, wk), CloserBonus(63, wk))
+  return 10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloserBonus(0, wk), CloserBonus(63, wk))
                                                              : std::max(CloserBonus(7, wk), CloserBonus(56, wk)));
 }
 
@@ -1345,19 +1345,29 @@ int PiecesRealClassical() {
 }
 
 int EvaluateNakedClassical(const bool wtm) {
-  int score = (wtm ? +5 : -5) + (ChecksW() ? +10 : 0) + (ChecksB() ? -10 : 0);
-  const auto wk = Ctz(g_board->white[5]), bk = Ctz(g_board->black[5]);
-  if (g_knbk)
-    score += BonusKNBK(g_board->white[1] ? true : false);
-  score += PopCount(White()) >= 2 ? +5 * AnyCornerBonus(bk) + 2 * CloserBonus(wk, bk)
-                                  : -5 * AnyCornerBonus(wk) - 2 * CloserBonus(bk, wk);
+  int score = wtm ? +2 : -2;
+  if (ChecksW())
+    score += +5;
+  else if (ChecksB())
+    score += -5;
+  if (g_knbk) {
+    score += BonusKNBK(g_board->white[1]);
+  } else {
+    const auto wk = Ctz(g_board->white[5]), bk = Ctz(g_board->black[5]);
+    score += PopCount(White()) >= 2 ? +5 * AnyCornerBonus(bk) + 3 * CloserBonus(wk, bk)
+                                    : -5 * AnyCornerBonus(wk) - 3 * CloserBonus(bk, wk);
+  }
   return score + PiecesNakedClassical();
 }
 
 int EvaluateRealClassical(const bool wtm) {
-  int score = (wtm ? +5 : -5) + (ChecksW() ? +10 : 0) + (ChecksB() ? -10 : 0);
+  int score = wtm ? +2 : -2;
+  if (ChecksW())
+    score += +10;
+  else if (ChecksB())
+    score += -10;
   if (g_kqkr)
-    score += BonusKQKR(g_board->white[4] ? true : false);
+    score += BonusKQKR(g_board->white[4]);
   return score + PiecesRealClassical();
 }
 
