@@ -37,9 +37,10 @@ polyglotbook::PolyglotBook::PolyglotBook() : polyboard{} {
 
 }
 
-polyglotbook::PolyglotBook::~PolyglotBook() { 
+polyglotbook::PolyglotBook::~PolyglotBook() {
 
-  if (is_open()) close();
+  if (is_open())
+    close();
 
 }
 
@@ -48,18 +49,18 @@ polyglotbook::PolyglotBook::~PolyglotBook() {
 /// converts them into a number of type T. A Polyglot book stores numbers in
 /// big-endian format.
 
-template<typename T> 
+template<typename T>
 polyglotbook::PolyglotBook& polyglotbook::PolyglotBook::operator>>(T& n) {
 
   n = 0;
   for (std::size_t i = 0; i < sizeof(T); ++i)
-      n = T((n << 8) + std::ifstream::get());
+    n = T((n << 8) + std::ifstream::get());
 
   return *this;
 
 }
 
-template<> 
+template<>
 polyglotbook::PolyglotBook& polyglotbook::PolyglotBook::operator>>(Entry& e) {
 
   return *this >> e.key >> e.move >> e.count >> e.learn;
@@ -99,12 +100,13 @@ std::uint64_t polyglotbook::PolyglotBook::polyglot_key() {
     case -5: key ^= polyglotbook::kPG.Zobrist.psq[8][sq];  break;
     case +5: key ^= polyglotbook::kPG.Zobrist.psq[9][sq];  break;
     case -6: key ^= polyglotbook::kPG.Zobrist.psq[10][sq]; break;
-    case +6: key ^= polyglotbook::kPG.Zobrist.psq[11][sq]; break;}
+    case +6: key ^= polyglotbook::kPG.Zobrist.psq[11][sq]; break;
+    }
   }
 
   //
   // Castling rights
-  // 
+  //
   if (polyboard.castle & 0x1) key ^= polyglotbook::kPG.Zobrist.castling[0];
   if (polyboard.castle & 0x2) key ^= polyglotbook::kPG.Zobrist.castling[1];
   if (polyboard.castle & 0x4) key ^= polyglotbook::kPG.Zobrist.castling[2];
@@ -115,11 +117,14 @@ std::uint64_t polyglotbook::PolyglotBook::polyglot_key() {
   //
   if (ep_legal()) key ^= polyglotbook::kPG.Zobrist.enpassant[polyboard.epsq % 8];
 
-  // 
+  //
   // Turn
   //
   if (polyboard.wtm) key ^= polyglotbook::kPG.Zobrist.turn;
 
+  //
+  // The key is ready
+  //
   return key;
 
 }
@@ -160,8 +165,11 @@ bool polyglotbook::PolyglotBook::on_board(const int x, const int y) {
 
 bool polyglotbook::PolyglotBook::ep_legal() {
 
-  if (polyboard.epsq == -1) return false;
+  if (polyboard.epsq == -1)
+    return false;
+
   const int x = polyboard.epsq % 8, y = polyboard.epsq / 8;
+
   return polyboard.wtm ? (on_board(x - 1, y) && polyboard.pieces[8 * y + x - 1] == -1) || (on_board(x + 1, y) && polyboard.pieces[8 * y + x + 1] == -1)
                        : (on_board(x - 1, y) && polyboard.pieces[8 * y + x - 1] == +1) || (on_board(x + 1, y) && polyboard.pieces[8 * y + x + 1] == +1);
 
@@ -181,7 +189,9 @@ polyglotbook::PolyglotBook& polyglotbook::PolyglotBook::setup(std::int8_t *piece
 
 int polyglotbook::PolyglotBook::probe(const bool pickBest) {
 
-  if (!is_open()) return 0;
+  if (!is_open())
+    return 0;
+
   Entry e;
   std::uint16_t best = 0;
   unsigned sum = 0;

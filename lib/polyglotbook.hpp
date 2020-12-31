@@ -58,7 +58,7 @@ private:
   // Board for building a hash key
   struct PolyBoard {
     std::uint64_t both;
-    std::int8_t *pieces, epsq; 
+    std::int8_t *pieces, epsq;
     std::uint8_t castle, wtm;
   } polyboard;
 
@@ -343,4 +343,6 @@ constexpr union {
     0x003A93D8B2806962ULL, 0x1C99DED33CB890A1ULL, 0xCF3145DE0ADD4289ULL,
     0xD0E4427A5514FB72ULL, 0x77C621CC9FB3A483ULL, 0x67A34DAC4356550BULL,
     0xF8D626AAAF278509ULL
-  }};}
+  }};
+
+}

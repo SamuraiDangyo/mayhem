@@ -581,7 +581,7 @@ INLINE void affine_txfm(int8_t *input, void *output, unsigned inDims,
   __m128i out_5 = ((__m128i *)biases)[5];
   __m128i out_6 = ((__m128i *)biases)[6];
   __m128i out_7 = ((__m128i *)biases)[7];
-  const __m128i *first, *second;
+  const __m128i *second;
   mask2_t v;
   unsigned idx;
 
@@ -589,7 +589,7 @@ INLINE void affine_txfm(int8_t *input, void *output, unsigned inDims,
   for (unsigned offset = 0; offset < inDims;) {
     if (!next_idx(&idx, &offset, &v, inMask, inDims))
       break;
-    first = (__m128i *)&weights[outDims * idx];
+    const __m128i *first = (__m128i *)&weights[outDims * idx];
     uint16_t factor = input[idx];
     if (next_idx(&idx, &offset, &v, inMask, inDims)) {
       second = (__m128i *)&weights[outDims * idx];
@@ -655,7 +655,7 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
   __m128i out_5 = ((__m128i *)biases)[5];
   __m128i out_6 = ((__m128i *)biases)[6];
   __m128i out_7 = ((__m128i *)biases)[7];
-  const __m128i *first, *second;
+  const __m128i *second;
   mask2_t v;
   unsigned idx;
 
@@ -663,7 +663,7 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
   for (unsigned offset = 0; offset < inDims;) {
     if (!next_idx(&idx, &offset, &v, inMask, inDims))
       break;
-    first = (__m128i *)&weights[outDims * idx];
+    const __m128i *first = (__m128i *)&weights[outDims * idx];
     uint32_t factor = input[idx];
     if (next_idx(&idx, &offset, &v, inMask, inDims)) {
       second = (__m128i *)&weights[outDims * idx];
@@ -873,7 +873,6 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
   int32x4_t out_5 = ((int32x4_t *)biases)[5];
   int32x4_t out_6 = ((int32x4_t *)biases)[6];
   int32x4_t out_7 = ((int32x4_t *)biases)[7];
-  const int8x8_t *first;
   mask2_t v;
   unsigned idx;
 
@@ -881,7 +880,7 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
   for (unsigned offset = 0; offset < inDims;) {
     if (!next_idx(&idx, &offset, &v, inMask, inDims))
       break;
-    first = (int8x8_t *)&weights[outDims * idx];
+    const int8x8_t *first = (int8x8_t *)&weights[outDims * idx];
     int16_t factor = input[idx];
 
     int16x8_t prod;

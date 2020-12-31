@@ -145,4 +145,6 @@ int nnue_evaluate(
   int player,                       /** Side to move */
   int* pieces,                      /** Array of pieces */
   int* squares                      /** Corresponding array of squares the piece stand on */
-);}
+);
+
+}
