@@ -47,7 +47,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kName     = "Mayhem 2.7",
+  kName     = "Mayhem 2.71",
   kStartpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::vector<std::string>
@@ -1396,9 +1396,9 @@ private:
       else if (wrn == 1 && brn == 2) // KRKRR
         this->bonus_corner_b();
     } else if (this->both_n == 4) {
-      if ( (g_board->white[4] && g_board->black[3])      // KQKR
-        || (g_board->white[4] && g_board->black[1])      // KQKN
-        || (g_board->white[4] && g_board->black[2]))     // KQKB
+      if (   (g_board->white[4] && g_board->black[3])    // KQKR
+          || (g_board->white[4] && g_board->black[1])    // KQKN
+          || (g_board->white[4] && g_board->black[2]))   // KQKB
         this->bonus_corner_w();
       else if ((g_board->white[3] && g_board->black[4])  // KRKQ
           ||   (g_board->white[1] && g_board->black[4])  // KNKQ
@@ -1613,8 +1613,8 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
   if (!g_nullmove_active
       && !g_is_pv
       && (depth >= 4)
-      && !ChecksB()
       && (g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4])
+      && !ChecksB()
       && Evaluate(true) >= beta) {
     const auto ep = g_board->epsq;
     auto *const tmp = g_board;
@@ -1636,8 +1636,8 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
   if (!g_nullmove_active
       && !g_is_pv
       && (depth >= 4)
-      && !ChecksW()
       && (g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4])
+      && !ChecksW()
       && alpha >= Evaluate(false)) {
     const auto ep = g_board->epsq;
     auto *const tmp = g_board;
@@ -1744,7 +1744,7 @@ int BestW() {
     if (g_stop_search)
       return g_best_score;
     if (score > alpha) {
-      // Skip underpromos unless really good
+      // Skip underpromos unless really good (3+ pawns)
       if ((g_root[i].type >= 5 && g_root[i].type <= 7) && (score + 4 * 300 < alpha))
         continue;
       alpha = score;
@@ -1771,7 +1771,7 @@ int BestB() {
     if (g_stop_search)
       return g_best_score;
     if (score < beta) {
-      if ((g_root[i].type >= 5 && g_root[i].type <= 7) && (score - 4 * 300 < beta))
+      if ((g_root[i].type >= 5 && g_root[i].type <= 7) && (score - 4 * 300 > beta))
         continue;
       beta = score;
       best_i = i;
@@ -1869,7 +1869,7 @@ void Think(const int ms) {
   g_underpromos = false;
   for (; std::abs(g_best_score) != kInf && g_depth < g_max_depth && !g_stop_search; g_depth++) {
     g_best_score = g_wtm ? BestW() : BestB();
-    // Switch to classical only when game is decided !
+    // Switch to classical only when game is decided (5+ pawns) !
     if (check && std::abs(g_best_score) > 4 * 500 && ++good >= 7) {
       g_classical = true;
       check       = false;
