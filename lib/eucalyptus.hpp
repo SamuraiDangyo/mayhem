@@ -1,5 +1,5 @@
 // Eucalyptus KPK bitbases
-// Copyright (C) 2020 Toni Helminen <GPLv3>
+// Copyright (C) 2020-2021 Toni Helminen <GPLv3>
 
 #pragma once
 

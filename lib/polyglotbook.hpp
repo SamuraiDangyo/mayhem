@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2020 Toni Helminen (Mayhem author / Modifications)
+  Copyright (C) 2020-2021 Toni Helminen (Mayhem author / Modifications)
 */
 
 /*
