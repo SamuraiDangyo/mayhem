@@ -31,7 +31,8 @@
 
 //using namespace std;
 
-polyglotbook::PolyglotBook::PolyglotBook() : polyboard{} {
+polyglotbook::PolyglotBook::PolyglotBook() :
+  polyboard{} {
 
   std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
@@ -43,7 +44,6 @@ polyglotbook::PolyglotBook::~PolyglotBook() {
     close();
 
 }
-
 
 /// operator>>() reads sizeof(T) chars from the file's binary byte stream and
 /// converts them into a number of type T. A Polyglot book stores numbers in
@@ -89,38 +89,38 @@ std::uint64_t polyglotbook::PolyglotBook::polyglot_key() {
   for (auto both = polyboard.both; both; both = clear_bit(both)) {
     const auto sq = ctz(both);
     switch (polyboard.pieces[sq]) {
-    case -1: key ^= polyglotbook::kPG.Zobrist.psq[0][sq];  break;
-    case +1: key ^= polyglotbook::kPG.Zobrist.psq[1][sq];  break;
-    case -2: key ^= polyglotbook::kPG.Zobrist.psq[2][sq];  break;
-    case +2: key ^= polyglotbook::kPG.Zobrist.psq[3][sq];  break;
-    case -3: key ^= polyglotbook::kPG.Zobrist.psq[4][sq];  break;
-    case +3: key ^= polyglotbook::kPG.Zobrist.psq[5][sq];  break;
-    case -4: key ^= polyglotbook::kPG.Zobrist.psq[6][sq];  break;
-    case +4: key ^= polyglotbook::kPG.Zobrist.psq[7][sq];  break;
-    case -5: key ^= polyglotbook::kPG.Zobrist.psq[8][sq];  break;
-    case +5: key ^= polyglotbook::kPG.Zobrist.psq[9][sq];  break;
-    case -6: key ^= polyglotbook::kPG.Zobrist.psq[10][sq]; break;
-    case +6: key ^= polyglotbook::kPG.Zobrist.psq[11][sq]; break;
+      case -1: key ^= polyglotbook::kZobrist.PG.psq[0][sq];  break;
+      case +1: key ^= polyglotbook::kZobrist.PG.psq[1][sq];  break;
+      case -2: key ^= polyglotbook::kZobrist.PG.psq[2][sq];  break;
+      case +2: key ^= polyglotbook::kZobrist.PG.psq[3][sq];  break;
+      case -3: key ^= polyglotbook::kZobrist.PG.psq[4][sq];  break;
+      case +3: key ^= polyglotbook::kZobrist.PG.psq[5][sq];  break;
+      case -4: key ^= polyglotbook::kZobrist.PG.psq[6][sq];  break;
+      case +4: key ^= polyglotbook::kZobrist.PG.psq[7][sq];  break;
+      case -5: key ^= polyglotbook::kZobrist.PG.psq[8][sq];  break;
+      case +5: key ^= polyglotbook::kZobrist.PG.psq[9][sq];  break;
+      case -6: key ^= polyglotbook::kZobrist.PG.psq[10][sq]; break;
+      case +6: key ^= polyglotbook::kZobrist.PG.psq[11][sq]; break;
     }
   }
 
   //
   // Castling rights
   //
-  if (polyboard.castle & 0x1) key ^= polyglotbook::kPG.Zobrist.castling[0];
-  if (polyboard.castle & 0x2) key ^= polyglotbook::kPG.Zobrist.castling[1];
-  if (polyboard.castle & 0x4) key ^= polyglotbook::kPG.Zobrist.castling[2];
-  if (polyboard.castle & 0x8) key ^= polyglotbook::kPG.Zobrist.castling[3];
+  if (polyboard.castling & 0x1) key ^= polyglotbook::kZobrist.PG.castling[0];
+  if (polyboard.castling & 0x2) key ^= polyglotbook::kZobrist.PG.castling[1];
+  if (polyboard.castling & 0x4) key ^= polyglotbook::kZobrist.PG.castling[2];
+  if (polyboard.castling & 0x8) key ^= polyglotbook::kZobrist.PG.castling[3];
 
   //
   // En passant
   //
-  if (ep_legal()) key ^= polyglotbook::kPG.Zobrist.enpassant[polyboard.epsq % 8];
+  if (is_ep_legal()) key ^= polyglotbook::kZobrist.PG.enpassant[polyboard.epsq % 8];
 
   //
   // Turn
   //
-  if (polyboard.wtm) key ^= polyglotbook::kPG.Zobrist.turn;
+  if (polyboard.wtm) key ^= polyglotbook::kZobrist.PG.turn;
 
   //
   // The key is ready
@@ -163,7 +163,7 @@ bool polyglotbook::PolyglotBook::on_board(const int x, const int y) {
 
 }
 
-bool polyglotbook::PolyglotBook::ep_legal() {
+bool polyglotbook::PolyglotBook::is_ep_legal() {
 
   if (polyboard.epsq == -1)
     return false;
@@ -175,13 +175,17 @@ bool polyglotbook::PolyglotBook::ep_legal() {
 
 }
 
-polyglotbook::PolyglotBook& polyglotbook::PolyglotBook::setup(std::int8_t *pieces, const std::uint64_t both, const std::uint8_t castle, const std::int8_t epsq, const bool wtm) {
+polyglotbook::PolyglotBook& polyglotbook::PolyglotBook::setup(std::int8_t* pieces,
+                                  const std::uint64_t both,
+                                  const std::uint8_t castling,
+                                  const std::int8_t epsq,
+                                  const bool wtm) {
 
-  polyboard.pieces = pieces;
-  polyboard.both   = both;
-  polyboard.castle = castle;
-  polyboard.epsq   = epsq;
-  polyboard.wtm    = wtm;
+  polyboard.pieces   = pieces;
+  polyboard.both     = both;
+  polyboard.castling = castling;
+  polyboard.epsq     = epsq;
+  polyboard.wtm      = wtm;
 
   return *this;
 
