@@ -29,12 +29,12 @@ gprof:
 	gprof > gprof.txt
 
 test:
-	cutechess-cli -engine cmd=./$(EXE) dir=. proto=uci -engine cmd=fruit proto=uci -each tc=60+0.1 -rounds 100 -pgnout games.pgn
+	cutechess-cli -engine cmd=./$(EXE) dir=. proto=uci -engine cmd=fruit proto=uci -each tc=60+1 -rounds 100 -pgnout games.pgn
 
 xboard:
 	xboard -fUCI -fcp ./$(EXE)
 
 clean:
-	rm -f $(EXE) $(EXE)-* *.pgn game.* log.* *.out *.txt
+	rm -f $(EXE) $(EXE)-* *.pgn game.* log.* *.out *.txt *.debug
 
 .PHONY: all release valgrind gprof test xboard clean
