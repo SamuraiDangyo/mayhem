@@ -176,10 +176,10 @@ bool polyglotbook::PolyglotBook::is_ep_legal() {
 }
 
 polyglotbook::PolyglotBook& polyglotbook::PolyglotBook::setup(std::int8_t* pieces,
-                                  const std::uint64_t both,
-                                  const std::uint8_t castling,
-                                  const std::int8_t epsq,
-                                  const bool wtm) {
+                                                              const std::uint64_t both,
+                                                              const std::uint8_t castling,
+                                                              const std::int8_t epsq,
+                                                              const bool wtm) {
 
   polyboard.pieces   = pieces;
   polyboard.both     = both;
