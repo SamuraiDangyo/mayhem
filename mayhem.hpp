@@ -22,6 +22,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Headers
 
+#include <functional>
+#include <algorithm>
 #include <memory>
 #include <iostream>
 #include <vector>
@@ -49,7 +51,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 3.1",
+  kVersion  = "Mayhem 3.2",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::vector<std::string>
@@ -177,7 +179,9 @@ struct Hash_t {
 // Enums
 
 enum class MoveType {
-  kKiller = 0, kGood = 1, kQuiet = 2
+  kKiller,
+  kGood,
+  kQuiet
 };
 
 // Variables
@@ -190,11 +194,11 @@ std::uint32_t
   g_hash_entries = 0, g_tokens_nth = 0;
 
 std::uint64_t
-  g_seed = 131783, g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_pawn_sq = 0, g_pawn_1_moves_w[64] = {}, g_pawn_1_moves_b[64] = {},
+  g_seed = 131783, g_black = 0x0ULL, g_white = 0x0ULL, g_both = 0x0ULL, g_empty = 0x0ULL, g_good = 0x0ULL, g_pawn_sq = 0x0ULL, g_pawn_1_moves_w[64] = {}, g_pawn_1_moves_b[64] = {},
   g_pawn_2_moves_w[64] = {}, g_pawn_2_moves_b[64] = {}, g_bishop_moves[64] = {}, g_rook_moves[64] = {}, g_queen_moves[64] = {}, g_knight_moves[64] = {},
   g_king_moves[64] = {}, g_pawn_checks_w[64] = {}, g_pawn_checks_b[64] = {}, g_castle_w[2] = {}, g_castle_b[2] = {}, g_castle_empty_w[2] = {},
   g_castle_empty_b[2] = {}, g_bishop_magic_moves[64][512] = {}, g_rook_magic_moves[64][4096] = {}, g_zobrist_ep[64] = {}, g_zobrist_castle[16] = {},
-  g_zobrist_wtm[2] = {}, g_zobrist_board[13][64] = {}, g_stop_search_time = 0, g_r50_positions[128] = {}, g_nodes = 0;
+  g_zobrist_wtm[2] = {}, g_zobrist_board[13][64] = {}, g_stop_search_time = 0x0ULL, g_r50_positions[128] = {}, g_nodes = 0x0ULL;
 
 bool
   g_chess960 = false, g_wtm = false, g_stop_search = false, g_underpromos = true, g_nullmove_active = false, g_is_pv = false, g_analyzing = false,
@@ -241,7 +245,8 @@ inline std::uint64_t Black() {
 }
 
 inline std::uint64_t Both() {
-  return White() | Black();
+  return g_board->white[0] | g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4] | g_board->white[5]
+       | g_board->black[0] | g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4] | g_board->black[5];
 }
 
 inline int Ctz(const std::uint64_t bb) {
@@ -295,24 +300,24 @@ inline bool IsUnderpromo(const struct Board_t *b) {
 
 extern "C" {
 #ifdef WINDOWS
-  bool InputAvailable() {
-    return _kbhit();
-  }
+bool InputAvailable() {
+  return _kbhit();
+}
 #else
-  bool InputAvailable() {
-    fd_set fd;
-    struct timeval tv;
-    FD_ZERO(&fd);
-    FD_SET(STDIN_FILENO, &fd);
-    tv.tv_sec = tv.tv_usec = 0;
-    select(STDIN_FILENO + 1, &fd, 0, 0, &tv);
-    return FD_ISSET(STDIN_FILENO, &fd) > 0;
-  }
+bool InputAvailable() {
+  fd_set fd;
+  struct timeval tv;
+  FD_ZERO(&fd);
+  FD_SET(STDIN_FILENO, &fd);
+  tv.tv_sec = tv.tv_usec = 0;
+  select(STDIN_FILENO + 1, &fd, 0, 0, &tv);
+  return FD_ISSET(STDIN_FILENO, &fd) > 0;
+}
 #endif
-  inline std::uint64_t Now() {
-    struct timeval tv;
-    return gettimeofday(&tv, NULL) ? 0 : (1000 * tv.tv_sec + tv.tv_usec / 1000);
-  }
+inline std::uint64_t Now() {
+  struct timeval tv;
+  return gettimeofday(&tv, NULL) ? 0x0ULL : (1000 * tv.tv_sec + tv.tv_usec / 1000);
+}
 }
 
 void Assert(const bool test, const std::string& msg) {
@@ -326,15 +331,15 @@ std::uint64_t Mixer(const std::uint64_t num) {
 }
 
 std::uint64_t Random64() {
-  static std::uint64_t va = 0X12311227ULL, vb = 0X1931311ULL, vc = 0X13138141ULL;
-  va ^= vb + vc;
-  vb ^= vb * vc + 0x1717711ULL;
-  vc  = (3 * vc) + 1;
-  return Mixer(va) ^ Mixer(vb) ^ Mixer(vc);
+  static std::uint64_t a = 0X12311227ULL, b = 0X1931311ULL, c = 0X13138141ULL;
+  a ^= b + c;
+  b ^= b * c + 0x1717711ULL;
+  c  = (3 * c) + 0x1ULL;
+  return Mixer(a) ^ Mixer(b) ^ Mixer(c);
 }
 
 std::uint64_t Random8x64() {
-  std::uint64_t ret = 0;
+  std::uint64_t ret = 0x0ULL;
   for (auto i = 0; i < 8; i++) ret ^= Random64() << (8 * i);
   return ret;
 }
@@ -366,42 +371,6 @@ void Input() {
   g_tokens_nth = 0;
   g_tokens.clear();
   Split<std::vector<std::string>>(line, g_tokens, " ");
-}
-
-char PromoLetter(const std::int8_t piece) {
-  switch (std::abs(piece)) {
-    case 2:  return 'n';
-    case 3:  return 'b';
-    case 4:  return 'r';
-    default: return 'q';
-  }
-}
-
-const std::string MoveName(const struct Board_t *const move) {
-  auto from = move->from, to = move->to;
-
-  switch (move->type) {
-    case 1:
-      from = g_king_w;
-      to  = g_chess960 ? g_rook_w[0] : 6;
-      break;
-    case 2:
-      from = g_king_w;
-      to   = g_chess960 ? g_rook_w[1] : 2;
-      break;
-    case 3:
-      from = g_king_b;
-      to   = g_chess960 ? g_rook_b[0] : 56 + 6;
-      break;
-    case 4:
-      from = g_king_b;
-      to   = g_chess960 ? g_rook_b[1] : 56 + 2;
-      break;
-    case 5: case 6: case 7: case 8:
-      return MoveStr(from, to) + PromoLetter(move->pieces[to]);
-  }
-
-  return MoveStr(from, to);
 }
 
 // Lib
@@ -447,9 +416,7 @@ int CreateKey(const int max, const int block) {
 void SetupHashtable() {
   g_hash_mb      = Between<int>(4, g_hash_mb, 1048576);
   g_hash_entries = CreateKey((1 << 20) * g_hash_mb, sizeof(struct Hash_t));
-
   g_hash.reset(new struct Hash_t[g_hash_entries]);
-
   for (std::size_t i = 0; i < g_hash_entries; i++)
     g_hash[i].eval_hash = g_hash[i].sort_hash = g_hash[i].score = g_hash[i].killer = g_hash[i].good = g_hash[i].quiet = 0;
 }
@@ -508,7 +475,7 @@ void BuildBitboards() {
 
 std::uint64_t Fill(int from, const int to) {
   if (from < 0 || to < 0 || from > 63 || to > 63)
-    return 0;
+    return 0x0ULL;
 
   auto ret = Bit(from);
   if (from == to)
@@ -525,22 +492,32 @@ std::uint64_t Fill(int from, const int to) {
 
 void FindKings() {
   for (auto i = 0; i < 64; i++)
-    if      (g_board->pieces[i] == +6) g_king_w = i;
+    if (     g_board->pieces[i] == +6) g_king_w = i;
     else if (g_board->pieces[i] == -6) g_king_b = i;
 }
 
 void BuildCastlingBitboards() {
-  g_castle_w[0]       = Fill(g_king_w, 6);
-  g_castle_b[0]       = Fill(g_king_b, 56 + 6);
-  g_castle_w[1]       = Fill(g_king_w, 2);
-  g_castle_b[1]       = Fill(g_king_b, 56 + 2);
+  if (g_board->castle & 0x1) {
+    g_castle_w[0]       = Fill(g_king_w, 6);
+    g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5     )) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
+  }
 
-  g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5     )) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
-  g_castle_empty_b[0] = (g_castle_b[0] | Fill(g_rook_b[0], 56 + 5)) ^ (Bit(g_king_b) | Bit(g_rook_b[0]));
-  g_castle_empty_w[1] = (g_castle_w[1] | Fill(g_rook_w[1], 3     )) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
-  g_castle_empty_b[1] = (g_castle_b[1] | Fill(g_rook_b[1], 56 + 3)) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
+  if (g_board->castle & 0x2) {
+    g_castle_w[1]       = Fill(g_king_w, 2);
+    g_castle_empty_w[1] = (g_castle_w[1] | Fill(g_rook_w[1], 3     )) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
+  }
 
-  for (auto i = 0; i < 2; i++) {
+  if (g_board->castle & 0x4) {
+    g_castle_b[0]       = Fill(g_king_b, 56 + 6);
+    g_castle_empty_b[0] = (g_castle_b[0] | Fill(g_rook_b[0], 56 + 5)) ^ (Bit(g_king_b) | Bit(g_rook_b[0]));
+  }
+
+  if (g_board->castle & 0x8) {
+    g_castle_b[1]       = Fill(g_king_b, 56 + 2);
+    g_castle_empty_b[1] = (g_castle_b[1] | Fill(g_rook_b[1], 56 + 3)) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
+  }
+
+  for (const auto i : {0, 1}) {
     g_castle_empty_w[i] &= 0xFFULL;
     g_castle_empty_b[i] &= 0xFF00000000000000ULL;
     g_castle_w[i]       &= 0xFFULL;
@@ -550,15 +527,8 @@ void BuildCastlingBitboards() {
 
 // Fen handling
 
-std::int8_t Piece(const char piece) {
-  for (auto i = 0; i < 6; i++)
-    if (     piece == "pnbrqk"[i]) return -i - 1;
-    else if (piece == "PNBRQK"[i]) return +i + 1;
-  return 0;
-}
-
-int FenEmpty(const char c) {
-  switch (c) {
+int FenEmpty(const char r) {
+  switch (r) {
     case '1': return 1;
     case '2': return 2;
     case '3': return 3;
@@ -566,9 +536,26 @@ int FenEmpty(const char c) {
     case '5': return 5;
     case '6': return 6;
     case '7': return 7;
-    case '8': return 8;
+    default:  return 8;
   }
-  return 0;
+}
+
+std::int8_t FenPiece(const char p) {
+  switch (p) {
+    case 'P': return +1;
+    case 'N': return +2;
+    case 'B': return +3;
+    case 'R': return +4;
+    case 'Q': return +5;
+    case 'K': return +6;
+    case 'p': return -1;
+    case 'n': return -2;
+    case 'b': return -3;
+    case 'r': return -4;
+    case 'q': return -5;
+    case 'k': return -6;
+    default:  return  0;
+  }
 }
 
 void FenBoard(const std::string& board) {
@@ -577,7 +564,7 @@ void FenBoard(const std::string& board) {
     const auto c = board[i];
     if (c == '/')             sq -= 16;
     else if (std::isdigit(c)) sq += FenEmpty(c);
-    else                      g_board->pieces[sq++] = Piece(c);
+    else                      g_board->pieces[sq++] = FenPiece(c);
   }
 }
 
@@ -637,7 +624,8 @@ void FenReset() {
   g_board->epsq = -1;
   g_king_w = g_king_b = 0;
 
-  for (auto i = 0; i < 2; i++) g_rook_w[i] = g_rook_b[i] = 0;
+  for (const auto i : {0, 1})  g_castle_w[i] = g_castle_empty_w[i] = g_castle_b[i] = g_castle_empty_b[i] = 0x0ULL;
+  for (const auto i : {0, 1})  g_rook_w[i] = g_rook_b[i] = 0;
   for (auto i = 0; i < 6; i++) g_board->white[i] = g_board->black[i] = 0;
 }
 
@@ -659,20 +647,20 @@ void Fen(const std::string& fen) {
 
 inline bool ChecksHereW(const int sq) {
   const auto both = Both();
-  return ((g_pawn_checks_b[sq] & g_board->white[0])
-        | (g_knight_moves[sq] & g_board->white[1])
+  return ((g_pawn_checks_b[sq]        &  g_board->white[0])
+        | (g_knight_moves[sq]         &  g_board->white[1])
         | (BishopMagicMoves(sq, both) & (g_board->white[2] | g_board->white[4]))
-        | (RookMagicMoves(sq, both) & (g_board->white[3] | g_board->white[4]))
-        | (g_king_moves[sq] & g_board->white[5]));
+        | (RookMagicMoves(sq, both)   & (g_board->white[3] | g_board->white[4]))
+        | (g_king_moves[sq]           &  g_board->white[5]));
 }
 
 inline bool ChecksHereB(const int sq) {
   const auto both = Both();
-  return ((g_pawn_checks_w[sq] & g_board->black[0])
-        | (g_knight_moves[sq] & g_board->black[1])
+  return ((g_pawn_checks_w[sq]        &  g_board->black[0])
+        | (g_knight_moves[sq]         &  g_board->black[1])
         | (BishopMagicMoves(sq, both) & (g_board->black[2] | g_board->black[4]))
-        | (RookMagicMoves(sq, both) & (g_board->black[3] | g_board->black[4]))
-        | (g_king_moves[sq] & g_board->black[5]));
+        | (RookMagicMoves(sq, both)   & (g_board->black[3] | g_board->black[4]))
+        | (g_king_moves[sq]           &  g_board->black[5]));
 }
 
 bool ChecksCastleW(std::uint64_t squares) {
@@ -695,6 +683,44 @@ inline bool ChecksW() {
 
 inline bool ChecksB() {
   return ChecksHereB(Ctz(g_board->white[5]));
+}
+
+// Move printing
+
+char PromoLetter(const std::int8_t piece) {
+  switch (std::abs(piece)) {
+    case 2:  return 'n';
+    case 3:  return 'b';
+    case 4:  return 'r';
+    default: return 'q';
+  }
+}
+
+const std::string MoveName(const struct Board_t *const move) {
+  auto from = move->from, to = move->to;
+
+  switch (move->type) {
+    case 1:
+      from = g_king_w;
+      to  = g_chess960 ? g_rook_w[0] : 6;
+      break;
+    case 2:
+      from = g_king_w;
+      to   = g_chess960 ? g_rook_w[1] : 2;
+      break;
+    case 3:
+      from = g_king_b;
+      to   = g_chess960 ? g_rook_b[0] : 56 + 6;
+      break;
+    case 4:
+      from = g_king_b;
+      to   = g_chess960 ? g_rook_b[1] : 56 + 2;
+      break;
+    case 5: case 6: case 7: case 8:
+      return MoveStr(from, to) + PromoLetter(move->pieces[to]);
+  }
+
+  return MoveStr(from, to);
 }
 
 // Sorting
@@ -729,10 +755,10 @@ void SortAll() {
 
 void SortByScore(const struct Hash_t *const entry, const std::uint64_t hash) {
   if (entry->sort_hash == hash) {
-    if (entry->killer)    g_moves[entry->killer - 1].score += 10000;
-    else if (entry->good) g_moves[entry->good - 1].score   += 10000;
+    if (entry->killer)     g_moves[entry->killer - 1].score += 10000;
+    else if (entry->good)  g_moves[entry->good   - 1].score += 10000;
 
-    if (entry->quiet)     g_moves[entry->quiet - 1].score  += 5000;
+    if (entry->quiet) g_moves[entry->quiet - 1].score       += 10000;
   }
 
   SortNthMoves(EvaluateMoves());
@@ -743,11 +769,11 @@ void EvalRootMoves() {
 
   for (auto i = 0; i < g_root_n; i++) {
     g_board         = g_root + i;
-    g_board->score += (g_board->type == 8 ? 1000 : 0)
-                    + (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0)
-                    + (IsUnderpromo(g_board) ? -5000 : 0)
-                    + (g_wtm ? +1 : -1) * Evaluate(g_wtm)
-                    +  Random(-1, +1);
+    g_board->score += (  g_board->type == 8 ? 1000 : 0)
+                      + (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0)
+                      + (IsUnderpromo(g_board) ? -5000 : 0)
+                      + (g_wtm ? +1 : -1) * Evaluate(g_wtm)
+                      +  Random(-1, +1);
   }
 
   g_board = tmp;
@@ -789,7 +815,7 @@ void HandleCastlingW(const int mtype, const int from, const int to) {
   g_board->from      = from;
   g_board->to        = to;
   g_board->type      = mtype;
-  g_board->castle   &= 4 | 8;
+  g_board->castle   &= 0x4 | 0x8;
   g_board->rule50    = 0;
 }
 
@@ -801,7 +827,7 @@ void HandleCastlingB(const int mtype, const int from, const int to) {
   g_board->from      = from;
   g_board->to        = to;
   g_board->type      = mtype;
-  g_board->castle   &= 1 | 2;
+  g_board->castle   &= 0x1 | 0x2;
   g_board->rule50    = 0;
 }
 
@@ -812,8 +838,8 @@ void AddCastleOOW() {
 
   g_board->pieces[g_rook_w[0]] = 0;
   g_board->pieces[g_king_w]    = 0;
-  g_board->pieces[5]           = 4;
-  g_board->pieces[6]           = 6;
+  g_board->pieces[5]           = +4;
+  g_board->pieces[6]           = +6;
   g_board->white[3]            = (g_board->white[3] ^ Bit(g_rook_w[0])) | Bit(5);
   g_board->white[5]            = (g_board->white[5] ^ Bit(g_king_w))    | Bit(6);
 
@@ -846,8 +872,8 @@ void AddCastleOOOW() {
 
   g_board->pieces[g_rook_w[1]] = 0;
   g_board->pieces[g_king_w]    = 0;
-  g_board->pieces[3]           = 4;
-  g_board->pieces[2]           = 6;
+  g_board->pieces[3]           = +4;
+  g_board->pieces[2]           = +6;
   g_board->white[3]            = (g_board->white[3] ^ Bit(g_rook_w[1])) | Bit(3);
   g_board->white[5]            = (g_board->white[5] ^ Bit(g_king_w))    | Bit(2);
 
@@ -874,39 +900,39 @@ void AddCastleOOOB() {
 }
 
 void MgenCastlingMovesW() {
-  if ((g_board->castle & 1) && !(g_castle_empty_w[0] & g_both)) {
+  if ((g_board->castle & 0x1) && !(g_castle_empty_w[0] & g_both)) {
     AddCastleOOW();
     g_board = g_board_orig;
   }
 
-  if ((g_board->castle & 2) && !(g_castle_empty_w[1] & g_both)) {
+  if ((g_board->castle & 0x2) && !(g_castle_empty_w[1] & g_both)) {
     AddCastleOOOW();
     g_board = g_board_orig;
   }
 }
 
 void MgenCastlingMovesB() {
-  if ((g_board->castle & 4) && !(g_castle_empty_b[0] & g_both)) {
+  if ((g_board->castle & 0x4) && !(g_castle_empty_b[0] & g_both)) {
     AddCastleOOB();
     g_board = g_board_orig;
   }
 
-  if ((g_board->castle & 8) && !(g_castle_empty_b[1] & g_both)) {
+  if ((g_board->castle & 0x8) && !(g_castle_empty_b[1] & g_both)) {
     AddCastleOOOB();
     g_board = g_board_orig;
   }
 }
 
 void CheckCastlingRightsW() {
-  if (g_board->pieces[g_king_w]    != 6) {g_board->castle &= 4 | 8; return;}
-  if (g_board->pieces[g_rook_w[0]] != 4) {g_board->castle &= 2 | 4 | 8;}
-  if (g_board->pieces[g_rook_w[1]] != 4) {g_board->castle &= 1 | 4 | 8;}
+  if (g_board->pieces[g_king_w]    != +6) {g_board->castle &= 0x4 | 0x8; return;}
+  if (g_board->pieces[g_rook_w[0]] != +4) {g_board->castle &= 0x2 | 0x4 | 0x8;}
+  if (g_board->pieces[g_rook_w[1]] != +4) {g_board->castle &= 0x1 | 0x4 | 0x8;}
 }
 
 void CheckCastlingRightsB() {
-  if (g_board->pieces[g_king_b]    != -6) {g_board->castle &= 1 | 2; return;}
-  if (g_board->pieces[g_rook_b[0]] != -4) {g_board->castle &= 1 | 2 | 8;}
-  if (g_board->pieces[g_rook_b[1]] != -4) {g_board->castle &= 1 | 2 | 4;}
+  if (g_board->pieces[g_king_b]    != -6) {g_board->castle &= 0x1 | 0x2; return;}
+  if (g_board->pieces[g_rook_b[0]] != -4) {g_board->castle &= 0x1 | 0x2 | 0x8;}
+  if (g_board->pieces[g_rook_b[1]] != -4) {g_board->castle &= 0x1 | 0x2 | 0x4;}
 }
 
 void HandleCastlingRights() {
@@ -923,9 +949,9 @@ void ModifyPawnStuffW(const int from, const int to) {
     g_board->score          = 10; // PxP
     g_board->pieces[to - 8] = 0;
     g_board->black[0]      ^= Bit(to - 8);
-  } else if (Ycoord(to) - Ycoord(from) == 2) {
+  } else if (Ycoord(to) - Ycoord(from) == +2) {
     g_board->epsq = to - 8;
-  } else if (Ycoord(to) >= 5) { // Bonus for 6 + 7 ranks
+  } else if (Ycoord(to) >= 5) { // Bonus for 6 + 7th ranks
     g_board->score = 85 + Ycoord(to);
   }
 }
@@ -994,8 +1020,8 @@ void AddPromotionStuffW(const int from, const int to) {
   auto *const tmp = g_board;
 
   if (g_underpromos) {
-    for (const auto piece : {5, 4, 3, 2}) {
-      AddPromotionW(from, to, piece);
+    for (const auto p : {5, 4, 3, 2}) {
+      AddPromotionW(from, to, p);
       g_board = tmp;
     }
   } else {
@@ -1014,8 +1040,8 @@ void AddPromotionStuffB(const int from, const int to) {
   auto *const tmp = g_board;
 
   if (g_underpromos) {
-    for (const auto piece : {-5, -4, -3, -2}) {
-      AddPromotionB(from, to, piece);
+    for (const auto p : {-5, -4, -3, -2}) {
+      AddPromotionB(from, to, p);
       g_board = tmp;
     }
   } else {
@@ -1490,8 +1516,8 @@ private:
   }
 
   void bonus_checks() {
-    if (     ChecksW()) score += 3;
-    else if (ChecksB()) score -= 3;
+    if (     ChecksW()) score += 10;
+    else if (ChecksB()) score -= 10;
   }
 
   void bonus_bishop_pair() {
@@ -1543,18 +1569,18 @@ int EvaluateClassical(const bool wtm) {
 }
 
 int ProbeNNUE(const bool wtm) {
-  int pieces[33], squares[33], index = 2;
+  int pieces[33], squares[33], i = 2;
 
   for (auto both = Both(); both; both = ClearBit(both)) {
     const auto sq = Ctz(both);
     switch (g_board->pieces[sq]) {
       case +1: case +2: case +3: case +4: case +5:
-        pieces[index]    = 7  - static_cast<int>(g_board->pieces[sq]);
-        squares[index++] = sq;
+        pieces[i]    = 7  - static_cast<int>(g_board->pieces[sq]);
+        squares[i++] = sq;
         break;
       case -1: case -2: case -3: case -4: case -5:
-        pieces[index]    = 13 + static_cast<int>(g_board->pieces[sq]);
-        squares[index++] = sq;
+        pieces[i]    = 13 + static_cast<int>(g_board->pieces[sq]);
+        squares[i++] = sq;
         break;
       case +6:
         pieces[0]  = 1;
@@ -1567,7 +1593,7 @@ int ProbeNNUE(const bool wtm) {
     }
   }
 
-  pieces[index] = squares[index] = 0;
+  pieces[i] = squares[i] = 0;
   return (wtm ? +1 : -1) * nnue_evaluate(!wtm, pieces, squares);
 }
 
@@ -1618,9 +1644,9 @@ bool UserStop() {
 }
 
 bool TimeCheckSearch() {
-  static std::uint64_t ticks = 0;
+  static std::uint64_t ticks = 0x0ULL;
 
-  if (++ticks & 0xFFULL)                           return g_stop_search;
+  if ((++ticks & 0xFFULL))                         return g_stop_search;
   if ((Now() >= g_stop_search_time) || UserStop()) return g_stop_search = true;
 
   return g_stop_search;
@@ -1673,6 +1699,76 @@ void UpdateSort(struct Hash_t *const entry, const enum MoveType type, const std:
     case MoveType::kGood:   entry->good   = index + 1; break;
     case MoveType::kQuiet:  entry->quiet  = index + 1; break;
   }
+}
+
+int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
+  struct Board_t moves[kMaxMoves];
+  const auto hash    = g_r50_positions[g_board->rule50];
+  const auto checks  = ChecksB();
+  const auto moves_n = MgenW(moves);
+
+  if (!moves_n) return checks ? -kInf : 0;
+  if (depth == 1 && ply > 5 && (checks || moves_n == 1)) depth++;
+
+  const auto ok_lmr = (moves_n >= 5) && (depth >= 2) && (!checks);
+  auto *const entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
+  SortByScore(entry, hash);
+
+  for (auto i = 0; i < moves_n; i++) {
+    g_board = moves + i;
+    g_is_pv = i <= 1 && !moves[i].score;
+
+    if (ok_lmr && i >= 2 && (!g_board->score) && !ChecksW()) {
+      if (SearchB(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1) <= alpha) continue;
+      g_board = moves + i;
+    }
+
+    const auto score = SearchB(alpha, beta, depth - 1, ply + 1);
+    if (score > alpha) {
+      if ((alpha = score) >= beta) {
+        UpdateSort(entry, MoveType::kKiller, hash, moves[i].index);
+        return alpha;
+      }
+      UpdateSort(entry, moves[i].score ? MoveType::kGood : MoveType::kQuiet, hash, moves[i].index);
+    }
+  }
+
+  return alpha;
+}
+
+int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
+  struct Board_t moves[kMaxMoves];
+  const auto hash    = g_r50_positions[g_board->rule50];
+  const auto checks  = ChecksW();
+  const auto moves_n = MgenB(moves);
+
+  if (!moves_n) return checks ? +kInf : 0;
+  if (depth == 1 && ply > 5 && (checks || moves_n == 1)) depth++;
+
+  const auto ok_lmr = (moves_n >= 5) && (depth >= 2) && (!checks);
+  auto *const entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
+  SortByScore(entry, hash);
+
+  for (auto i = 0; i < moves_n; i++) {
+    g_board = moves + i;
+    g_is_pv = i <= 1 && !moves[i].score;
+
+    if (ok_lmr && i >= 2 && !g_board->score && !ChecksB()) {
+      if (SearchW(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1) >= beta) continue;
+      g_board = moves + i;
+    }
+
+    const auto score = SearchW(alpha, beta, depth - 1, ply + 1);
+    if (score < beta) {
+      if (alpha >= (beta = score)) {
+        UpdateSort(entry, MoveType::kKiller, hash, moves[i].index);
+        return beta;
+      }
+      UpdateSort(entry, moves[i].score ? MoveType::kGood : MoveType::kQuiet, hash, moves[i].index);
+    }
+  }
+
+  return beta;
 }
 
 bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
@@ -1729,84 +1825,14 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
   return false;
 }
 
-int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
-  struct Board_t moves[kMaxMoves];
-  const auto hash    = g_r50_positions[g_board->rule50];
-  const auto checks  = ChecksB();
-  const auto moves_n = MgenW(moves);
-
-  if (!moves_n) return checks ? -kInf : 0;
-  if (depth == 1 && ply > 5 && (checks || moves_n == 1)) depth++;
-
-  auto ok_lmr       = (moves_n >= 5) && (depth >= 2) && (!checks);
-  auto *const entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
-  SortByScore(entry, hash);
-
-  for (auto i = 0; i < moves_n; i++) {
-    g_board = moves + i;
-    g_is_pv = i <= 1 && !moves[i].score;
-
-    if (ok_lmr && i >= 2 && (!g_board->score) && !ChecksW()) {
-      if (SearchB(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1) <= alpha) continue;
-      g_board = moves + i;
-    }
-
-    const auto score = SearchB(alpha, beta, depth - 1, ply + 1);
-    if (score > alpha) {
-      if ((alpha = score) >= beta) {
-        UpdateSort(entry, MoveType::kKiller, hash, moves[i].index);
-        return alpha;
-      }
-      UpdateSort(entry, moves[i].score ? MoveType::kGood : MoveType::kQuiet, hash, moves[i].index);
-    }
-  }
-
-  return alpha;
-}
-
-int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
-  struct Board_t moves[kMaxMoves];
-  const auto hash    = g_r50_positions[g_board->rule50];
-  const auto checks  = ChecksW();
-  const auto moves_n = MgenB(moves);
-
-  if (!moves_n) return checks ? kInf : 0;
-  if (depth == 1 && ply > 5 && (checks || moves_n == 1)) depth++;
-
-  auto ok_lmr       = (moves_n >= 5) && (depth >= 2) && (!checks);
-  auto *const entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
-  SortByScore(entry, hash);
-
-  for (auto i = 0; i < moves_n; i++) {
-    g_board = moves + i;
-    g_is_pv = i <= 1 && !moves[i].score;
-
-    if (ok_lmr && i >= 2 && !g_board->score && !ChecksB()) {
-      if (SearchW(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1) >= beta) continue;
-      g_board = moves + i;
-    }
-
-    const auto score = SearchW(alpha, beta, depth - 1, ply + 1);
-    if (score < beta) {
-      if (alpha >= (beta = score)) {
-        UpdateSort(entry, MoveType::kKiller, hash, moves[i].index);
-        return beta;
-      }
-      UpdateSort(entry, moves[i].score ? MoveType::kGood : MoveType::kQuiet, hash, moves[i].index);
-    }
-  }
-
-  return beta;
-}
-
 int SearchW(int alpha, const int beta, const int depth, const int ply) {
   g_nodes++;
 
-  if (g_stop_search || TimeCheckSearch()) return 0;
-  if (depth <= 0 || ply >= kDepthLimit)   return QSearchW(alpha, beta, g_qs_depth);
+  if (g_stop_search || TimeCheckSearch())     return 0;
+  if (depth <= 0 || ply >= kDepthLimit)       return QSearchW(alpha, beta, g_qs_depth);
 
-  const auto rule50 = g_board->rule50;
-  const auto tmp    = g_r50_positions[rule50];
+  const auto rule50       = g_board->rule50;
+  const auto tmp          = g_r50_positions[rule50];
 
   if (TryNullMoveW(&alpha, beta, depth, ply)) return alpha;
 
@@ -1820,11 +1846,11 @@ int SearchW(int alpha, const int beta, const int depth, const int ply) {
 int SearchB(const int alpha, int beta, const int depth, const int ply) {
   g_nodes++;
 
-  if (g_stop_search)                    return 0;
-  if (depth <= 0 || ply >= kDepthLimit) return QSearchB(alpha, beta, g_qs_depth);
+  if (g_stop_search)                          return 0;
+  if (depth <= 0 || ply >= kDepthLimit)       return QSearchB(alpha, beta, g_qs_depth);
 
-  const auto rule50 = g_board->rule50;
-  const auto tmp    = g_r50_positions[rule50];
+  const auto rule50       = g_board->rule50;
+  const auto tmp          = g_r50_positions[rule50];
 
   if (TryNullMoveB(alpha, &beta, depth, ply)) return beta;
 
@@ -1914,20 +1940,14 @@ public:
     black_n(bpn + bnn + bbn + brn + bqn + 1),
     both_n(white_n + black_n) {}
 
-  bool is_4men() const {
-    return (both_n == 4) && (
-        ((wqn && (bnn || bbn)) || (bqn && (wnn || wbn))) // KQvK(NB) / K(NB)vKQ
-     || ((wqn && brn)          || (wrn && bqn))          // KQvKR    / KRvKQ
-     || ((wrn && (bbn || bnn)) || ((wnn || wbn) && brn)) // KRvK(NB) / K(NB)vKR
-     || ((wqn && bpn)          || (wpn && bqn)));        // KQvKP    / KPvKQ
-  }
-
   // KRRvKR / KRvKRR / KRRRvK ? / KvKRRR ?
   bool is_5men() const {
-    return (both_n == 5) && (
-          (wrn + brn == 3)                        // KRR(R)vK(R) / K(R)vKRR(R)
-       || (wrn && (wbn || wnn) && (bbn || bnn))   // KR(NB)vK(NB)
-       || (brn && (bbn || bnn) && (wbn || wnn))); // K(NB)vKR(NB)
+    return (both_n == 5) && (wrn + brn == 3);
+  }
+
+  // Vs king + (PNBRQ)?
+  bool is_easy() const {
+    return g_wtm ? black_n == 2 : white_n == 2;
   }
 
   // Vs naked king
@@ -1943,7 +1963,7 @@ public:
 
 void Activation(const Material& m) {
   if ( (!g_nnue_exist) // No NNUE -> Classical eval
-      || m.is_4men()
+      || m.is_easy()
       || m.is_5men())
     g_classical = true;
 
@@ -1968,7 +1988,7 @@ bool ThinkRandomMove() {
 
 bool ProbeBook() {
   const auto move = g_book.setup(g_board->pieces, Both(), g_board->castle, g_board->epsq, g_wtm)
-                          .probe(Random(10) == 1);
+                          .probe(Random(8) == 1);
 
   if (!move) return false;
 
@@ -2008,16 +2028,17 @@ bool FastMove(const int ms) {
 
   return false;
 }
-
 void SearchRootMoves(const bool is_eg) {
   int good         = 0;
   const auto start = Now();
+  const std::function<int()> best = std::bind(g_wtm ? BestW : BestB);
 
   for (; (std::abs(g_best_score) != kInf) && (g_depth < g_max_depth) && (!g_stop_search); g_depth++) {
-    g_best_score = g_wtm ? BestW() : BestB();
+    g_best_score = best();
 
     // Switch to classical only when the game is decided (5+ pawns) !
-    if (!g_classical && is_eg && (std::abs(g_best_score) >= (5 * 4 * 100)) && ++good >= 7) g_classical = true;
+    if (!g_classical && is_eg && (std::abs(g_best_score) >= (5 * 4 * 100)) && ++good >= 7)
+      g_classical = true;
 
     Speak(g_best_score, Now() - start);
     g_qs_depth = std::min(g_qs_depth + 2, 12);
@@ -2150,17 +2171,17 @@ void UciGo() {
   int wtime = 0, btime = 0, winc = 0, binc = 0, mtg = 30;
 
   for (; TokenOk(); TokenPop()) {
-    if (     Token("infinite"))  {UciGoAnalyze();  return;}
+    if (     Token("infinite"))  {UciGoAnalyze(); return;}
     else if (Token("wtime"))     {wtime = std::max(0, TokenNumber() - g_move_overhead);}
     else if (Token("btime"))     {btime = std::max(0, TokenNumber() - g_move_overhead);}
     else if (Token("winc"))      {winc  = std::max(0, TokenNumber() - g_move_overhead);}
     else if (Token("binc"))      {binc  = std::max(0, TokenNumber() - g_move_overhead);}
     else if (Token("movestogo")) {mtg   = Between<int>(1, TokenNumber(), 30);}
     else if (Token("movetime"))  {UciGoMovetime(); return;}
-    else if (Token("depth"))     {UciGoDepth();    return;}
+    else if (Token("depth"))     {UciGoDepth(); return;}
   }
 
-  Think(std::max(0, g_wtm ? wtime / mtg + winc : btime / mtg + binc));
+  Think(g_wtm ? wtime / mtg + winc : btime / mtg + binc);
   PrintBestMove();
 }
 
@@ -2171,21 +2192,21 @@ void UciUci() {
             << "option name Level type spin default "         << g_level         << " min 0 max 10" << "\n"
             << "option name Hash type spin default "          << g_hash_mb       << " min 4 max 1048576" << "\n"
             << "option name MoveOverhead type spin default "  << g_move_overhead << " min 0 max 5000" << "\n"
-            << "option name EvalFile type string default "    << g_eval_file << "\n"
-            << "option name BookFile type string default "    << g_book_file << "\n"
+            << "option name EvalFile type string default "    << g_eval_file     << "\n"
+            << "option name BookFile type string default "    << g_book_file     << "\n"
             << "uciok" << std::endl;
 }
 
 bool UciCommands() {
-  if (TokenOk()) {
-    if (Token("position"))        UciPosition();
-    else if (Token("go"))         UciGo();
-    else if (Token("ucinewgame")) g_last_eval = 0;
-    else if (Token("isready"))    std::cout << "readyok" << std::endl;
-    else if (Token("setoption"))  UciSetoption();
-    else if (Token("uci"))        UciUci();
-    else if (Token("quit"))       return false;
-  }
+  if (!TokenOk()) return true;
+
+  if (Token("position"))        UciPosition();
+  else if (Token("go"))         UciGo();
+  else if (Token("ucinewgame")) g_last_eval = 0;
+  else if (Token("isready"))    std::cout << "readyok" << std::endl;
+  else if (Token("setoption"))  UciSetoption();
+  else if (Token("uci"))        UciUci();
+  else if (Token("quit"))       return false;
 
   for (; TokenOk(); TokenPop());
 
@@ -2216,19 +2237,16 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
 }
 
 std::uint64_t MakeSliderMagicMoves(const int *const slider_vectors, const int sq, const std::uint64_t moves) {
-  std::uint64_t possible_moves = 0;
+  std::uint64_t possible_moves = 0x0ULL;
   const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
   for (auto i = 0; i < 4; i++)
     for (auto j = 1; j < 8; j++) {
       const auto x = x_pos + j * slider_vectors[2 * i],
                  y = y_pos + j * slider_vectors[2 * i + 1];
-
       if (!OnBoard(x, y)) break;
-
       const auto tmp  = Bit(8 * y + x);
       possible_moves |= tmp;
-
       if (tmp & moves) break;
     }
 
@@ -2256,23 +2274,19 @@ void InitRookMagics() {
 }
 
 std::uint64_t MakeSliderMoves(const int sq, const int *const slider_vectors) {
-  std::uint64_t moves = 0;
+  std::uint64_t moves = 0x0ULL;
   const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
   for (auto i = 0; i < 4; i++) {
     const auto dx     = slider_vectors[2 * i],
                dy     = slider_vectors[2 * i + 1];
-    std::uint64_t tmp = 0;
-
+    std::uint64_t tmp = 0x0ULL;
     for (auto j = 1; j < 8; j++) {
       const auto x = x_pos + j * dx,
                  y = y_pos + j * dy;
-
       if (!OnBoard(x, y)) break;
-
       tmp |= Bit(8 * y + x);
     }
-
     moves |= tmp;
   }
 
@@ -2288,13 +2302,12 @@ void InitSliderMoves() {
 }
 
 std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int *const jump_vectors) {
-  std::uint64_t moves = 0;
+  std::uint64_t moves = 0x0ULL;
   const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
   for (auto i = 0; i < len; i++) {
     const auto x = x_pos + jump_vectors[2 * i],
                y = y_pos + dy * jump_vectors[2 * i + 1];
-
     if (OnBoard(x, y)) moves |= Bit(8 * y + x);
   }
 
@@ -2369,7 +2382,7 @@ void Init() {
 
 void Bench() {
   const std::uint64_t start = Now();
-  std::uint64_t nodes       = 0;
+  std::uint64_t nodes       = 0x0ULL;
 
   for (const auto& fen : kBench) {
     std::cout << "[ " << fen << " ]" << std::endl;
