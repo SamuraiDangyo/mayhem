@@ -39,7 +39,10 @@ extern "C" {
 #endif
 }
 
+namespace nnue { // No clashes
 #include "lib/nnue.hpp"
+}
+
 #include "lib/eucalyptus.hpp"
 #include "lib/polyglotbook.hpp"
 #include "lib/poseidon.hpp"
@@ -51,7 +54,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 3.2",
+  kVersion  = "Mayhem 3.3",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::vector<std::string>
@@ -398,7 +401,7 @@ void SetupNNUE() {
   if (g_eval_file == "-") {
     g_nnue_exist = false;
   } else {
-    g_nnue_exist = nnue_init(g_eval_file.c_str());
+    g_nnue_exist = nnue::nnue_init(g_eval_file.c_str());
     filename     = g_eval_file;
   }
 
@@ -424,15 +427,14 @@ void SetupHashtable() {
 // Hash
 
 inline std::uint64_t Hash(const bool wtm) {
-  auto hash = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[wtm ? 1 : 0] ^ g_zobrist_castle[g_board->castle],
-       both = Both();
+  auto h = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[wtm ? 1 : 0] ^ g_zobrist_castle[g_board->castle], b = Both();
 
-  for (; both; both = ClearBit(both)) {
-    const auto sq = Ctz(both);
-    hash ^= g_zobrist_board[g_board->pieces[sq] + 6][sq];
+  for (; b; b = ClearBit(b)) {
+    const auto sq = Ctz(b);
+    h ^= g_zobrist_board[g_board->pieces[sq] + 6][sq];
   }
 
-  return hash;
+  return h;
 }
 
 // Tokenizer
@@ -496,7 +498,7 @@ void FindKings() {
     else if (g_board->pieces[i] == -6) g_king_b = i;
 }
 
-void BuildCastlingBitboards() {
+void CastlingBB1() {
   if (g_board->castle & 0x1) {
     g_castle_w[0]       = Fill(g_king_w, 6);
     g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5     )) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
@@ -516,13 +518,20 @@ void BuildCastlingBitboards() {
     g_castle_b[1]       = Fill(g_king_b, 56 + 2);
     g_castle_empty_b[1] = (g_castle_b[1] | Fill(g_rook_b[1], 56 + 3)) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
   }
+}
 
+void CastlingBB2() {
   for (const auto i : {0, 1}) {
     g_castle_empty_w[i] &= 0xFFULL;
     g_castle_empty_b[i] &= 0xFF00000000000000ULL;
     g_castle_w[i]       &= 0xFFULL;
     g_castle_b[i]       &= 0xFF00000000000000ULL;
   }
+}
+
+void BuildCastlingBitboards() {
+  CastlingBB1();
+  CastlingBB2();
 }
 
 // Fen handling
@@ -1594,7 +1603,7 @@ int ProbeNNUE(const bool wtm) {
   }
 
   pieces[i] = squares[i] = 0;
-  return (wtm ? +1 : -1) * nnue_evaluate(!wtm, pieces, squares);
+  return (wtm ? +1 : -1) * nnue::nnue_evaluate(!wtm, pieces, squares);
 }
 
 int EvaluateNNUE(const bool wtm) {
@@ -1645,10 +1654,8 @@ bool UserStop() {
 
 bool TimeCheckSearch() {
   static std::uint64_t ticks = 0x0ULL;
-
-  if ((++ticks & 0xFFULL))                         return g_stop_search;
+  if ((++ticks & 0xFFULL)) return g_stop_search;
   if ((Now() >= g_stop_search_time) || UserStop()) return g_stop_search = true;
-
   return g_stop_search;
 }
 
@@ -1778,16 +1785,16 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
       && (g_board->black[0] | g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4])
       && (!ChecksB())
       && (Evaluate(true) >= beta)) {
-    const auto ep     = g_board->epsq;
-    auto *const tmp   = g_board;
-    g_board->epsq     = -1;
+    const auto ep   = g_board->epsq;
+    auto *const tmp = g_board;
+    g_board->epsq   = -1;
 
     g_nullmove_active = true;
     const auto score  = SearchB(*alpha, beta, depth - 4, ply);
     g_nullmove_active = false;
 
-    g_board           = tmp;
-    g_board->epsq     = ep;
+    g_board       = tmp;
+    g_board->epsq = ep;
 
     if (score >= beta) {
       *alpha = score;
@@ -1805,16 +1812,16 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
       && (g_board->white[0] | g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4])
       && (!ChecksW())
       && (alpha >= Evaluate(false))) {
-    const auto ep     = g_board->epsq;
-    auto *const tmp   = g_board;
-    g_board->epsq     = -1;
+    const auto ep   = g_board->epsq;
+    auto *const tmp = g_board;
+    g_board->epsq   = -1;
 
     g_nullmove_active = true;
     const auto score  = SearchW(alpha, *beta, depth - 4, ply);
     g_nullmove_active = false;
 
-    g_board           = tmp;
-    g_board->epsq     = ep;
+    g_board       = tmp;
+    g_board->epsq = ep;
 
     if (alpha >= score) {
       *beta = score;
@@ -1828,11 +1835,11 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
 int SearchW(int alpha, const int beta, const int depth, const int ply) {
   g_nodes++;
 
-  if (g_stop_search || TimeCheckSearch())     return 0;
-  if (depth <= 0 || ply >= kDepthLimit)       return QSearchW(alpha, beta, g_qs_depth);
+  if (g_stop_search || TimeCheckSearch()) return 0;
+  if (depth <= 0 || ply >= kDepthLimit)   return QSearchW(alpha, beta, g_qs_depth);
 
-  const auto rule50       = g_board->rule50;
-  const auto tmp          = g_r50_positions[rule50];
+  const auto rule50 = g_board->rule50;
+  const auto tmp    = g_r50_positions[rule50];
 
   if (TryNullMoveW(&alpha, beta, depth, ply)) return alpha;
 
@@ -1846,11 +1853,11 @@ int SearchW(int alpha, const int beta, const int depth, const int ply) {
 int SearchB(const int alpha, int beta, const int depth, const int ply) {
   g_nodes++;
 
-  if (g_stop_search)                          return 0;
-  if (depth <= 0 || ply >= kDepthLimit)       return QSearchB(alpha, beta, g_qs_depth);
+  if (g_stop_search) return 0;
+  if (depth <= 0 || ply >= kDepthLimit) return QSearchB(alpha, beta, g_qs_depth);
 
-  const auto rule50       = g_board->rule50;
-  const auto tmp          = g_r50_positions[rule50];
+  const auto rule50 = g_board->rule50;
+  const auto tmp    = g_r50_positions[rule50];
 
   if (TryNullMoveB(alpha, &beta, depth, ply)) return beta;
 
@@ -1957,7 +1964,7 @@ public:
 
   // 6 pieces or less both side = Endgame
   bool is_endgame() const {
-    return g_wtm ? black_n < 7 : white_n < 7;
+    return g_wtm ? black_n <= 7 : white_n <= 7;
   }
 };
 
@@ -1980,8 +1987,8 @@ void ThinkReset(const int ms) {
 bool ThinkRandomMove() {
   if (g_level) return false;
 
-  const auto root_i = Random(0, g_root_n - 1);
-  if (root_i) Swap(g_root, g_root + root_i);
+  const auto i = Random(0, g_root_n - 1);
+  if (i) Swap(g_root, g_root + i);
 
   return true;
 }
@@ -2028,6 +2035,7 @@ bool FastMove(const int ms) {
 
   return false;
 }
+
 void SearchRootMoves(const bool is_eg) {
   int good         = 0;
   const auto start = Now();
@@ -2036,12 +2044,13 @@ void SearchRootMoves(const bool is_eg) {
   for (; (std::abs(g_best_score) != kInf) && (g_depth < g_max_depth) && (!g_stop_search); g_depth++) {
     g_best_score = best();
 
-    // Switch to classical only when the game is decided (5+ pawns) !
-    if (!g_classical && is_eg && (std::abs(g_best_score) >= (5 * 4 * 100)) && ++good >= 7)
+    // Switch to classical only when the game is decided (4.5+ pawns) !
+    if (!g_classical && is_eg && (std::abs(g_best_score) > (4 * 4 * 100 + (2 * 100))) && ++good >= 7)
       g_classical = true;
 
     Speak(g_best_score, Now() - start);
-    g_qs_depth = std::min(g_qs_depth + 2, 12);
+    g_qs_depth = std::min(g_qs_depth + (g_depth < 4 ? 1 : 2), 12);
+
   }
 
   UserLevel();
@@ -2066,7 +2075,7 @@ void Think(const int ms) {
   SearchRootMoves(m.is_endgame());
   g_underpromos = true;
 
-  g_board       = tmp;
+  g_board = tmp;
 }
 
 // UCI
@@ -2174,9 +2183,9 @@ void UciGo() {
     if (     Token("infinite"))  {UciGoAnalyze(); return;}
     else if (Token("wtime"))     {wtime = std::max(0, TokenNumber() - g_move_overhead);}
     else if (Token("btime"))     {btime = std::max(0, TokenNumber() - g_move_overhead);}
-    else if (Token("winc"))      {winc  = std::max(0, TokenNumber() - g_move_overhead);}
-    else if (Token("binc"))      {binc  = std::max(0, TokenNumber() - g_move_overhead);}
-    else if (Token("movestogo")) {mtg   = Between<int>(1, TokenNumber(), 30);}
+    else if (Token("winc"))      {winc  = std::max(0, TokenNumber() - g_move_overhead / 2);}
+    else if (Token("binc"))      {binc  = std::max(0, TokenNumber() - g_move_overhead / 2);}
+    else if (Token("movestogo")) {mtg   = std::max(1, TokenNumber());}
     else if (Token("movetime"))  {UciGoMovetime(); return;}
     else if (Token("depth"))     {UciGoDepth(); return;}
   }
@@ -2242,8 +2251,7 @@ std::uint64_t MakeSliderMagicMoves(const int *const slider_vectors, const int sq
 
   for (auto i = 0; i < 4; i++)
     for (auto j = 1; j < 8; j++) {
-      const auto x = x_pos + j * slider_vectors[2 * i],
-                 y = y_pos + j * slider_vectors[2 * i + 1];
+      const auto x = x_pos + j * slider_vectors[2 * i], y = y_pos + j * slider_vectors[2 * i + 1];
       if (!OnBoard(x, y)) break;
       const auto tmp  = Bit(8 * y + x);
       possible_moves |= tmp;
@@ -2278,12 +2286,10 @@ std::uint64_t MakeSliderMoves(const int sq, const int *const slider_vectors) {
   const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
   for (auto i = 0; i < 4; i++) {
-    const auto dx     = slider_vectors[2 * i],
-               dy     = slider_vectors[2 * i + 1];
+    const auto dx = slider_vectors[2 * i], dy = slider_vectors[2 * i + 1];
     std::uint64_t tmp = 0x0ULL;
     for (auto j = 1; j < 8; j++) {
-      const auto x = x_pos + j * dx,
-                 y = y_pos + j * dy;
+      const auto x = x_pos + j * dx, y = y_pos + j * dy;
       if (!OnBoard(x, y)) break;
       tmp |= Bit(8 * y + x);
     }
@@ -2306,8 +2312,7 @@ std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int
   const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
   for (auto i = 0; i < len; i++) {
-    const auto x = x_pos + jump_vectors[2 * i],
-               y = y_pos + dy * jump_vectors[2 * i + 1];
+    const auto x = x_pos + jump_vectors[2 * i], y = y_pos + dy * jump_vectors[2 * i + 1];
     if (OnBoard(x, y)) moves |= Bit(8 * y + x);
   }
 

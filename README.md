@@ -5,7 +5,7 @@ Derivated from Sapeli. Licensed under the GPLv3.
 
 Credits:
   NNUE library: Dr. Shawul
-  EvalFile + PolyGlot code: Stockfish.
+  EvalFile + PolyGlot code: Stockfish
 
 Mayhem requires EvalFile (NNUE) and BookFile (PolyGlot) for maximum strength.
 Works w/o them too.
