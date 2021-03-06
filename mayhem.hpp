@@ -1,5 +1,5 @@
 /*
-Mayhem. Linux UCI Chess960 engine. Written in C++14 language
+Mayhem. Linux UCI Chess960 engine. Written in C++17 language
 Copyright (C) 2020-2021 Toni Helminen
 
 This program is free software: you can redistribute it and/or modify
@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <functional>
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <iostream>
 #include <vector>
@@ -54,7 +55,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 3.3",
+  kVersion  = "Mayhem 3.4",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::vector<std::string>
@@ -84,15 +85,39 @@ const std::vector<std::string>
 
 constexpr int
   kMaxMoves          = 218,
-  kDepthLimit        = 40,
+  kMaxDepth          = 50,
   kInf               = 1048576,
-  kKingVectors[16]   = {1,0,0,1,0,-1,-1,0,1,1,-1,-1,1,-1,-1,1},
-  kKnightVectors[16] = {2,1,-2,1,2,-1,-2,-1,1,2,-1,2,1,-2,-1,-2},
-  kBishopVectors[8]  = {1,1,-1,-1,1,-1,-1,1},
-  kRookVectors[8]    = {1,0,0,1,0,-1,-1,0},
-  kMvv[6][6]         = {{10,15,15,20,25,99},{9,14,14,19,24,99},{9,14,14,19,24,99},{8,13,13,18,23,99},{7,12,12,17,22,99},{6,11,11,16,21,99}},
-  kRookBonus[2][8]   = {{0,0,0,0,0,0,1,0}, {0,1,0,0,0,0,0,0}},
-  kCenter[64]        = {0,1,3,4,4,3,1,0,1,2,4,5,5,4,2,1,3,4,6,7,7,6,4,3,4,5,7,8,8,7,5,4,4,5,7,8,8,7,5,4,3,4,6,7,7,6,4,3,1,2,4,5,5,4,2,1,0,1,3,4,4,3,1,0};
+  kKingVectors[16]   = {1, 0, 0, 1, 0, -1, -1, 0, 1, 1, -1, -1, 1, -1, -1, 1},
+  kKnightVectors[16] = {2, 1, -2, 1, 2, -1, -2, -1, 1, 2, -1, 2, 1, -2, -1, -2},
+  kBishopVectors[8]  = {1, 1, -1, -1, 1, -1, -1, 1},
+  kRookVectors[8]    = {1, 0, 0, 1, 0, -1, -1, 0},
+  kMvv[6][6]         = {{10, 15, 15, 20, 25, 99}, {9, 14, 14, 19, 24, 99}, {9, 14, 14, 19, 24, 99},
+                        { 8, 13, 13, 18, 23, 99}, {7, 12, 12, 17, 22, 99}, {6, 11, 11, 16, 21, 99}},
+  kPesto[6][2][64]   = // Material baked in
+    {{{82,82,82,82,82,82,82,82,47,81,62,59,67,106,120,60,56,78,78,72,85,85,115,70,55,80,77,94,99,88,92,57,68,
+       95,88,103,105,94,99,59,76,89,108,113,147,138,107,62,180,216,143,177,150,208,116,71,82,82,82,82,82,82,82,82},
+      {94,94,94,94,94,94,94,94,107,102,102,104,107,94,96,87,98,101,88,95,94,89,93,86,107,103,91,87,87,86,97,93,126,
+       118,107,99,92,98,111,111,188,194,179,161,150,147,176,178,272,267,252,228,241,226,259,281,94,94,94,94,94,94,94,94}},
+     {{232,316,279,304,320,309,318,314,308,284,325,334,336,355,323,318,314,328,349,347,356,354,362,321,324,341,353,350,365,356,358,329,
+       328,354,356,390,374,406,355,359,290,397,374,402,421,466,410,381,264,296,409,373,360,399,344,320,170,248,303,288,398,240,322,230},
+      {252,230,258,266,259,263,231,217,239,261,271,276,279,261,258,237,258,278,280,296,291,278,261,259,263,275,297,306,297,298,285,263,
+       264,284,303,303,303,292,289,263,257,261,291,290,280,272,262,240,256,273,256,279,272,256,257,229,223,243,268,253,250,254,218,182}},
+     {{332,362,351,344,352,353,326,344,369,380,381,365,372,386,398,366,365,380,380,380,379,392,383,375,359,378,378,391,399,377,375,369,
+       361,370,384,415,402,402,372,363,349,402,408,405,400,415,402,363,339,381,347,352,395,424,383,318,336,369,283,328,340,323,372,357},
+      {274,288,274,292,288,281,292,280,283,279,290,296,301,288,282,270,285,294,305,307,310,300,290,282,291,300,310,316,304,307,294,288,
+       294,306,309,306,311,307,300,299,299,289,297,296,295,303,297,301,289,293,304,285,294,284,293,283,283,276,286,289,290,288,280,273}},
+     {{458,464,478,494,493,484,440,451,433,461,457,468,476,488,471,406,432,452,461,460,480,477,472,444,441,451,465,476,486,470,483,454,
+       453,466,484,503,501,512,469,457,472,496,503,513,494,522,538,493,504,509,535,539,557,544,503,521,509,519,509,528,540,486,508,520},
+      {503,514,515,511,507,499,516,492,506,506,512,514,503,503,501,509,508,512,507,511,505,500,504,496,515,517,520,516,507,506,504,501,
+       516,515,525,513,514,513,511,514,519,519,519,517,516,509,507,509,523,525,525,523,509,515,520,515,525,522,530,527,524,524,520,517}},
+     {{1024,1007,1016,1035,1010,1000,994,975,990,1017,1036,1027,1033,1040,1022,1026,1011,1027,1014,1023,1020,1027,1039,1030,1016,999,1016,1015,1023,1021,1028,1022,
+       998,998,1009,1009,1024,1042,1023,1026,1012,1008,1032,1033,1054,1081,1072,1082,1001,986,1020,1026,1009,1082,1053,1079,997,1025,1054,1037,1084,1069,1068,1070},
+      {903,908,914,893,931,904,916,895,914,913,906,920,920,913,900,904,920,909,951,942,945,953,946,941,918,964,955,983,967,970,975,959,
+       939,958,960,981,993,976,993,972,916,942,945,985,983,971,955,945,919,956,968,977,994,961,966,936,927,958,958,963,963,955,946,956}},
+     {{-15,36,12,-54,8,-28,24,14,1,7,-8,-64,-43,-16,9,8,-14,-14,-22,-46,-44,-30,-15,-27,-49,-1,-27,-39,-46,-44,-33,
+       -51,-17,-20,-12,-27,-30,-25,-14,-36,-9,24,2,-16,-20,6,22,-22,29,-1,-20,-7,-8,-4,-38,-29,-65,23,16,-15,-56,-34,2,13},
+      {-53,-34,-21,-11,-28,-14,-24,-43,-27,-11,4,13,14,4,-5,-17,-19,-3,11,21,23,16,7,-9,-18,-4,21,24,27,23,9,
+       -11,-8,22,24,27,26,33,26,3,10,17,23,15,20,45,44,13,-12,17,14,17,17,38,23,11,-74,-35,-18,-18,-11,15,4,-17}}};
 
 constexpr std::uint64_t
   kRookMagic[64] =
@@ -191,7 +216,7 @@ enum class MoveType {
 
 int
   g_level = 10, g_move_overhead = 100, g_rook_w[2] = {}, g_rook_b[2] = {}, g_root_n = 0, g_king_w = 0, g_king_b = 0, g_moves_n = 0,
-  g_max_depth = kDepthLimit, g_qs_depth = 6, g_depth = 0, g_best_score = 0, g_hash_mb = 256, g_last_eval = 0;
+  g_max_depth = kMaxDepth, g_qs_depth = 0, g_depth = 0, g_best_score = 0, g_hash_mb = 256, g_last_eval = 0, g_lmr[kMaxDepth][kMaxMoves] = {};
 
 std::uint32_t
   g_hash_entries = 0, g_tokens_nth = 0;
@@ -220,7 +245,7 @@ std::unique_ptr<struct Hash_t[]>
   g_hash;
 
 float
-  g_scale[100] = {};
+  g_scale[128] = {};
 
 std::string
   g_eval_file = "nn-62ef826d1a6d.nnue",
@@ -286,11 +311,34 @@ std::uint32_t Nps(const std::uint64_t nodes, const std::uint32_t ms) {
   return (1000 * nodes) / (ms + 1);
 }
 
+char File2Char(const int f) {
+  switch (f) {
+    case 0:  return 'a';
+    case 1:  return 'b';
+    case 2:  return 'c';
+    case 3:  return 'd';
+    case 4:  return 'e';
+    case 5:  return 'f';
+    case 6:  return 'g';
+    default: return 'h';
+  }
+}
+
+char Rank2Char(const int r) {
+  switch (r) {
+    case 0:  return '1';
+    case 1:  return '2';
+    case 2:  return '3';
+    case 3:  return '4';
+    case 4:  return '5';
+    case 5:  return '6';
+    case 6:  return '7';
+    default: return '8';
+  }
+}
+
 const std::string MoveStr(const int from, const int to) {
-  return std::string{static_cast<char>('a' + Xcoord(from)),
-                     static_cast<char>('1' + Ycoord(from)),
-                     static_cast<char>('a' + Xcoord(to)),
-                     static_cast<char>('1' + Ycoord(to))};
+  return std::string{File2Char(Xcoord(from)), Rank2Char(Ycoord(from)), File2Char(Xcoord(to)), Rank2Char(Ycoord(to))};
 }
 
 bool OnBoard(const int x, const int y) {
@@ -302,6 +350,7 @@ inline bool IsUnderpromo(const struct Board_t *b) {
 }
 
 extern "C" {
+
 #ifdef WINDOWS
 bool InputAvailable() {
   return _kbhit();
@@ -321,9 +370,10 @@ inline std::uint64_t Now() {
   struct timeval tv;
   return gettimeofday(&tv, NULL) ? 0x0ULL : (1000 * tv.tv_sec + tv.tv_usec / 1000);
 }
+
 }
 
-void Assert(const bool test, const std::string& msg) {
+void Assert(const bool test, const std::string &msg) {
   if (test) return;
   std::cerr << msg << std::endl;
   std::exit(EXIT_FAILURE);
@@ -358,7 +408,7 @@ int Random(const int x, const int y) {
 }
 
 template <class T>
-void Split(const std::string& s, T& cont, const std::string& delims = " \n") {
+void Split(const std::string &s, T &cont, const std::string &delims = " \n") {
   std::size_t cur = s.find_first_of(delims), prev = 0;
   while (cur != std::string::npos) {
     cont.push_back(s.substr(prev, cur - prev));
@@ -451,7 +501,7 @@ void TokenPop(const int n = 1) {
   g_tokens_nth += n;
 }
 
-bool Token(const std::string& token, const int n = 1) {
+bool Token(const std::string &token, const int n = 1) {
   if (TokenOk(0) && token == TokenCurrent()) {
     TokenPop(n);
     return true;
@@ -463,7 +513,7 @@ int TokenNumber(const int n = 0) {
   return TokenOk(n) ? std::stoi(g_tokens[g_tokens_nth + n]) : 0;
 }
 
-bool Peek(const std::string& s, const int n = 0) {
+bool Peek(const std::string &s, const int n = 0) {
   return TokenOk(n) ? s == g_tokens[g_tokens_nth + n] : false;
 }
 
@@ -498,7 +548,7 @@ void FindKings() {
     else if (g_board->pieces[i] == -6) g_king_b = i;
 }
 
-void CastlingBB1() {
+void BuildCBB1() {
   if (g_board->castle & 0x1) {
     g_castle_w[0]       = Fill(g_king_w, 6);
     g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5     )) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
@@ -520,7 +570,7 @@ void CastlingBB1() {
   }
 }
 
-void CastlingBB2() {
+void BuildCBB2() {
   for (const auto i : {0, 1}) {
     g_castle_empty_w[i] &= 0xFFULL;
     g_castle_empty_b[i] &= 0xFF00000000000000ULL;
@@ -530,26 +580,13 @@ void CastlingBB2() {
 }
 
 void BuildCastlingBitboards() {
-  CastlingBB1();
-  CastlingBB2();
+  BuildCBB1();
+  BuildCBB2();
 }
 
 // Fen handling
 
-int FenEmpty(const char r) {
-  switch (r) {
-    case '1': return 1;
-    case '2': return 2;
-    case '3': return 3;
-    case '4': return 4;
-    case '5': return 5;
-    case '6': return 6;
-    case '7': return 7;
-    default:  return 8;
-  }
-}
-
-std::int8_t FenPiece(const char p) {
+std::int8_t Piece2Num(const char p) {
   switch (p) {
     case 'P': return +1;
     case 'N': return +2;
@@ -567,13 +604,48 @@ std::int8_t FenPiece(const char p) {
   }
 }
 
-void FenBoard(const std::string& board) {
+int Empty2Num(const char c) {
+  switch (c) {
+    case '1': return 1;
+    case '2': return 2;
+    case '3': return 3;
+    case '4': return 4;
+    case '5': return 5;
+    case '6': return 6;
+    case '7': return 7;
+    case '8': return 8;
+    default:  return 0;
+  }
+}
+
+int File2Num(const char f) {
+  switch (f) {
+    case 'a': return 0;
+    case 'b': return 1;
+    case 'c': return 2;
+    case 'd': return 3;
+    case 'e': return 4;
+    case 'f': return 5;
+    case 'g': return 6;
+    default:  return 7;
+  }
+}
+
+int Rank2Num(const char r) {
+  switch (r) {
+    case '3': return 2;
+    case '6': return 5;
+    default:  return 0;
+  }
+}
+
+void FenBoard(const std::string &board) {
   int sq = 56;
   for (std::size_t i = 0; i < board.length() && sq >= 0; i++) {
     const auto c = board[i];
     if (c == '/')             sq -= 16;
-    else if (std::isdigit(c)) sq += FenEmpty(c);
-    else                      g_board->pieces[sq++] = FenPiece(c);
+    else if (std::isdigit(c)) sq += Empty2Num(c);
+    else                      g_board->pieces[sq++] = Piece2Num(c);
   }
 }
 
@@ -582,7 +654,7 @@ void FenAddCastle(int *const rooks, const int sq, const int castle) {
   g_board->castle |= castle;
 }
 
-void FenKQkq(const std::string& kqkq) {
+void FenKQkq(const std::string &kqkq) {
   for (std::size_t i = 0; i < kqkq.length(); i++)
     if (     kqkq[i] == 'K') {FenAddCastle(g_rook_w + 0, 7, 1);}
     else if (kqkq[i] == 'Q') {FenAddCastle(g_rook_w + 1, 0, 2);}
@@ -599,17 +671,17 @@ void FenKQkq(const std::string& kqkq) {
     }
 }
 
-void FenEp(const std::string& ep) {
+void FenEp(const std::string &ep) {
   if (ep.length() != 2) return;
-  g_board->epsq = (ep[0] - 'a') + 8 * (ep[1] - '1');
+  g_board->epsq = 8 * Rank2Num(ep[1]) + File2Num(ep[0]);
 }
 
-void FenRule50(const std::string& rule50) {
+void FenRule50(const std::string &rule50) {
   if (rule50.length() == 0 || rule50[0] == '-') return;
   g_board->rule50 = Between<std::uint8_t>(0, std::stoi(rule50), 100);
 }
 
-void FenGen(const std::string& fen) {
+void FenGen(const std::string &fen) {
   std::vector<std::string> tokens = {};
 
   Split<std::vector<std::string>>(std::string(fen), tokens, " ");
@@ -645,7 +717,7 @@ bool BoardOk() {
       && (g_wtm ? !ChecksW() : !ChecksB());
 }
 
-void Fen(const std::string& fen) {
+void Fen(const std::string &fen) {
   FenReset();
   FenGen(fen);
   BuildBitboards();
@@ -764,10 +836,10 @@ void SortAll() {
 
 void SortByScore(const struct Hash_t *const entry, const std::uint64_t hash) {
   if (entry->sort_hash == hash) {
-    if (entry->killer)     g_moves[entry->killer - 1].score += 10000;
-    else if (entry->good)  g_moves[entry->good   - 1].score += 10000;
+    if (entry->killer)    g_moves[entry->killer - 1].score += 10000;
+    else if (entry->good) g_moves[entry->good   - 1].score += 10000;
 
-    if (entry->quiet) g_moves[entry->quiet - 1].score       += 10000;
+    if (entry->quiet) g_moves[entry->quiet - 1].score += 10000;
   }
 
   SortNthMoves(EvaluateMoves());
@@ -908,28 +980,42 @@ void AddCastleOOOB() {
   g_moves_n++;
 }
 
-void MgenCastlingMovesW() {
+void Add_OO_W() {
   if ((g_board->castle & 0x1) && !(g_castle_empty_w[0] & g_both)) {
     AddCastleOOW();
     g_board = g_board_orig;
   }
+}
 
+void Add_OOO_W() {
   if ((g_board->castle & 0x2) && !(g_castle_empty_w[1] & g_both)) {
     AddCastleOOOW();
     g_board = g_board_orig;
   }
 }
 
-void MgenCastlingMovesB() {
+void MgenCastlingMovesW() {
+  Add_OO_W();
+  Add_OOO_W();
+}
+
+void Add_OO_B() {
   if ((g_board->castle & 0x4) && !(g_castle_empty_b[0] & g_both)) {
     AddCastleOOB();
     g_board = g_board_orig;
   }
+}
 
+void Add_OOO_B() {
   if ((g_board->castle & 0x8) && !(g_castle_empty_b[1] & g_both)) {
     AddCastleOOOB();
     g_board = g_board_orig;
   }
+}
+
+void MgenCastlingMovesB() {
+  Add_OO_B();
+  Add_OOO_B();
 }
 
 void CheckCastlingRightsW() {
@@ -1366,14 +1452,13 @@ bool EasyDraw(const bool wtm) {
   const auto pawns_n = PopCount(g_board->white[0] | g_board->black[0]);
 
   // Check KPK ? / Bare kings ? -> Draw
-  return (pawns_n == 1) ? ProbeKPK(wtm) : (pawns_n == 0);
+  return pawns_n == 1 ? ProbeKPK(wtm) : pawns_n == 0;
 }
 
 class ClassicalEval {
 private:
   const std::uint64_t white, black, both;
-  std::uint8_t white_n, black_n, both_n, wk, bk, wpn, wnn, wbn, wrn, wqn, bpn, bnn, bbn, brn, bqn;
-  int score, mg, eg;
+  int white_n, black_n, both_n, wk, bk, wpn, wnn, wbn, wrn, wqn, bpn, bnn, bbn, brn, bqn, score, mg, eg;
 
   int pow2(const int x) const {
     return x * x;
@@ -1387,91 +1472,83 @@ private:
     return std::max({closer_bonus(sq, 0), closer_bonus(sq, 7), closer_bonus(sq, 56), closer_bonus(sq, 63)});
   }
 
+  inline void add(const int v1, const int v2) {
+    mg += v1;
+    eg += v2;
+  }
+
   inline void add(const int a, const int b, const int k) {
-    mg += a * k;
-    eg += b * k;
+    add(a * k, b * k);
   }
 
   void pawn_w(const int sq) {
     wpn++;
-    score += 100;
-    add(+1, +5, Ycoord(sq));
+    add(+kPesto[0][0][sq], +kPesto[0][1][sq]);
   }
 
   void pawn_b(const int sq) {
     bpn++;
-    score -= 100;
-    add(-1, -5, 7 - Ycoord(sq));
+    add(-kPesto[0][0][sq ^ 56], -kPesto[0][1][sq ^ 56]);
   }
 
   void knight_w(const int sq) {
     wnn++;
-    score += 300;
+    add(+kPesto[1][0][sq], +kPesto[1][1][sq]);
     score += 2 * PopCount(g_knight_moves[sq] & (~white));
-    add(+1, +2, kCenter[sq]);
   }
 
   void knight_b(const int sq) {
     bnn++;
-    score -= 300;
+    add(-kPesto[1][0][sq ^ 56], -kPesto[1][1][sq ^ 56]);
     score -= 2 * PopCount(g_knight_moves[sq] & (~black));
-    add(-1, -2, kCenter[sq]);
   }
 
   void bishop_w(const int sq) {
     wbn++;
-    score += 325;
+    add(+kPesto[2][0][sq], +kPesto[2][1][sq]);
     score += 3 * PopCount(BishopMagicMoves(sq, both) & (~white));
-    add(+2, +1, kCenter[sq]);
   }
 
   void bishop_b(const int sq) {
     bbn++;
-    score -= 325;
+    add(-kPesto[2][0][sq ^ 56], -kPesto[2][1][sq ^ 56]);
     score -= 3 * PopCount(BishopMagicMoves(sq, both) & (~black));
-    add(-2, -1, kCenter[sq]);
   }
 
   void rook_w(const int sq) {
     wrn++;
-    score += 500;
-    score += 3  * PopCount(RookMagicMoves(sq, both) & (~white));
-    mg    += 10 * kRookBonus[0][Ycoord(sq)]; // 7th rank bonus
-    add(+1, +2, kCenter[sq]);
+    add(+kPesto[3][0][sq], +kPesto[3][1][sq]);
+    score += 3 * PopCount(RookMagicMoves(sq, both) & (~white));
   }
 
   void rook_b(const int sq) {
     brn++;
-    score -= 500;
-    score -= 3  * PopCount(RookMagicMoves(sq, both) & (~black));
-    mg    -= 10 * kRookBonus[1][Ycoord(sq)];
-    add(-1, -2, kCenter[sq]);
+    add(-kPesto[3][0][sq ^ 56], -kPesto[3][1][sq ^ 56]);
+    score -= 3 * PopCount(RookMagicMoves(sq, both) & (~black));
   }
 
   void queen_w(const int sq) {
     wqn++;
-    score += 975;
+    add(+kPesto[4][0][sq], +kPesto[4][1][sq]);
     score += 2 * PopCount((BishopMagicMoves(sq, both) | RookMagicMoves(sq, both)) & (~white));
-    add(+1, +2, kCenter[sq]);
   }
 
   void queen_b(const int sq) {
     bqn++;
-    score -= 975;
+    add(-kPesto[4][0][sq ^ 56], -kPesto[4][1][sq ^ 56]);
     score -= 2 * PopCount((BishopMagicMoves(sq, both) | RookMagicMoves(sq, both)) & (~black));
-    add(-1, -2, kCenter[sq]);
   }
 
   void king_w(const int sq) {
-    wk     = sq;
+    wk = sq;
+    add(+kPesto[5][0][sq], +kPesto[5][1][sq]);
     score += PopCount(g_king_moves[sq] & (~white));
-    add(-1, +2, kCenter[sq]);
   }
 
   void king_b(const int sq) {
-    bk     = sq;
+    bk = sq;
+    add(-kPesto[5][0][sq ^ 56], -kPesto[5][1][sq ^ 56]);
     score -= PopCount(g_king_moves[sq] & (~black));
-    add(+1, -2, kCenter[sq]);
   }
 
   void eval_piece(const int sq) {
@@ -1584,11 +1661,11 @@ int ProbeNNUE(const bool wtm) {
     const auto sq = Ctz(both);
     switch (g_board->pieces[sq]) {
       case +1: case +2: case +3: case +4: case +5:
-        pieces[i]    = 7  - static_cast<int>(g_board->pieces[sq]);
+        pieces[i]    = 7 - g_board->pieces[sq];
         squares[i++] = sq;
         break;
       case -1: case -2: case -3: case -4: case -5:
-        pieces[i]    = 13 + static_cast<int>(g_board->pieces[sq]);
+        pieces[i]    = 13 + g_board->pieces[sq];
         squares[i++] = sq;
         break;
       case +6:
@@ -1634,7 +1711,7 @@ void Speak(const int score, const std::uint64_t ms) {
 
 // g_r50_positions.pop() must contain hash !
 bool Draw(const bool wtm) {
-  if (g_board->rule50 >= 100 || EasyDraw(wtm)) return true;
+  if (g_board->rule50 > 100 || EasyDraw(wtm)) return true;
 
   const auto hash = g_r50_positions[g_board->rule50];
   if (poseidon::IsDraw(hash)) return true;
@@ -1715,9 +1792,9 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   const auto moves_n = MgenW(moves);
 
   if (!moves_n) return checks ? -kInf : 0;
-  if (depth == 1 && ply > 5 && (checks || moves_n == 1)) depth++;
+  if ((ply <= 10 || depth == 1) && (checks || moves_n == 1)) depth++;
 
-  const auto ok_lmr = (moves_n >= 5) && (depth >= 2) && (!checks);
+  const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *const entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
   SortByScore(entry, hash);
 
@@ -1725,8 +1802,8 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
     g_board = moves + i;
     g_is_pv = i <= 1 && !moves[i].score;
 
-    if (ok_lmr && i >= 2 && (!g_board->score) && !ChecksW()) {
-      if (SearchB(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1) <= alpha) continue;
+    if (ok_lmr && i >= 1 && !g_board->score && !ChecksW()) {
+      if (SearchB(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) <= alpha) continue;
       g_board = moves + i;
     }
 
@@ -1750,9 +1827,9 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   const auto moves_n = MgenB(moves);
 
   if (!moves_n) return checks ? +kInf : 0;
-  if (depth == 1 && ply > 5 && (checks || moves_n == 1)) depth++;
+  if ((ply <= 10 || depth == 1) && (checks || moves_n == 1)) depth++;
 
-  const auto ok_lmr = (moves_n >= 5) && (depth >= 2) && (!checks);
+  const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *const entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
   SortByScore(entry, hash);
 
@@ -1760,8 +1837,8 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
     g_board = moves + i;
     g_is_pv = i <= 1 && !moves[i].score;
 
-    if (ok_lmr && i >= 2 && !g_board->score && !ChecksB()) {
-      if (SearchW(alpha, beta, depth - 2 - std::min(1, i / 23), ply + 1) >= beta) continue;
+    if (ok_lmr && i >= 1 && !g_board->score && !ChecksB()) {
+      if (SearchW(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) >= beta) continue;
       g_board = moves + i;
     }
 
@@ -1779,22 +1856,28 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
 }
 
 bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
+  // No nullmove on the path ?
   if (   (!g_nullmove_active)
+      // Not pv ?
       && (!g_is_pv)
-      && (depth >= 4)
-      && (g_board->black[0] | g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4])
+      // Enough depth ?
+      && (depth >= 3)
+      // Non pawn material ?
+      && (g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4])
+      // Not under checks ?
       && (!ChecksB())
+      // Looks good ?
       && (Evaluate(true) >= beta)) {
-    const auto ep   = g_board->epsq;
-    auto *const tmp = g_board;
-    g_board->epsq   = -1;
+    const auto ep     = g_board->epsq;
+    auto *const tmp   = g_board;
+    g_board->epsq     = -1;
 
     g_nullmove_active = true;
-    const auto score  = SearchB(*alpha, beta, depth - 4, ply);
+    const auto score  = SearchB(*alpha, beta, depth - (depth / 4 + 3), ply);
     g_nullmove_active = false;
 
-    g_board       = tmp;
-    g_board->epsq = ep;
+    g_board           = tmp;
+    g_board->epsq     = ep;
 
     if (score >= beta) {
       *alpha = score;
@@ -1808,20 +1891,21 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
 bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
   if (   (!g_nullmove_active)
       && (!g_is_pv)
-      && (depth >= 4)
-      && (g_board->white[0] | g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4])
+      && (depth >= 3)
+      && (g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4])
       && (!ChecksW())
       && (alpha >= Evaluate(false))) {
-    const auto ep   = g_board->epsq;
-    auto *const tmp = g_board;
-    g_board->epsq   = -1;
+    const auto ep     = g_board->epsq;
+    auto *const tmp   = g_board;
+    g_board->epsq     = -1;
 
     g_nullmove_active = true;
-    const auto score  = SearchW(alpha, *beta, depth - 4, ply);
+    const auto score  = SearchW(alpha, *beta, depth - (depth / 4 + 3), ply);
+
     g_nullmove_active = false;
 
-    g_board       = tmp;
-    g_board->epsq = ep;
+    g_board           = tmp;
+    g_board->epsq     = ep;
 
     if (alpha >= score) {
       *beta = score;
@@ -1836,7 +1920,7 @@ int SearchW(int alpha, const int beta, const int depth, const int ply) {
   g_nodes++;
 
   if (g_stop_search || TimeCheckSearch()) return 0;
-  if (depth <= 0 || ply >= kDepthLimit)   return QSearchW(alpha, beta, g_qs_depth);
+  if (depth <= 0 || ply >= kMaxDepth) return QSearchW(alpha, beta, g_qs_depth);
 
   const auto rule50 = g_board->rule50;
   const auto tmp    = g_r50_positions[rule50];
@@ -1854,7 +1938,7 @@ int SearchB(const int alpha, int beta, const int depth, const int ply) {
   g_nodes++;
 
   if (g_stop_search) return 0;
-  if (depth <= 0 || ply >= kDepthLimit) return QSearchB(alpha, beta, g_qs_depth);
+  if (depth <= 0 || ply >= kMaxDepth) return QSearchB(alpha, beta, g_qs_depth);
 
   const auto rule50 = g_board->rule50;
   const auto tmp    = g_r50_positions[rule50];
@@ -1899,7 +1983,7 @@ int BestW() {
 }
 
 int BestB() {
-  auto score = 0, best_i = 0, beta = kInf;
+  auto score = 0, best_i = 0, beta = +kInf;
 
   for (auto i = 0; i < g_root_n; i++) {
     g_board = g_root + i;
@@ -1949,7 +2033,7 @@ public:
 
   // KRRvKR / KRvKRR / KRRRvK ? / KvKRRR ?
   bool is_5men() const {
-    return (both_n == 5) && (wrn + brn == 3);
+    return both_n == 5 && wrn + brn == 3;
   }
 
   // Vs king + (PNBRQ)?
@@ -1968,7 +2052,7 @@ public:
   }
 };
 
-void Activation(const Material& m) {
+void Activation(const Material &m) {
   if ( (!g_nnue_exist) // No NNUE -> Classical eval
       || m.is_easy()
       || m.is_5men())
@@ -2044,13 +2128,12 @@ void SearchRootMoves(const bool is_eg) {
   for (; (std::abs(g_best_score) != kInf) && (g_depth < g_max_depth) && (!g_stop_search); g_depth++) {
     g_best_score = best();
 
-    // Switch to classical only when the game is decided (4.5+ pawns) !
-    if (!g_classical && is_eg && (std::abs(g_best_score) > (4 * 4 * 100 + (2 * 100))) && ++good >= 7)
+    // Switch to classical only when the game is decided (4+ pawns) !
+    if (!g_classical && is_eg && std::abs(g_best_score) > (4 * 4 * 100) && ++good >= 7)
       g_classical = true;
 
     Speak(g_best_score, Now() - start);
-    g_qs_depth = std::min(g_qs_depth + (g_depth < 4 ? 1 : 2), 12);
-
+    g_qs_depth = std::min(g_qs_depth + 2, 12);
   }
 
   UserLevel();
@@ -2075,7 +2158,7 @@ void Think(const int ms) {
   SearchRootMoves(m.is_endgame());
   g_underpromos = true;
 
-  g_board = tmp;
+  g_board       = tmp;
 }
 
 // UCI
@@ -2169,9 +2252,9 @@ void UciGoMovetime() {
 }
 
 void UciGoDepth() {
-  g_max_depth = Between<int>(1, TokenNumber(), kDepthLimit);
+  g_max_depth = Between<int>(1, TokenNumber(), kMaxDepth);
   Think(kInf);
-  g_max_depth = kDepthLimit;
+  g_max_depth = kMaxDepth;
   TokenPop();
   PrintBestMove();
 }
@@ -2346,13 +2429,19 @@ void InitZobrist() {
 
 // Shuffle period 30 plies then scale
 void InitScale() {
-  for (auto i = 0; i < 100; i++)
-    g_scale[i] = i < 30 ? 1.0f : (1.0f - ((static_cast<float>(i - 30)) / (100.0f - 30.0f)));
+  for (auto i = 0; i < 128; i++)
+    g_scale[i] = i < 30 ? 1.0f : (1.0f - ((static_cast<float>(i - 30)) / 110.0f));
+}
+
+void InitLMR() {
+  for (auto d = 0; d < kMaxDepth; d++)
+    for (auto m = 0; m < kMaxMoves; m++)
+      g_lmr[d][m] = Between<int>(1, static_cast<int>(std::log(d) * std::log(m) * 0.25), 4);
 }
 
 /*
 // Don't remove !
-void Debug(const std::string& fen = "-") {
+void Debug(const std::string &fen = "-") {
   std::cout << "sizeof(Hash_t): " << sizeof(Hash_t) << std::endl;
   std::cout << "sizeof(Board_t): " << sizeof(Board_t) << std::endl;
   std::cout << "g_hash_entries: " << g_hash_entries << std::endl;
@@ -2379,6 +2468,7 @@ void Init() {
   InitSliderMoves();
   InitJumpMoves();
   InitScale();
+  InitLMR();
   SetupHashtable();
   SetupNNUE();
   SetupBook();

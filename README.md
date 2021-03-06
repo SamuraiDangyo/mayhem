@@ -1,16 +1,18 @@
 # Mayhem
 
-Linux UCI Chess960 engine. Written in C++14 language.
-Derivated from Sapeli. Licensed under the GPLv3.
+Linux UCI Chess960 engine.
+Written in C++17 language.
+Licensed under the GPLv3.
 
 Credits:
   NNUE library: Dr. Shawul
   EvalFile + PolyGlot code: Stockfish
+  Independent testing: Mr. Sylwy
 
 Mayhem requires EvalFile (NNUE) and BookFile (PolyGlot) for maximum strength.
 Works w/o them too.
 
-Estimated strength: ~2800 Elo in Blitz (vs Fruit 2.1).
+Estimated strength ~2800 Elo in Blitz.
 
 `make` should build a good binary.
 If not then remove *nnue - flags* until it does.

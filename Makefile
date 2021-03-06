@@ -1,13 +1,13 @@
 #
-# Mayhem. Linux UCI Chess960 engine. Written in C++14 language
+# Mayhem. Linux UCI Chess960 engine. Written in C++17 language
 # Copyright (C) 2020-2021 Toni Helminen <GPLv3>
 #
 
 # Definitions
 
 CXX=clang++
-CXXFLAGS=-std=c++14 -O3 -fomit-frame-pointer -march=native -mpopcnt -Wall -Wextra -pedantic -DNDEBUG \
-				 -DUSE_SSE41 -msse4.1 -DUSE_SSSE3 -mssse3 -DUSE_SSE2 -msse2 -DUSE_SSE -msse
+CXXFLAGS=-std=c++17 -O3 -march=native -mpopcnt -Wall -Wextra -pedantic -DNDEBUG \
+         -DUSE_SSE41 -msse4.1 -DUSE_SSSE3 -mssse3 -DUSE_SSE2 -msse2 -DUSE_SSE -msse
 FILES=main.cpp lib/nnue.cpp lib/polyglotbook.cpp
 EXE=mayhem
 
