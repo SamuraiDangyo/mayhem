@@ -8,6 +8,8 @@
 CXX=clang++
 CXXFLAGS=-std=c++17 -O3 -march=native -mpopcnt -Wall -Wextra -pedantic -DNDEBUG \
          -DUSE_SSE41 -msse4.1 -DUSE_SSSE3 -mssse3 -DUSE_SSE2 -msse2 -DUSE_SSE -msse
+BUILDFLAGS=-std=c++17 -O3 -mpopcnt -Wall -Wextra -pedantic -DNDEBUG -static \
+           -DUSE_SSE41 -msse4.1 -DUSE_SSSE3 -mssse3 -DUSE_SSE2 -msse2 -DUSE_SSE -msse
 FILES=main.cpp lib/nnue.cpp lib/polyglotbook.cpp
 EXE=mayhem
 
@@ -17,12 +19,13 @@ all:
 	$(CXX) $(CXXFLAGS) $(FILES) -o $(EXE)
 
 release:
-	x86_64-w64-mingw32-g++ $(CXXFLAGS) -static -DWINDOWS $(FILES) -o $(EXE)-$(VER)-x86-windows-modern-64bit.exe
-	$(CXX) $(CXXFLAGS) -static $(FILES) -o $(EXE)-$(VER)-x86-unix-modern-64bit
+	x86_64-w64-mingw32-g++ $(BUILDFLAGS) -DWINDOWS $(FILES) -o $(EXE)-$(VER)-x86-windows-slow-64bit.exe
+	clang++ $(BUILDFLAGS) $(FILES) -o $(EXE)-$(VER)-x86-unix-slow-64bit
 
 valgrind:
 	g++ -Wall -O1 -mpopcnt -ggdb3 $(FILES)
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=valgrind.txt ./a.out --bench
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose \
+		--log-file=valgrind.txt ./a.out --bench
 
 gprof:
 	g++ -Wall -O1 -mpopcnt -g -pg -ggdb3 $(FILES)
@@ -30,7 +33,8 @@ gprof:
 	gprof > gprof.txt
 
 test:
-	cutechess-cli -engine cmd=./$(EXE) dir=. proto=uci -engine cmd=fruit proto=uci -each tc=60+1 -rounds 100 -pgnout games.pgn
+	cutechess-cli -engine cmd=./$(EXE) dir=. proto=uci -engine cmd=fruit proto=uci \
+		-each tc=60+1 -rounds 100 -pgnout games.pgn
 
 xboard:
 	xboard -fUCI -fcp ./$(EXE)

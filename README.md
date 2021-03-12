@@ -4,10 +4,7 @@ Linux UCI Chess960 engine.
 Written in C++17 language.
 Licensed under the GPLv3.
 
-Credits:
-  NNUE library: Dr. Shawul
-  EvalFile + PolyGlot code: Stockfish
-  Independent testing: Mr. Sylwy
+Credits: SF ( EvalFile + PolyGlot ) and Dr. Shawul ( NNUE lib ).
 
 Mayhem requires EvalFile (NNUE) and BookFile (PolyGlot) for maximum strength.
 Works w/o them too.
