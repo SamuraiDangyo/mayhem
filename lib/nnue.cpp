@@ -1255,4 +1255,6 @@ DLLExport int _CDECL nnue_evaluate(int player, int* pieces, int* squares)
   pos.pieces = pieces;
   pos.squares = squares;
   return nnue_evaluate_pos(&pos);
-}}
+}
+
+}
