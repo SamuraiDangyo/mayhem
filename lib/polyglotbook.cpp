@@ -31,14 +31,16 @@
 
 //using namespace std;
 
-polyglotbook::PolyglotBook::PolyglotBook() :
+namespace polyglotbook {
+
+PolyglotBook::PolyglotBook() :
   polyboard{} {
 
   std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
 }
 
-polyglotbook::PolyglotBook::~PolyglotBook() {
+PolyglotBook::~PolyglotBook() {
 
   if (is_open())
     close();
@@ -50,7 +52,7 @@ polyglotbook::PolyglotBook::~PolyglotBook() {
 /// big-endian format.
 
 template<typename T>
-polyglotbook::PolyglotBook& polyglotbook::PolyglotBook::operator>>(T& n) {
+PolyglotBook& PolyglotBook::operator>>(T& n) {
 
   n = 0;
   for (std::size_t i = 0; i < sizeof(T); ++i)
@@ -61,25 +63,25 @@ polyglotbook::PolyglotBook& polyglotbook::PolyglotBook::operator>>(T& n) {
 }
 
 template<>
-polyglotbook::PolyglotBook& polyglotbook::PolyglotBook::operator>>(Entry& e) {
+PolyglotBook& PolyglotBook::operator>>(Entry& e) {
 
   return *this >> e.key >> e.move >> e.count >> e.learn;
 
 }
 
-inline int polyglotbook::PolyglotBook::ctz(const std::uint64_t bb) {
+inline int PolyglotBook::ctz(const std::uint64_t bb) {
 
   return __builtin_ctzll(bb);
 
 }
 
-inline std::uint64_t polyglotbook::PolyglotBook::clear_bit(const std::uint64_t bb) {
+inline std::uint64_t PolyglotBook::clear_bit(const std::uint64_t bb) {
 
   return bb & (bb - 0x1ULL);
 
 }
 
-std::uint64_t polyglotbook::PolyglotBook::polyglot_key() {
+std::uint64_t PolyglotBook::polyglot_key() {
 
   std::uint64_t key = 0;
 
@@ -89,38 +91,38 @@ std::uint64_t polyglotbook::PolyglotBook::polyglot_key() {
   for (auto both = polyboard.both; both; both = clear_bit(both)) {
     const auto sq = ctz(both);
     switch (polyboard.pieces[sq]) {
-      case -1: key ^= polyglotbook::kZobrist.PG.psq[0][sq];  break;
-      case +1: key ^= polyglotbook::kZobrist.PG.psq[1][sq];  break;
-      case -2: key ^= polyglotbook::kZobrist.PG.psq[2][sq];  break;
-      case +2: key ^= polyglotbook::kZobrist.PG.psq[3][sq];  break;
-      case -3: key ^= polyglotbook::kZobrist.PG.psq[4][sq];  break;
-      case +3: key ^= polyglotbook::kZobrist.PG.psq[5][sq];  break;
-      case -4: key ^= polyglotbook::kZobrist.PG.psq[6][sq];  break;
-      case +4: key ^= polyglotbook::kZobrist.PG.psq[7][sq];  break;
-      case -5: key ^= polyglotbook::kZobrist.PG.psq[8][sq];  break;
-      case +5: key ^= polyglotbook::kZobrist.PG.psq[9][sq];  break;
-      case -6: key ^= polyglotbook::kZobrist.PG.psq[10][sq]; break;
-      case +6: key ^= polyglotbook::kZobrist.PG.psq[11][sq]; break;
+      case -1: key ^= kZobrist.PG.psq[0][sq];  break;
+      case +1: key ^= kZobrist.PG.psq[1][sq];  break;
+      case -2: key ^= kZobrist.PG.psq[2][sq];  break;
+      case +2: key ^= kZobrist.PG.psq[3][sq];  break;
+      case -3: key ^= kZobrist.PG.psq[4][sq];  break;
+      case +3: key ^= kZobrist.PG.psq[5][sq];  break;
+      case -4: key ^= kZobrist.PG.psq[6][sq];  break;
+      case +4: key ^= kZobrist.PG.psq[7][sq];  break;
+      case -5: key ^= kZobrist.PG.psq[8][sq];  break;
+      case +5: key ^= kZobrist.PG.psq[9][sq];  break;
+      case -6: key ^= kZobrist.PG.psq[10][sq]; break;
+      case +6: key ^= kZobrist.PG.psq[11][sq]; break;
     }
   }
 
   //
   // Castling rights
   //
-  if (polyboard.castling & 0x1) key ^= polyglotbook::kZobrist.PG.castling[0];
-  if (polyboard.castling & 0x2) key ^= polyglotbook::kZobrist.PG.castling[1];
-  if (polyboard.castling & 0x4) key ^= polyglotbook::kZobrist.PG.castling[2];
-  if (polyboard.castling & 0x8) key ^= polyglotbook::kZobrist.PG.castling[3];
+  if (polyboard.castling & 0x1) key ^= kZobrist.PG.castling[0];
+  if (polyboard.castling & 0x2) key ^= kZobrist.PG.castling[1];
+  if (polyboard.castling & 0x4) key ^= kZobrist.PG.castling[2];
+  if (polyboard.castling & 0x8) key ^= kZobrist.PG.castling[3];
 
   //
   // En passant
   //
-  if (is_ep_legal()) key ^= polyglotbook::kZobrist.PG.enpassant[polyboard.epsq % 8];
+  if (is_ep_legal()) key ^= kZobrist.PG.enpassant[polyboard.epsq % 8];
 
   //
   // Turn
   //
-  if (polyboard.wtm) key ^= polyglotbook::kZobrist.PG.turn;
+  if (polyboard.wtm) key ^= kZobrist.PG.turn;
 
   //
   // The key is ready
@@ -132,7 +134,7 @@ std::uint64_t polyglotbook::PolyglotBook::polyglot_key() {
 /// open() tries to open a book file with the given name after closing any
 /// existing one.
 
-bool polyglotbook::PolyglotBook::open(const std::string &file) {
+bool PolyglotBook::open(const std::string &file) {
 
   if (is_open()) // Cannot close an already closed file
       close();
@@ -151,19 +153,19 @@ bool polyglotbook::PolyglotBook::open(const std::string &file) {
 /// the highest-rated move, otherwise it randomly chooses one based on the
 /// move score.
 
-bool polyglotbook::PolyglotBook::open_book(const std::string &file) {
+bool PolyglotBook::open_book(const std::string &file) {
 
   return open(file);
 
 }
 
-bool polyglotbook::PolyglotBook::on_board(const int x, const int y) {
+bool PolyglotBook::on_board(const int x, const int y) {
 
   return x >= 0 && x <= 7 && y >= 0 && y <= 7;
 
 }
 
-bool polyglotbook::PolyglotBook::is_ep_legal() {
+bool PolyglotBook::is_ep_legal() {
 
   if (polyboard.epsq == -1)
     return false;
@@ -175,7 +177,7 @@ bool polyglotbook::PolyglotBook::is_ep_legal() {
 
 }
 
-polyglotbook::PolyglotBook& polyglotbook::PolyglotBook::setup(std::int8_t* pieces,
+PolyglotBook& PolyglotBook::setup(std::int8_t* pieces,
                                                               const std::uint64_t both,
                                                               const std::uint8_t castling,
                                                               const std::int8_t epsq,
@@ -191,7 +193,7 @@ polyglotbook::PolyglotBook& polyglotbook::PolyglotBook::setup(std::int8_t* piece
 
 }
 
-int polyglotbook::PolyglotBook::probe(const bool pickBest) {
+int PolyglotBook::probe(const bool pickBest) {
 
   if (!is_open())
     return 0;
@@ -237,7 +239,7 @@ int polyglotbook::PolyglotBook::probe(const bool pickBest) {
 /// the book file for the given key. Returns the index of the leftmost book
 /// entry with the same key as the input.
 
-std::size_t polyglotbook::PolyglotBook::find_first(const std::uint64_t key) {
+std::size_t PolyglotBook::find_first(const std::uint64_t key) {
 
   seekg(0, std::ios::end); // Move pointer to end, so tellg() gets file's size
 
@@ -264,5 +266,7 @@ std::size_t polyglotbook::PolyglotBook::find_first(const std::uint64_t key) {
   //assert(low == high);
 
   return low;
+
+}
 
 }
