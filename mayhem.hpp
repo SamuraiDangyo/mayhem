@@ -55,7 +55,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 3.5",
+  kVersion  = "Mayhem 3.6",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::vector<std::string>
@@ -76,7 +76,9 @@ const std::vector<std::string>
     "R7/P4k2/8/8/8/8/r7/6K1 w - - 0",                                   // Rh8
     "r1b2rk1/ppqn1p1p/2n1p1p1/2b3N1/2N5/PP1BP3/1B3PPP/R2QK2R w KQ - 0", // Qh5
     "8/8/2N4p/p5kP/P1K5/1P6/8/4b3 w - - 0",                             // Nxa5
+    "8/8/p1p5/1p5p/1P5p/8/PPP2K1p/4R1rk w - - 0",                       // Rf1
     "8/8/8/4N3/8/7p/8/5K1k w - - 0",                                    // Ng4
+    "6Q1/8/8/7k/8/8/3p1pp1/3Kbrrb w - - 0",                             // Qg7
     "r2qkb1r/pppb2pp/2np1n2/5pN1/2BQP3/2N5/PPP2PPP/R1B1K2R w KQkq - 0", // Bf7+
     "r3kr2/1pp4p/1p1p4/7q/4P1n1/2PP2Q1/PP4P1/R1BB2K1 b q - 0",          // Qh1+
     "r3r1k1/pp1q1pp1/4b1p1/3p2B1/3Q1R2/8/PPP3PP/4R1K1 w - - 0",         // Qxg7+
@@ -91,46 +93,60 @@ constexpr int
   kKnightVectors[16] = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2},
   kBishopVectors[8]  = {+1, +1, -1, -1, +1, -1, -1, +1},
   kRookVectors[8]    = {+1,  0,  0, +1,  0, -1, -1,  0},
-  kMvv[6][6]         = {{10, 15, 15, 20, 25, 99}, {9, 14, 14, 19, 24, 99}, {9, 14, 14, 19, 24, 99},
-                        { 8, 13, 13, 18, 23, 99}, {7, 12, 12, 17, 22, 99}, {6, 11, 11, 16, 21, 99}},
+  kMvv[6][6]         = {{10, 15, 15, 20, 25, 99}, {9, 14, 14, 19, 24, 99},
+                        {9,  14, 14, 19, 24, 99}, {8, 13, 13, 18, 23, 99},
+                        {7,  12, 12, 17, 22, 99}, {6, 11, 11, 16, 21, 99}},
+  kTempo             = 25,
   kPesto[6][2][64]   = // Material baked in
-    {{{82, 82, 82, 82, 82, 82, 82, 82, 47, 81, 62, 59, 67, 106, 120, 60, 56, 78, 78, 72, 85,
-       85, 115, 70, 55, 80, 77, 94, 99, 88, 92, 57, 68, 95, 88, 103, 105, 94, 99, 59, 76, 89, 108,
-       113, 147, 138, 107, 62, 180, 216, 143, 177, 150, 208, 116, 71, 82, 82, 82, 82, 82, 82, 82, 82},
-      {94, 94, 94, 94, 94, 94, 94, 94, 107, 102, 102, 104, 107, 94, 96, 87, 98, 101, 88, 95, 94, 89,
-       93, 86, 107, 103, 91, 87, 87, 86, 97, 93, 126, 118, 107, 99, 92, 98, 111, 111, 188, 194, 179,
-       161, 150, 147, 176, 178, 272, 267, 252, 228, 241, 226, 259, 281, 94, 94, 94, 94, 94, 94, 94, 94}},
-     {{232, 316, 279, 304, 320, 309, 318, 314, 308, 284, 325, 334, 336, 355, 323, 318, 314, 328, 349, 347, 356,
-       354, 362, 321, 324, 341, 353, 350, 365, 356, 358, 329, 328, 354, 356, 390, 374, 406, 355, 359, 290, 397,
-       374, 402, 421, 466, 410, 381, 264, 296, 409, 373, 360, 399, 344, 320, 170, 248, 303, 288, 398, 240, 322, 230},
-      {252, 230, 258, 266, 259, 263, 231, 217, 239, 261, 271, 276, 279, 261, 258, 237, 258, 278, 280, 296, 291,
-       278, 261, 259, 263, 275, 297, 306, 297, 298, 285, 263, 264, 284, 303, 303, 303, 292, 289, 263, 257, 261,
-       291, 290, 280, 272, 262, 240, 256, 273, 256, 279, 272, 256, 257, 229, 223, 243, 268, 253, 250, 254, 218, 182}},
-     {{332, 362, 351, 344, 352, 353, 326, 344, 369, 380, 381, 365, 372, 386, 398, 366, 365, 380, 380, 380, 379,
-       392, 383, 375, 359, 378, 378, 391, 399, 377, 375, 369, 361, 370, 384, 415, 402, 402, 372, 363, 349, 402,
-       408, 405, 400, 415, 402, 363, 339, 381, 347, 352, 395, 424, 383, 318, 336, 369, 283, 328, 340, 323, 372, 357},
-      {274, 288, 274, 292, 288, 281, 292, 280, 283, 279, 290, 296, 301, 288, 282, 270, 285, 294, 305, 307, 310,
-       300, 290, 282, 291, 300, 310, 316, 304, 307, 294, 288, 294, 306, 309, 306, 311, 307, 300, 299, 299, 289,
-       297, 296, 295, 303, 297, 301, 289, 293, 304, 285, 294, 284, 293, 283, 283, 276, 286, 289, 290, 288, 280, 273}},
-     {{458, 464, 478, 494, 493, 484, 440, 451, 433, 461, 457, 468, 476, 488, 471, 406, 432, 452, 461, 460, 480,
-       477, 472, 444, 441, 451, 465, 476, 486, 470, 483, 454, 453, 466, 484, 503, 501, 512, 469, 457, 472, 496,
-       503, 513, 494, 522, 538, 493, 504, 509, 535, 539, 557, 544, 503, 521, 509, 519, 509, 528, 540, 486, 508, 520},
-      {503, 514, 515, 511, 507, 499, 516, 492, 506, 506, 512, 514, 503, 503, 501, 509, 508, 512, 507, 511, 505,
-       500, 504, 496, 515, 517, 520, 516, 507, 506, 504, 501, 516, 515, 525, 513, 514, 513, 511, 514, 519, 519,
-       519, 517, 516, 509, 507, 509, 523, 525, 525, 523, 509, 515, 520, 515, 525, 522, 530, 527, 524, 524, 520, 517}},
-     {{1024, 1007, 1016, 1035, 1010, 1000, 994, 975, 990, 1017, 1036, 1027, 1033, 1040, 1022, 1026, 1011, 1027, 1014,
-       1023, 1020, 1027, 1039, 1030, 1016, 999, 1016, 1015, 1023, 1021, 1028, 1022, 998, 998, 1009, 1009, 1024, 1042,
-       1023, 1026, 1012, 1008, 1032, 1033, 1054, 1081, 1072, 1082, 1001, 986, 1020, 1026, 1009, 1082, 1053, 1079, 997,
-       1025, 1054, 1037, 1084, 1069, 1068, 1070},
-      {903, 908, 914, 893, 931, 904, 916, 895, 914, 913, 906, 920, 920, 913, 900, 904, 920, 909, 951, 942, 945,
-       953, 946, 941, 918, 964, 955, 983, 967, 970, 975, 959, 939, 958, 960, 981, 993, 976, 993, 972, 916, 942,
-       945, 985, 983, 971, 955, 945, 919, 956, 968, 977, 994, 961, 966, 936, 927, 958, 958, 963, 963, 955, 946, 956}},
-     {{-15, 36, 12, -54, 8, -28, 24, 14, 1, 7, -8, -64, -43, -16, 9, 8, -14, -14, -22, -46, -44, -30, -15, -27, -49,
-       -1, -27, -39, -46, -44, -33, -51, -17, -20, -12, -27, -30, -25, -14, -36, -9, 24, 2, -16, -20, 6, 22, -22, 29,
-       -1, -20, -7, -8, -4, -38, -29, -65, 23, 16, -15, -56, -34, 2, 13},
-      {-53, -34, -21, -11, -28, -14, -24, -43, -27, -11, 4, 13, 14, 4, -5, -17, -19, -3, 11, 21, 23, 16, 7, -9, -18,
-       -4, 21, 24, 27, 23, 9, -11, -8, 22, 24, 27, 26, 33, 26, 3, 10, 17, 23, 15, 20, 45, 44, 13, -12, 17, 14, 17, 17,
-       38, 23, 11, -74, -35, -18, -18, -11, 15, 4, -17}}};
+    {{{82, 82, 82, 82, 82, 82, 82, 82, 47, 81, 62, 59, 67, 106, 120, 60, 56, 78, 78,
+       72, 85, 85, 115, 70, 55, 80, 77, 94, 99, 88, 92, 57, 68, 95, 88, 103, 105, 94,
+       99, 59, 76, 89, 108, 113, 147, 138, 107, 62, 180, 216, 143, 177, 150, 208, 116,
+       71, 82, 82, 82, 82, 82, 82, 82, 82},
+      {94, 94, 94, 94, 94, 94, 94, 94, 107, 102, 102, 104, 107, 94, 96, 87, 98, 101,
+       88, 95, 94, 89, 93, 86, 107, 103, 91, 87, 87, 86, 97, 93, 126, 118, 107, 99,
+       92, 98, 111, 111, 188, 194, 179, 161, 150, 147, 176, 178, 272, 267, 252, 228,
+       241, 226, 259, 281, 94, 94, 94, 94, 94, 94, 94, 94}},
+     {{232, 316, 279, 304, 320, 309, 318, 314, 308, 284, 325, 334, 336, 355, 323, 318,
+       314, 328, 349, 347, 356, 354, 362, 321, 324, 341, 353, 350, 365, 356, 358, 329,
+       328, 354, 356, 390, 374, 406, 355, 359, 290, 397, 374, 402, 421, 466, 410, 381,
+       264, 296, 409, 373, 360, 399, 344, 320, 170, 248, 303, 288, 398, 240, 322, 230},
+      {252, 230, 258, 266, 259, 263, 231, 217, 239, 261, 271, 276, 279, 261, 258, 237,
+       258, 278, 280, 296, 291, 278, 261, 259, 263, 275, 297, 306, 297, 298, 285, 263,
+       264, 284, 303, 303, 303, 292, 289, 263, 257, 261, 291, 290, 280, 272, 262, 240,
+       256, 273, 256, 279, 272, 256, 257, 229, 223, 243, 268, 253, 250, 254, 218, 182}},
+     {{332, 362, 351, 344, 352, 353, 326, 344, 369, 380, 381, 365, 372, 386, 398, 366,
+       365, 380, 380, 380, 379, 392, 383, 375, 359, 378, 378, 391, 399, 377, 375, 369,
+       361, 370, 384, 415, 402, 402, 372, 363, 349, 402, 408, 405, 400, 415, 402, 363,
+       339, 381, 347, 352, 395, 424, 383, 318, 336, 369, 283, 328, 340, 323, 372, 357},
+      {274, 288, 274, 292, 288, 281, 292, 280, 283, 279, 290, 296, 301, 288, 282, 270,
+       285, 294, 305, 307, 310, 300, 290, 282, 291, 300, 310, 316, 304, 307, 294, 288,
+       294, 306, 309, 306, 311, 307, 300, 299, 299, 289, 297, 296, 295, 303, 297, 301,
+       289, 293, 304, 285, 294, 284, 293, 283, 283, 276, 286, 289, 290, 288, 280, 273}},
+     {{458, 464, 478, 494, 493, 484, 440, 451, 433, 461, 457, 468, 476, 488, 471, 406,
+       432, 452, 461, 460, 480, 477, 472, 444, 441, 451, 465, 476, 486, 470, 483, 454,
+       453, 466, 484, 503, 501, 512, 469, 457, 472, 496, 503, 513, 494, 522, 538, 493,
+       504, 509, 535, 539, 557, 544, 503, 521, 509, 519, 509, 528, 540, 486, 508, 520},
+      {503, 514, 515, 511, 507, 499, 516, 492, 506, 506, 512, 514, 503, 503, 501, 509,
+       508, 512, 507, 511, 505, 500, 504, 496, 515, 517, 520, 516, 507, 506, 504, 501,
+       516, 515, 525, 513, 514, 513, 511, 514, 519, 519, 519, 517, 516, 509, 507, 509,
+       523, 525, 525, 523, 509, 515, 520, 515, 525, 522, 530, 527, 524, 524, 520, 517}},
+     {{1024, 1007, 1016, 1035, 1010, 1000, 994, 975, 990, 1017, 1036, 1027, 1033, 1040,
+       1022, 1026, 1011, 1027, 1014, 1023, 1020, 1027, 1039, 1030, 1016, 999, 1016, 1015,
+       1023, 1021, 1028, 1022, 998, 998, 1009, 1009, 1024, 1042, 1023, 1026, 1012, 1008,
+       1032, 1033, 1054, 1081, 1072, 1082, 1001, 986, 1020, 1026, 1009, 1082, 1053, 1079,
+       997, 1025, 1054, 1037, 1084, 1069, 1068, 1070},
+      {903, 908, 914, 893, 931, 904, 916, 895, 914, 913, 906, 920, 920, 913, 900, 904,
+       920, 909, 951, 942, 945, 953, 946, 941, 918, 964, 955, 983, 967, 970, 975, 959,
+       939, 958, 960, 981, 993, 976, 993, 972, 916, 942, 945, 985, 983, 971, 955, 945,
+       919, 956, 968, 977, 994, 961, 966, 936, 927, 958, 958, 963, 963, 955, 946, 956}},
+     {{-15, 36, 12, -54, 8, -28, 24, 14, 1, 7, -8, -64, -43, -16, 9, 8, -14, -14, -22,
+       -46, -44, -30, -15, -27, -49, -1, -27, -39, -46, -44, -33, -51, -17, -20, -12,
+       -27, -30, -25, -14, -36, -9, 24, 2, -16, -20, 6, 22, -22, 29, -1, -20, -7, -8,
+       -4, -38, -29, -65, 23, 16, -15, -56, -34, 2, 13},
+      {-53, -34, -21, -11, -28, -14, -24, -43, -27, -11, 4, 13, 14, 4, -5, -17, -19, -3,
+       11, 21, 23, 16, 7, -9, -18, -4, 21, 24, 27, 23, 9, -11, -8, 22, 24, 27, 26, 33,
+       26, 3, 10, 17, 23, 15, 20, 45, 44, 13, -12, 17, 14, 17, 17, 38, 23, 11, -74, -35,
+       -18, -18, -11, 15, 4, -17}}};
 
 constexpr std::uint64_t
   kRookMagic[64] =
@@ -535,6 +551,7 @@ void SetupHashtable() {
   g_hash_mb      = Between<int>(4, g_hash_mb, 1048576);
   g_hash_entries = CreateKey((1 << 20) * g_hash_mb, sizeof(struct Hash_t));
   g_hash.reset(new struct Hash_t[g_hash_entries]);
+
   for (std::size_t i = 0; i < g_hash_entries; i++)
     g_hash[i].eval_hash = g_hash[i].sort_hash = g_hash[i].score = g_hash[i].killer = g_hash[i].good = g_hash[i].quiet = 0;
 }
@@ -542,7 +559,8 @@ void SetupHashtable() {
 // Hash
 
 inline std::uint64_t Hash(const bool wtm) {
-  auto h = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[wtm ? 1 : 0] ^ g_zobrist_castle[g_board->castle], b = Both();
+  auto h = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[wtm ? 1 : 0] ^ g_zobrist_castle[g_board->castle],
+       b = Both();
 
   for (; b; b = ClearBit(b)) {
     const auto sq = Ctz(b);
@@ -706,7 +724,7 @@ int Rank2Num(const char r) {
 
 void FenBoard(const std::string &board) {
   int sq = 56;
-  for (std::size_t i = 0, l = board.length(); i < l && sq >= 0; i++) {
+  for (std::size_t i = 0, len = board.length(); i < len && sq >= 0; i++) {
     const auto c = board[i];
     if (c == '/')             sq -= 16;
     else if (std::isdigit(c)) sq += Empty2Num(c);
@@ -719,9 +737,9 @@ void FenAddCastle(int *const rooks, const int sq, const int castle) {
   g_board->castle |= castle;
 }
 
-void FenKQkq(const std::string &kqkq) {
-  for (std::size_t i = 0, l = kqkq.length(); i < l; i++) {
-    const auto c = kqkq[i];
+void FenKQkq(const std::string &KQkq) {
+  for (std::size_t i = 0, len = KQkq.length(); i < len; i++) {
+    const auto c = KQkq[i];
     switch (c) {
       case 'K': FenAddCastle(g_rook_w + 0, 7, 1); break;
       case 'Q': FenAddCastle(g_rook_w + 1, 0, 2); break;
@@ -1115,9 +1133,9 @@ void ModifyPawnStuffW(const int from, const int to) {
     g_board->score          = 10; // PxP
     g_board->pieces[to - 8] = 0;
     g_board->black[0]      ^= Bit(to - 8);
-  } else if (Ycoord(to) - Ycoord(from) == +2) {
+  } else if (Ycoord(from) == 1 && Ycoord(to) == 3) { // e2e4 ...
     g_board->epsq = to - 8;
-  } else if (Ycoord(to) >= 6) { // Bonus for 7th ranks
+  } else if (Ycoord(to) == 6) { // Bonus for 7th ranks
     g_board->score = 85 + Ycoord(to);
   }
 }
@@ -1129,9 +1147,9 @@ void ModifyPawnStuffB(const int from, const int to) {
     g_board->score          = 10;
     g_board->pieces[to + 8] = 0;
     g_board->white[0]      ^= Bit(to + 8);
-  } else if (Ycoord(to) - Ycoord(from) == -2) {
+  } else if (Ycoord(from) == 6 && Ycoord(to) == 4) {
     g_board->epsq = to + 8;
-  } else if (Ycoord(to) <= 1) {
+  } else if (Ycoord(to) == 1) {
     g_board->score = 85 + 7 - Ycoord(to);
   }
 }
@@ -1677,15 +1695,15 @@ private:
   }
 
   void bonus_tempo(const bool wtm) {
-    score += wtm ? +2 : -2;
+    score += wtm ? +kTempo : -kTempo;
   }
 
   void bonus_corner_w() {
-    score += 5 * any_corner_bonus(bk) + 3 * closer_bonus(wk, bk);
+    score += 6 * any_corner_bonus(bk) + 4 * closer_bonus(wk, bk);
   }
 
   void bonus_corner_b() {
-    score -= 5 * any_corner_bonus(wk) + 3 * closer_bonus(wk, bk);
+    score -= 6 * any_corner_bonus(wk) + 4 * closer_bonus(wk, bk);
   }
 
   void bonus_checks() {
@@ -1694,8 +1712,8 @@ private:
   }
 
   void bonus_bishop_pair() {
-    if (wbn >= 2) score += 5;
-    if (bbn >= 2) score -= 5;
+    if (wbn >= 2) score += 15;
+    if (bbn >= 2) score -= 15;
   }
 
   void bonus_special() {
@@ -1767,7 +1785,9 @@ int ProbeNNUE(const bool wtm) {
   }
 
   pieces[i] = squares[i] = 0;
-  return (wtm ? +1 : -1) * nnue::nnue_evaluate(!wtm, pieces, squares);
+
+  return wtm ? +(nnue::nnue_evaluate(0, pieces, squares) + kTempo)
+             : -(nnue::nnue_evaluate(1, pieces, squares) + kTempo);
 }
 
 int EvaluateNNUE(const bool wtm) {
@@ -1872,6 +1892,9 @@ void UpdateSort(struct Hash_t *const entry, const enum MoveType type, const std:
   }
 }
 
+// a >= b -> Minimizer won't pick any better move anyway.
+//           So searching beyond is a waste of time
+//        => Vice versa for black
 int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   struct Board_t moves[kMaxMoves];
   const auto hash    = g_r50_positions[g_board->rule50];
@@ -1879,7 +1902,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   const auto moves_n = MgenW(moves);
 
   if (!moves_n) return checks ? -kInf : 0;
-  if (checks || moves_n == 1) depth++;
+  if (moves_n == 1 || (depth == 1 && checks)) depth++;
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *const entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
@@ -1914,7 +1937,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   const auto moves_n = MgenB(moves);
 
   if (!moves_n) return checks ? +kInf : 0;
-  if (checks || moves_n == 1) depth++;
+  if (moves_n == 1 || (depth == 1 && checks)) depth++;
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *const entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
@@ -1942,6 +1965,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   return beta;
 }
 
+// If we do nothing and we are still better -> Done
 bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
   // No nullmove on the path ?
   if (   (!g_nullmove_active)
@@ -1949,8 +1973,9 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
       && (!g_is_pv)
       // Enough depth ?
       && (depth >= 3)
-      // Non pawn material ?
-      && (g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4])
+      // Non pawn material (or) at least 2 pawns ( zugzwang ... ) ?
+      && ((g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4])
+        || PopCount(g_board->white[0]) >= 2)
       // Not under checks ?
       && (!ChecksB())
       // Looks good ?
@@ -1979,7 +2004,8 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
   if (   (!g_nullmove_active)
       && (!g_is_pv)
       && (depth >= 3)
-      && (g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4])
+      && ((g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4])
+        || PopCount(g_board->black[0]) >= 2)
       && (!ChecksW())
       && (alpha >= Evaluate(false))) {
     const auto ep     = g_board->epsq;
@@ -2044,6 +2070,7 @@ int BestW() {
 
   for (auto i = 0; i < g_root_n; i++) {
     g_board = g_root + i;
+    // 1 + 2 moves too good (and) not tactical -> pv
     g_is_pv = i <= 1 && !g_root[i].score;
 
     if (g_depth >= 1 && i >= 1) {
@@ -2365,15 +2392,16 @@ void UciGo() {
 }
 
 void UciUci() {
-  std::cout << "id name " << kVersion << "\n"
-            << "id author Toni Helminen" << "\n"
-            << "option name UCI_Chess960 type check default " << (g_chess960 ? "true" : "false") << "\n"
-            << "option name Level type spin default "         << g_level         << " min 0 max 10" << "\n"
-            << "option name Hash type spin default "          << g_hash_mb       << " min 4 max 1048576" << "\n"
-            << "option name MoveOverhead type spin default "  << g_move_overhead << " min 0 max 5000" << "\n"
-            << "option name EvalFile type string default "    << g_eval_file     << "\n"
-            << "option name BookFile type string default "    << g_book_file     << "\n"
-            << "uciok" << std::endl;
+  std::cout
+    << "id name " << kVersion << "\n"
+    << "id author Toni Helminen" << "\n"
+    << "option name UCI_Chess960 type check default " << (g_chess960 ? "true" : "false") << "\n"
+    << "option name Level type spin default "         << g_level         << " min 0 max 10" << "\n"
+    << "option name Hash type spin default "          << g_hash_mb       << " min 4 max 1048576" << "\n"
+    << "option name MoveOverhead type spin default "  << g_move_overhead << " min 0 max 5000" << "\n"
+    << "option name EvalFile type string default "    << g_eval_file     << "\n"
+    << "option name BookFile type string default "    << g_book_file     << "\n"
+    << "uciok" << std::endl;
 }
 
 bool UciCommands() {
@@ -2490,7 +2518,7 @@ std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int
 }
 
 void InitJumpMoves() {
-  constexpr int pawn_check_vectors[2 * 2] = {-1, +1, +1, +1}, pawn_1_vectors[1 * 2] = {0, 1};
+  constexpr int pawn_check_vectors[2 * 2] = {-1, +1, +1, +1}, pawn_1_vectors[1 * 2] = {0, +1};
 
   for (auto i = 0; i < 64; i++) {
     g_king_moves[i]     = MakeJumpMoves(i, 8, +1, kKingVectors);
@@ -2527,8 +2555,7 @@ void InitLMR() {
 }
 
 /*
-// Don't remove !
-void Debug(const std::string &fen = "-") {
+[[maybe_unused]] void Debug(const std::string &fen = "-") {
   std::cout << "sizeof(Hash_t): " << sizeof(Hash_t) << std::endl;
   std::cout << "sizeof(Board_t): " << sizeof(Board_t) << std::endl;
   std::cout << "g_hash_entries: " << g_hash_entries << std::endl;

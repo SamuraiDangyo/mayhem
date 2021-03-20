@@ -4,17 +4,17 @@ Linux UCI Chess960 engine.
 Written in C++17 language.
 Licensed under the GPLv3.
 
-Credits: SF ( EvalFile + PolyGlot ) and Dr. Shawul ( NNUE lib ).
+Mayhem uses EvalFile ( NNUE ) and BookFile ( PolyGlot ) for maximum strength.
+Works well w/o them of course.
 
-Mayhem requires EvalFile (NNUE) and BookFile (PolyGlot) for maximum strength.
-Works w/o them too.
+Strength in Blitz: Classical mode ( ~2500 Elo ) and NNUE mode ( ~3000 Elo ).
 
-Estimated strength ~2800 Elo in Blitz.
-
-`make` should build a good binary.
+Simple `make` should build a good binary.
 If not then remove *nnue - flags* until it does.
 
 Default settings are the best.
-If needed increase Hash/MoveOverhead in longer games.
+If needed increase Hash / MoveOverhead in longer games.
+
+Credits: SF ( EvalFile + PolyGlot ) and Dr. Shawul ( NNUE lib ).
 
 Happy hacking!
