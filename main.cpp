@@ -5,7 +5,10 @@
 
 #include "mayhem.hpp"
 
-// "I want to cause havoc. I want to cause mayhem - and I mean the worst mayhem you can see." -- Tony Bellew
+//
+// I want to cause havoc. I want to cause mayhem
+// - and I mean the worst mayhem you can see.
+//
 int main(int argc, char *argv[]) {
   mayhem::Init();
 

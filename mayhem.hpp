@@ -55,7 +55,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 3.6",
+  kVersion  = "Mayhem 3.7",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::vector<std::string>
@@ -87,7 +87,7 @@ const std::vector<std::string>
 
 constexpr int
   kMaxMoves          = 218,
-  kMaxDepth          = 50,
+  kMaxDepth          = 55,
   kInf               = 1048576,
   kKingVectors[16]   = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1},
   kKnightVectors[16] = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2},
@@ -300,18 +300,18 @@ std::uint32_t
   g_hash_entries = 0, g_tokens_nth = 0;
 
 std::uint64_t
-  g_seed = 131783, g_black = 0x0ULL, g_white = 0x0ULL, g_both = 0x0ULL, g_empty = 0x0ULL, g_good = 0x0ULL,
+  g_seed = 0x202c7ULL, g_black = 0x0ULL, g_white = 0x0ULL, g_both = 0x0ULL, g_empty = 0x0ULL,
   g_pawn_sq = 0x0ULL,  g_pawn_1_moves_w[64] = {}, g_pawn_1_moves_b[64] = {}, g_pawn_2_moves_w[64] = {},
   g_pawn_2_moves_b[64] = {}, g_bishop_moves[64] = {}, g_rook_moves[64] = {}, g_queen_moves[64] = {},
   g_knight_moves[64] = {}, g_king_moves[64] = {}, g_pawn_checks_w[64] = {}, g_pawn_checks_b[64] = {},
   g_castle_w[2] = {}, g_castle_b[2] = {}, g_castle_empty_w[2] = {}, g_castle_empty_b[2] = {},
   g_bishop_magic_moves[64][512] = {}, g_rook_magic_moves[64][4096] = {}, g_zobrist_ep[64] = {},
   g_zobrist_castle[16] = {}, g_zobrist_wtm[2] = {}, g_zobrist_board[13][64] = {},
-  g_stop_search_time = 0x0ULL, g_r50_positions[128] = {}, g_nodes = 0x0ULL;
+  g_stop_search_time = 0x0ULL, g_r50_positions[128] = {}, g_nodes = 0x0ULL, g_good = 0x0ULL;
 
 bool
   g_chess960 = false, g_wtm = false, g_stop_search = false, g_underpromos = true, g_nullmove_active = false,
-  g_is_pv = false, g_analyzing = false, g_book_exist = true, g_nnue_exist = true, g_classical = false;
+  g_is_pv = false, g_analyzing = false, g_book_exist = false, g_nnue_exist = false, g_classical = false;
 
 std::vector<std::string>
   g_tokens = {};
@@ -370,11 +370,11 @@ inline int PopCount(const std::uint64_t bb) {
   return __builtin_popcountll(bb);
 }
 
-inline std::uint8_t Xcoord(const std::uint8_t sq) {
+inline int Xcoord(const int sq) {
   return sq & 0x7;
 }
 
-inline std::uint8_t Ycoord(const std::uint8_t sq) {
+inline int Ycoord(const int sq) {
   return sq >> 3;
 }
 
@@ -669,7 +669,7 @@ void BuildCastlingBitboards() {
 
 // Fen handling
 
-std::int8_t Piece2Num(const char p) {
+int Piece2Num(const char p) {
   switch (p) {
     case 'P': return +1;
     case 'N': return +2;
@@ -687,8 +687,8 @@ std::int8_t Piece2Num(const char p) {
   }
 }
 
-int Empty2Num(const char c) {
-  switch (c) {
+int Empty2Num(const char e) {
+  switch (e) {
     case '1': return 1;
     case '2': return 2;
     case '3': return 3;
@@ -732,7 +732,7 @@ void FenBoard(const std::string &board) {
   }
 }
 
-void FenAddCastle(int *const rooks, const int sq, const int castle) {
+void FenAddCastle(int *rooks, const int sq, const int castle) {
   *rooks           = sq;
   g_board->castle |= castle;
 }
@@ -748,12 +748,12 @@ void FenKQkq(const std::string &KQkq) {
       default:
         if (c >= 'A' && c <= 'H') {
           const auto tmp = c - 'A';
-          if (     tmp > g_king_w) FenAddCastle(g_rook_w + 0, tmp, 1);
-          else if (tmp < g_king_w) FenAddCastle(g_rook_w + 1, tmp, 2);
+          if (     tmp > g_king_w) FenAddCastle(g_rook_w + 0, tmp, 0x1);
+          else if (tmp < g_king_w) FenAddCastle(g_rook_w + 1, tmp, 0x2);
         } else if (c >= 'a' && c <= 'h') {
           const auto tmp = c - 'a';
-          if (     tmp > Xcoord(g_king_b)) FenAddCastle(g_rook_b + 0, 56 + tmp, 4);
-          else if (tmp < Xcoord(g_king_b)) FenAddCastle(g_rook_b + 1, 56 + tmp, 8);
+          if (     tmp > g_king_b) FenAddCastle(g_rook_b + 0, 56 + tmp, 0x4);
+          else if (tmp < g_king_b) FenAddCastle(g_rook_b + 1, 56 + tmp, 0x8);
         }
         break;
     }
@@ -866,7 +866,7 @@ char PromoLetter(const std::int8_t piece) {
   }
 }
 
-const std::string MoveName(const struct Board_t *const move) {
+const std::string MoveName(const struct Board_t *move) {
   auto from = move->from, to = move->to;
 
   switch (move->type) {
@@ -895,7 +895,7 @@ const std::string MoveName(const struct Board_t *const move) {
 
 // Sorting
 
-inline void Swap(struct Board_t *const a, struct Board_t *const b) {
+inline void Swap(struct Board_t *a, struct Board_t *b) {
   const auto tmp = *a;
   *a = *b;
   *b = tmp;
@@ -923,7 +923,7 @@ void SortAll() {
   SortNthMoves(g_moves_n);
 }
 
-void SortByScore(const struct Hash_t *const entry, const std::uint64_t hash) {
+void SortByScore(const struct Hash_t *entry, const std::uint64_t hash) {
   if (entry->sort_hash == hash) {
     if (entry->killer)    g_moves[entry->killer - 1].score += 10000;
     else if (entry->good) g_moves[entry->good   - 1].score += 10000;
@@ -935,7 +935,7 @@ void SortByScore(const struct Hash_t *const entry, const std::uint64_t hash) {
 }
 
 void EvalRootMoves() {
-  auto *const tmp = g_board;
+  auto *tmp = g_board;
 
   for (auto i = 0; i < g_root_n; i++) {
     g_board         = g_root + i;
@@ -1201,7 +1201,7 @@ void AddPromotionB(const int from, const int to, const int piece) {
 }
 
 void AddPromotionStuffW(const int from, const int to) {
-  auto *const tmp = g_board;
+  auto *tmp = g_board;
 
   if (g_underpromos) {
     for (const auto p : {5, 4, 3, 2}) {
@@ -1221,7 +1221,7 @@ void AddPromotionStuffW(const int from, const int to) {
 }
 
 void AddPromotionStuffB(const int from, const int to) {
-  auto *const tmp = g_board;
+  auto *tmp = g_board;
 
   if (g_underpromos) {
     for (const auto p : {-5, -4, -3, -2}) {
@@ -1467,7 +1467,7 @@ void MgenAllCapturesB() {
   MgenKingB();
 }
 
-int MgenW(struct Board_t *const moves) {
+int MgenW(struct Board_t *moves) {
   g_moves_n    = 0;
   g_moves      = moves;
   g_board_orig = g_board;
@@ -1475,7 +1475,7 @@ int MgenW(struct Board_t *const moves) {
   return g_moves_n;
 }
 
-int MgenB(struct Board_t *const moves) {
+int MgenB(struct Board_t *moves) {
   g_moves_n    = 0;
   g_moves      = moves;
   g_board_orig = g_board;
@@ -1483,7 +1483,7 @@ int MgenB(struct Board_t *const moves) {
   return g_moves_n;
 }
 
-int MgenCapturesW(struct Board_t *const moves) {
+int MgenCapturesW(struct Board_t *moves) {
   g_moves_n    = 0;
   g_moves      = moves;
   g_board_orig = g_board;
@@ -1491,7 +1491,7 @@ int MgenCapturesW(struct Board_t *const moves) {
   return g_moves_n;
 }
 
-int MgenCapturesB(struct Board_t *const moves) {
+int MgenCapturesB(struct Board_t *moves) {
   g_moves_n    = 0;
   g_moves      = moves;
   g_board_orig = g_board;
@@ -1499,11 +1499,11 @@ int MgenCapturesB(struct Board_t *const moves) {
   return g_moves_n;
 }
 
-int MgenTacticalW(struct Board_t *const moves) {
+int MgenTacticalW(struct Board_t *moves) {
   return ChecksB() ? MgenW(moves) : MgenCapturesW(moves);
 }
 
-int MgenTacticalB(struct Board_t *const moves) {
+int MgenTacticalB(struct Board_t *moves) {
   return ChecksW() ? MgenB(moves) : MgenCapturesB(moves);
 }
 
@@ -1513,11 +1513,13 @@ void MgenRoot() {
 
 // Evaluate
 
+// Probe Eucalyptus KPK bitbases
 inline bool ProbeKPK(const bool wtm) {
   return g_board->white[0] ? eucalyptus::IsDraw(     Ctz(g_board->white[5]),      Ctz(g_board->white[0]),      Ctz(g_board->black[5]),  wtm)
                            : eucalyptus::IsDraw(63 - Ctz(g_board->black[5]), 63 - Ctz(g_board->black[0]), 63 - Ctz(g_board->white[5]), !wtm);
 }
 
+// Detect trivial draws really fast
 bool EasyDraw(const bool wtm) {
   // R/Q/r/q -> No draw
   if (g_board->white[3] | g_board->white[4] | g_board->black[3] | g_board->black[4])
@@ -1544,6 +1546,7 @@ bool EasyDraw(const bool wtm) {
   return pawns_n == 1 ? ProbeKPK(wtm) : pawns_n == 0;
 }
 
+// Classical evaluation. To finish the game mainly or in no NNUE
 class ClassicalEval {
 private:
   const std::uint64_t white, black, both;
@@ -1551,6 +1554,10 @@ private:
 
   int pow2(const int x) const {
     return x * x;
+  }
+
+  int flip_y(const int sq) const {
+    return sq ^ 56;
   }
 
   int closer_bonus(const int sq1, const int sq2) const {
@@ -1575,7 +1582,7 @@ private:
   }
 
   void pesto_b(const int p, const int sq) {
-    add(-kPesto[p][0][sq ^ 56], -kPesto[p][1][sq ^ 56]);
+    add(-kPesto[p][0][flip_y(sq)], -kPesto[p][1][flip_y(sq)]);
   }
 
   void mobility_w(const int k, const std::uint64_t m) {
@@ -1716,6 +1723,7 @@ private:
     if (bbn >= 2) score -= 15;
   }
 
+  // Special EG functions. To avoid always doing "Tabula rasa"
   void bonus_special() {
     if (black_n == 1) {
       (both_n == 4 && wnn && wbn) ? bonus_knbk_w()    // KNBvK
@@ -1791,8 +1799,8 @@ int ProbeNNUE(const bool wtm) {
 }
 
 int EvaluateNNUE(const bool wtm) {
-  const auto hash   = Hash(wtm);
-  auto *const entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
+  const auto hash = Hash(wtm);
+  auto *entry     = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
 
   if (entry->eval_hash == hash) return entry->score;
 
@@ -1821,6 +1829,7 @@ bool Draw(const bool wtm) {
   if (g_board->rule50 > 100 || EasyDraw(wtm)) return true;
 
   const auto hash = g_r50_positions[g_board->rule50];
+
   if (poseidon::IsDraw(hash)) return true;
 
   for (auto i = g_board->rule50 - 2; i >= 0; i -= 2)
@@ -1843,6 +1852,8 @@ bool TimeCheckSearch() {
   return g_stop_search;
 }
 
+// 1. Check against standpat to see whether we are better -> Done
+// 2. Iterate deeper
 int QSearchW(int alpha, const int beta, const int depth) {
   g_nodes++;
 
@@ -1857,7 +1868,8 @@ int QSearchW(int alpha, const int beta, const int depth) {
 
   for (auto i = 0; i < moves_n; i++) {
     g_board = moves + i;
-    if ((alpha = std::max(alpha, QSearchB(alpha, beta, depth - 1))) >= beta) return alpha;
+    if ((alpha = std::max(alpha, QSearchB(alpha, beta, depth - 1))) >= beta)
+      return alpha;
   }
 
   return alpha;
@@ -1877,13 +1889,18 @@ int QSearchB(const int alpha, int beta, const int depth) {
 
   for (auto i = 0; i < moves_n; i++) {
     g_board = moves + i;
-    if (alpha >= (beta = std::min(beta, QSearchW(alpha, beta, depth - 1)))) return beta;
+    if (alpha >= (beta = std::min(beta, QSearchW(alpha, beta, depth - 1))))
+      return beta;
   }
 
   return beta;
 }
 
-void UpdateSort(struct Hash_t *const entry, const enum MoveType type, const std::uint64_t hash, const std::uint8_t index) {
+// Update hashtable sorting algorithm
+void UpdateSort(struct Hash_t *entry,
+                const enum MoveType type,
+                const std::uint64_t hash,
+                const std::uint8_t index) {
   entry->sort_hash = hash;
   switch (type) {
     case MoveType::kKiller: entry->killer = index + 1; break;
@@ -1893,8 +1910,7 @@ void UpdateSort(struct Hash_t *const entry, const enum MoveType type, const std:
 }
 
 // a >= b -> Minimizer won't pick any better move anyway.
-//           So searching beyond is a waste of time
-//        => Vice versa for black
+//           So searching beyond is a waste of time.
 int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   struct Board_t moves[kMaxMoves];
   const auto hash    = g_r50_positions[g_board->rule50];
@@ -1905,7 +1921,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   if (moves_n == 1 || (depth == 1 && checks)) depth++;
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  auto *const entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
+  auto *entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
   SortByScore(entry, hash);
 
   for (auto i = 0; i < moves_n; i++) {
@@ -1913,7 +1929,8 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
     g_is_pv = i <= 1 && !moves[i].score;
 
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksW()) {
-      if (SearchB(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) <= alpha) continue;
+      if (SearchB(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) <= alpha)
+        continue;
       g_board = moves + i;
     }
 
@@ -1940,7 +1957,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   if (moves_n == 1 || (depth == 1 && checks)) depth++;
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  auto *const entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
+  auto *entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
   SortByScore(entry, hash);
 
   for (auto i = 0; i < moves_n; i++) {
@@ -1948,7 +1965,8 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
     g_is_pv = i <= 1 && !moves[i].score;
 
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksB()) {
-      if (SearchW(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) >= beta) continue;
+      if (SearchW(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) >= beta)
+        continue;
       g_board = moves + i;
     }
 
@@ -1973,7 +1991,7 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
       && (!g_is_pv)
       // Enough depth ?
       && (depth >= 3)
-      // Non pawn material (or) at least 2 pawns ( zugzwang ... ) ?
+      // Non pawn material (or) at least 2 pawns ( Zugzwang ... ) ?
       && ((g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4])
         || PopCount(g_board->white[0]) >= 2)
       // Not under checks ?
@@ -1981,7 +1999,7 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
       // Looks good ?
       && (Evaluate(true) >= beta)) {
     const auto ep     = g_board->epsq;
-    auto *const tmp   = g_board;
+    auto *tmp         = g_board;
     g_board->epsq     = -1;
 
     g_nullmove_active = true;
@@ -2009,7 +2027,7 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
       && (!ChecksW())
       && (alpha >= Evaluate(false))) {
     const auto ep     = g_board->epsq;
-    auto *const tmp   = g_board;
+    auto *tmp         = g_board;
     g_board->epsq     = -1;
 
     g_nullmove_active = true;
@@ -2029,6 +2047,7 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
   return false;
 }
 
+// Front-end for ab-search
 int SearchW(int alpha, const int beta, const int depth, const int ply) {
   g_nodes++;
 
@@ -2065,6 +2084,7 @@ int SearchB(const int alpha, int beta, const int depth, const int ply) {
   return beta;
 }
 
+// Root search
 int BestW() {
   auto score = 0, best_i = 0, alpha = -kInf;
 
@@ -2085,7 +2105,7 @@ int BestW() {
     if (g_stop_search) return g_best_score;
 
     if (score > alpha) {
-      // Skip underpromos unless really good (3+ pawns)
+      // Skip underpromos unless really good ( 3+ pawns )
       if (IsUnderpromo(g_root + i) && ((score + (3 * 4 * 100)) < alpha)) continue;
       alpha  = score;
       best_i = i;
@@ -2125,6 +2145,7 @@ int BestB() {
   return beta;
 }
 
+// Material detection for classical activation
 class Material {
 private:
   const int wpn, wnn, wbn, wrn, wqn, bpn, bnn, bbn, brn, bqn, white_n, black_n, both_n;
@@ -2150,7 +2171,7 @@ public:
     return both_n == 5 && wrn + brn == 3;
   }
 
-  // Vs king + (PNBRQ)?
+  // Vs king + (PNBRQ) ?
   bool is_easy() const {
     return g_wtm ? black_n == 2 : white_n == 2;
   }
@@ -2191,22 +2212,7 @@ bool ThinkRandomMove() {
   return true;
 }
 
-bool ProbeBook() {
-  const auto move = g_book.setup(g_board->pieces, Both(), g_board->castle, g_board->epsq, g_wtm)
-                          .probe(Random(8) == 1);
-
-  if (!move) return false;
-
-  const std::uint8_t from = 8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7),
-                     to   = 8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7);
-
-  std::uint8_t type = 0;
-  for (const auto i : {0, 1, 2, 3}) // Promos
-    if (move & (0x1 << (12 + i))) {
-      type = 5 + i;
-      break;
-    }
-
+bool FindBookMove(const int from, const int to, const int type) {
   for (auto i = 0; i < g_root_n; i++)
     if (g_root[i].from == from && g_root[i].to == to) {
       if (type && g_root[i].type != type) continue;
@@ -2215,6 +2221,26 @@ bool ProbeBook() {
     }
 
   return false;
+}
+
+// Probe PolyGlot book
+bool ProbeBook() {
+  const auto move = g_book.setup(g_board->pieces, Both(), g_board->castle, g_board->epsq, g_wtm)
+                          .probe(Random(8) == 1);
+
+  if (!move) return false;
+
+  const auto from = 8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7),
+             to   = 8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7);
+
+  auto type = 0;
+  for (const auto i : {0, 1, 2, 3}) // Promos
+    if (move & (0x1 << (12 + i))) {
+      type = 5 + i;
+      break;
+    }
+
+  return FindBookMove(from, to, type);
 }
 
 void UserLevel() {
@@ -2235,7 +2261,7 @@ bool FastMove(const int ms) {
 }
 
 void SearchRootMoves(const bool is_eg) {
-  int good         = 0;
+  auto good        = 0;
   const auto start = Now();
   const std::function<int()> best = std::bind(g_wtm ? BestW : BestB);
 
@@ -2256,7 +2282,7 @@ void SearchRootMoves(const bool is_eg) {
 }
 
 void Think(const int ms) {
-  auto *const tmp = g_board;
+  auto *tmp = g_board;
   const Material m;
 
   ThinkReset(ms);
@@ -2272,7 +2298,7 @@ void Think(const int ms) {
   SearchRootMoves(m.is_endgame());
   g_underpromos = true;
 
-  g_board       = tmp;
+  g_board = tmp;
 }
 
 // UCI
@@ -2297,9 +2323,7 @@ void MakeMove() {
   Assert(false, "Error #3: Bad move !");
 }
 
-void UciFen() {
-  if (Token("startpos")) return;
-
+void TakeSpecialFen() {
   TokenPop();
 
   std::string fen = "";
@@ -2307,6 +2331,13 @@ void UciFen() {
     fen += TokenCurrent() + " ";
 
   Fen(fen);
+}
+
+void UciFen() {
+  if (Token("startpos"))
+    Fen(kStartPos);
+  else
+    TakeSpecialFen();
 }
 
 void UciMoves() {
@@ -2317,7 +2348,6 @@ void UciMoves() {
 }
 
 void UciPosition() {
-  Fen(kStartPos);
   UciFen();
   if (Token("moves"))
     UciMoves();
@@ -2373,8 +2403,9 @@ void UciGoDepth() {
   PrintBestMove();
 }
 
+// Make sure we never lose on time
 void UciGo() {
-  int wtime = 0, btime = 0, winc = 0, binc = 0, mtg = 30;
+  int wtime = 0, btime = 0, winc = 0, binc = 0, mtg = 26;
 
   for (; TokenOk(); TokenPop()) {
     if (     Token("infinite"))  {UciGoAnalyze(); return;}
@@ -2415,6 +2446,7 @@ bool UciCommands() {
   else if (Token("uci"))        UciUci();
   else if (Token("quit"))       return false;
 
+  // Ignore the rest
   for (; TokenOk(); TokenPop());
 
   return true;
@@ -2443,7 +2475,7 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
   return permutations & moves;
 }
 
-std::uint64_t MakeSliderMagicMoves(const int *const slider_vectors, const int sq, const std::uint64_t moves) {
+std::uint64_t MakeSliderMagicMoves(const int *slider_vectors, const int sq, const std::uint64_t moves) {
   std::uint64_t possible_moves = 0x0ULL;
   const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
@@ -2479,7 +2511,7 @@ void InitRookMagics() {
   }
 }
 
-std::uint64_t MakeSliderMoves(const int sq, const int *const slider_vectors) {
+std::uint64_t MakeSliderMoves(const int sq, const int *slider_vectors) {
   std::uint64_t moves = 0x0ULL;
   const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
@@ -2505,7 +2537,7 @@ void InitSliderMoves() {
   }
 }
 
-std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int *const jump_vectors) {
+std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int *jump_vectors) {
   std::uint64_t moves = 0x0ULL;
   const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
@@ -2554,25 +2586,19 @@ void InitLMR() {
       g_lmr[d][m] = Between<int>(1, static_cast<int>(std::log(d) * std::log(m) * 0.25), 4);
 }
 
-/*
+// Mayhem Debug util
 [[maybe_unused]] void Debug(const std::string &fen = "-") {
-  std::cout << "sizeof(Hash_t): " << sizeof(Hash_t) << std::endl;
-  std::cout << "sizeof(Board_t): " << sizeof(Board_t) << std::endl;
-  std::cout << "g_hash_entries: " << g_hash_entries << std::endl;
-  std::cout << "\n===\n" << std::endl;
+  std::cout << "sizeof(Hash_t): " << sizeof(Hash_t) << "\n\n" << std::endl;
 
-  Fen(fen); MgenRoot(); EvalRootMoves(); SortAll();
-  for (auto i = 0; i < g_root_n; i++) std::cout << i << ": " << MoveName(g_root + i) << " : " << g_root[i].score << std::endl;
-  std::cout << "\n===\n" << std::endl;
+  Fen(fen);
+  MgenRoot();
+  EvalRootMoves();
+  SortAll();
+  for (auto i = 0; i < g_root_n; i++)
+    std::cout << i << ": " << MoveName(g_root + i) << " : " << g_root[i].score << std::endl;
 
-  Fen(fen); std::cout << "Draw: " << poseidon::IsDraw(Hash(g_wtm)) << std::endl;
-  Fen(fen); std::cout << "Eval: " << Evaluate(g_wtm) << std::endl;
-  std::cout << "\n===\n" << std::endl;
-
-  Fen(fen); Think(10000); std::cout << "g_classical: " << g_classical << std::endl;
   std::exit(EXIT_SUCCESS);
 }
-*/
 
 void Init() {
   g_seed += std::time(nullptr);
@@ -2590,8 +2616,8 @@ void Init() {
 }
 
 void Bench() {
-  const std::uint64_t start = Now();
-  std::uint64_t nodes       = 0x0ULL;
+  const auto start    = Now();
+  std::uint64_t nodes = 0x0ULL;
 
   for (const auto &fen : kBench) {
     std::cout << "[ " << fen << " ]" << std::endl;
