@@ -170,18 +170,21 @@ bool PolyglotBook::is_ep_legal() {
   if (polyboard.epsq == -1)
     return false;
 
-  const int x = polyboard.epsq % 8, y = polyboard.epsq / 8;
+  const auto x = polyboard.epsq % 8, y = polyboard.epsq / 8;
 
-  return polyboard.wtm ? (on_board(x - 1, y) && polyboard.pieces[8 * y + x - 1] == -1) || (on_board(x + 1, y) && polyboard.pieces[8 * y + x + 1] == -1)
-                       : (on_board(x - 1, y) && polyboard.pieces[8 * y + x - 1] == +1) || (on_board(x + 1, y) && polyboard.pieces[8 * y + x + 1] == +1);
+  return polyboard.wtm ? (     on_board(x - 1, y) && polyboard.pieces[8 * y + x - 1] == -1)
+                           || (on_board(x + 1, y) && polyboard.pieces[8 * y + x + 1] == -1)
+                       : (     on_board(x - 1, y) && polyboard.pieces[8 * y + x - 1] == +1)
+                           || (on_board(x + 1, y) && polyboard.pieces[8 * y + x + 1] == +1);
 
 }
 
-PolyglotBook& PolyglotBook::setup(std::int8_t* pieces,
-                                                              const std::uint64_t both,
-                                                              const std::uint8_t castling,
-                                                              const std::int8_t epsq,
-                                                              const bool wtm) {
+PolyglotBook& PolyglotBook::setup(
+    std::int8_t* pieces,
+    const std::uint64_t both,
+    const std::uint8_t castling,
+    const std::int8_t epsq,
+    const bool wtm) {
 
   polyboard.pieces   = pieces;
   polyboard.both     = both;
@@ -200,9 +203,9 @@ int PolyglotBook::probe(const bool pickBest) {
 
   Entry e;
   std::uint16_t best = 0;
-  unsigned sum = 0;
-  int move = 0;
-  const auto key = polyglot_key();
+  unsigned sum       = 0;
+  int move           = 0;
+  const auto key     = polyglot_key();
 
   seekg(find_first(key) * sizeof(Entry), std::ios_base::beg);
 
@@ -214,7 +217,7 @@ int PolyglotBook::probe(const bool pickBest) {
       // score it has a higher probability of being choosen than a move with
       // a lower score. Note that first entry is always chosen.
       if (   (!pickBest && sum && (std::rand() % sum) < e.count)
-          || (pickBest && e.count == best)) {
+          || ( pickBest && e.count == best)) {
           move = e.move;
       }
   }
