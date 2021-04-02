@@ -74,7 +74,6 @@ INLINE uint16_t readu_le_u16(const void *p)
   return q[0] | (q[1] << 8);
 }
 
-
 #define clamp(a, b, c) ((a) < (b) ? (b) : (a) > (c) ? (c) : (a))
 
 // misc.hpp end
@@ -112,15 +111,6 @@ const int pic_tab[14] = {
 #define COMBINE(c,x)     ((x) + (c) * 6)
 
 /*nnue data*/
-#if 0
-typedef struct DirtyPiece {
-  int dirtyNum;
-  int pc[3];
-  int from[3];
-  int to[3];
-} DirtyPiece;
-#endif
-
 typedef struct {
   alignas(64) int16_t accumulation[2][256];
   bool computedAccumulation;
