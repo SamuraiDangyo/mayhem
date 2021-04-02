@@ -55,7 +55,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 3.7",
+  kVersion  = "Mayhem 3.8",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::vector<std::string>
@@ -392,36 +392,6 @@ std::uint32_t Nps(const std::uint64_t nodes, const std::uint32_t ms) {
   return (1000 * nodes) / (ms + 1);
 }
 
-char File2Char(const int f) {
-  switch (f) {
-    case 0:  return 'a';
-    case 1:  return 'b';
-    case 2:  return 'c';
-    case 3:  return 'd';
-    case 4:  return 'e';
-    case 5:  return 'f';
-    case 6:  return 'g';
-    default: return 'h';
-  }
-}
-
-char Rank2Char(const int r) {
-  switch (r) {
-    case 0:  return '1';
-    case 1:  return '2';
-    case 2:  return '3';
-    case 3:  return '4';
-    case 4:  return '5';
-    case 5:  return '6';
-    case 6:  return '7';
-    default: return '8';
-  }
-}
-
-const std::string MoveStr(const int from, const int to) {
-  return std::string{File2Char(Xcoord(from)), Rank2Char(Ycoord(from)), File2Char(Xcoord(to)), Rank2Char(Ycoord(to))};
-}
-
 bool OnBoard(const int x, const int y) {
   return x >= 0 && x <= 7 && y >= 0 && y <= 7;
 }
@@ -489,13 +459,15 @@ int Random(const int x, const int y) {
 }
 
 template <class T>
-void Split(const std::string &s, T &cont, const std::string &delims = " \n") {
+void Split(const std::string &s, T &cont, const std::string &delims = " ") {
   std::size_t cur = s.find_first_of(delims), prev = 0;
+
   while (cur != std::string::npos) {
     cont.push_back(s.substr(prev, cur - prev));
     prev = cur + 1;
     cur  = s.find_first_of(delims, prev);
   }
+
   cont.push_back(s.substr(prev, cur - prev));
 }
 
@@ -504,7 +476,7 @@ void Input() {
   std::getline(std::cin, line);
   g_tokens_nth = 0;
   g_tokens.clear();
-  Split<std::vector<std::string>>(line, g_tokens, " ");
+  Split<std::vector<std::string>>(line, g_tokens);
 }
 
 // Lib
@@ -573,7 +545,7 @@ inline std::uint64_t Hash(const bool wtm) {
 // Tokenizer
 
 bool TokenOk(const int n = 0) {
-  return g_tokens_nth + n < g_tokens.size();
+  return g_tokens_nth + n < g_tokens.size(); // O(1)
 }
 
 const std::string TokenCurrent(const int n = 0) {
@@ -737,25 +709,27 @@ void FenAddCastle(int *rooks, const int sq, const int castle) {
   g_board->castle |= castle;
 }
 
+void AddChess960Castling(const char file) {
+  if (file >= 'A' && file <= 'H') {
+    const auto tmp = file - 'A';
+    if (     tmp > g_king_w) FenAddCastle(g_rook_w + 0, tmp, 0x1);
+    else if (tmp < g_king_w) FenAddCastle(g_rook_w + 1, tmp, 0x2);
+  } else if (file >= 'a' && file <= 'h') {
+    const auto tmp = file - 'a';
+    if (     tmp > g_king_b) FenAddCastle(g_rook_b + 0, 56 + tmp, 0x4);
+    else if (tmp < g_king_b) FenAddCastle(g_rook_b + 1, 56 + tmp, 0x8);
+  }
+}
+
 void FenKQkq(const std::string &KQkq) {
   for (std::size_t i = 0, len = KQkq.length(); i < len; i++) {
-    const auto c = KQkq[i];
-    switch (c) {
-      case 'K': FenAddCastle(g_rook_w + 0, 7, 1); break;
-      case 'Q': FenAddCastle(g_rook_w + 1, 0, 2); break;
-      case 'k': FenAddCastle(g_rook_b + 0, 56 + 7, 4); break;
-      case 'q': FenAddCastle(g_rook_b + 1, 56 + 0, 8); break;
-      default:
-        if (c >= 'A' && c <= 'H') {
-          const auto tmp = c - 'A';
-          if (     tmp > g_king_w) FenAddCastle(g_rook_w + 0, tmp, 0x1);
-          else if (tmp < g_king_w) FenAddCastle(g_rook_w + 1, tmp, 0x2);
-        } else if (c >= 'a' && c <= 'h') {
-          const auto tmp = c - 'a';
-          if (     tmp > g_king_b) FenAddCastle(g_rook_b + 0, 56 + tmp, 0x4);
-          else if (tmp < g_king_b) FenAddCastle(g_rook_b + 1, 56 + tmp, 0x8);
-        }
-        break;
+    const auto f = KQkq[i];
+    switch (f) {
+      case 'K': FenAddCastle(g_rook_w + 0, 7, 0x1);      break;
+      case 'Q': FenAddCastle(g_rook_w + 1, 0, 0x2);      break;
+      case 'k': FenAddCastle(g_rook_b + 0, 56 + 7, 0x4); break;
+      case 'q': FenAddCastle(g_rook_b + 1, 56 + 0, 0x8); break;
+      default:  AddChess960Castling(f);                  break;
     }
   }
 }
@@ -773,7 +747,7 @@ void FenRule50(const std::string &rule50) {
 void FenGen(const std::string &fen) {
   std::vector<std::string> tokens = {};
 
-  Split<std::vector<std::string>>(std::string(fen), tokens, " ");
+  Split<std::vector<std::string>>(std::string(fen), tokens);
   Assert(tokens.size() >= 5, "Error #1: Bad fen !");
 
   FenBoard(tokens[0]);
@@ -856,6 +830,36 @@ inline bool ChecksB() {
 }
 
 // Move printing
+
+char File2Char(const int f) {
+  switch (f) {
+    case 0:  return 'a';
+    case 1:  return 'b';
+    case 2:  return 'c';
+    case 3:  return 'd';
+    case 4:  return 'e';
+    case 5:  return 'f';
+    case 6:  return 'g';
+    default: return 'h';
+  }
+}
+
+char Rank2Char(const int r) {
+  switch (r) {
+    case 0:  return '1';
+    case 1:  return '2';
+    case 2:  return '3';
+    case 3:  return '4';
+    case 4:  return '5';
+    case 5:  return '6';
+    case 6:  return '7';
+    default: return '8';
+  }
+}
+
+const std::string MoveStr(const int from, const int to) {
+  return std::string{File2Char(Xcoord(from)), Rank2Char(Ycoord(from)), File2Char(Xcoord(to)), Rank2Char(Ycoord(to))};
+}
 
 char PromoLetter(const std::int8_t piece) {
   switch (std::abs(piece)) {
@@ -1550,7 +1554,8 @@ bool EasyDraw(const bool wtm) {
 class ClassicalEval {
 private:
   const std::uint64_t white, black, both;
-  int white_n, black_n, both_n, wk, bk, wpn, wnn, wbn, wrn, wqn, bpn, bnn, bbn, brn, bqn, score, mg, eg;
+  int white_n, black_n, both_n, wk, bk, wpn, wnn, wbn, wrn, wqn,
+      bpn, bnn, bbn, brn, bqn, score, mg, eg, scale_factor;
 
   int pow2(const int x) const {
     return x * x;
@@ -1705,6 +1710,7 @@ private:
     score += wtm ? +kTempo : -kTempo;
   }
 
+  // Force black king in the corner + get closer
   void bonus_corner_w() {
     score += 6 * any_corner_bonus(bk) + 4 * closer_bonus(wk, bk);
   }
@@ -1723,34 +1729,80 @@ private:
     if (bbn >= 2) score -= 15;
   }
 
+  void bonus_special_4men() {
+    // KQvK(RNB)
+    if (wqn && (brn || bnn || bbn)) {
+      bonus_corner_w();
+    // KRvK(NB) -> Drawish
+    } else if (wrn && (bnn || bbn)) {
+      scale_factor = 4;
+      bonus_corner_w();
+    // K(RNB)vKQ
+    } else if (bqn && (wrn || wnn || wbn)) {
+      bonus_corner_b();
+    // K(NB)vKR -> Drawish
+    } else if (brn && (wnn || wbn)) {
+      scale_factor = 4;
+      bonus_corner_b();
+    }
+  }
+
+  void bonus_special_5men() {
+    // KRRvKR / KR(NB)vK(NB)
+    if (     (wrn == 2 && brn) || (wrn && (wbn || wnn) && (bbn || bnn))) bonus_corner_w();
+    // KRvKRR / K(NB)vKR(NB)
+    else if ((brn == 2 && wrn) || (brn && (bbn || bnn) && (wbn || wnn))) bonus_corner_b();
+  }
+
+  void white_is_mating() {
+    if (both_n == 4) {
+      // KNBvK
+      if (wnn && wbn) {
+         bonus_knbk_w();
+         return;
+      // KNNvK -> Drawish
+      } else if (wnn == 2) {
+        scale_factor = 4;
+      }
+    }
+
+    bonus_corner_w();
+  }
+
+  void black_is_mating() {
+    if (both_n == 4) {
+      // KvKNB
+      if (bnn && bbn) {
+         bonus_knbk_b();
+         return;
+      // KvKNN -> Drawish
+      } else if (bnn == 2) {
+        scale_factor = 4;
+      }
+    }
+
+    bonus_corner_b();
+  }
+
   // Special EG functions. To avoid always doing "Tabula rasa"
   void bonus_special() {
-    if (black_n == 1) {
-      (both_n == 4 && wnn && wbn) ? bonus_knbk_w()    // KNBvK
-                                  : bonus_corner_w(); // White is mating
-    } else if (white_n == 1) {
-      (both_n == 4 && bnn && bbn) ? bonus_knbk_b()    // KvKNB
-                                  : bonus_corner_b(); // Black is mating
-    } else if (both_n == 4) {
-      if (     (wqn && (brn || bnn || bbn)) || (wrn && (bnn || bbn))) bonus_corner_w(); // KQvKR / KQvKN / KQvKB / KRvK(NB)
-      else if ((bqn && (wrn || wnn || wbn)) || (brn && (wnn || wbn))) bonus_corner_b(); // KRvKQ / KNvKQ / KBvKQ / K(NB)vKR
-    } else if (both_n == 5) {
-      if (     (wrn == 2 && brn) || (wrn && (wbn || wnn) && (bbn || bnn))) bonus_corner_w(); // KRRvKR / KR(NB)vK(NB)
-      else if ((brn == 2 && wrn) || (brn && (bbn || bnn) && (wbn || wnn))) bonus_corner_b(); // KRvKRR / K(NB)vKR(NB)
-    }
+    if (     black_n == 1) white_is_mating();
+    else if (white_n == 1) black_is_mating();
+    else if (both_n  == 4) bonus_special_4men();
+    else if (both_n  == 5) bonus_special_5men();
   }
 
   int calculate_score() {
     const auto n = Between<int>(2, both_n, 32);
     const auto s = (n * mg + (32 - n) * eg) / 32;
-    return score + s;
+    return (score + s) / scale_factor;
   }
 
 public:
   ClassicalEval() :
     white(White()), black(Black()), both(white | black),
     white_n(0), black_n(0), both_n(0), wk(0), bk(0), wpn(0), wnn(0), wbn(0), wrn(0), wqn(0),
-    bpn(0), bnn(0), bbn(0), brn(0), bqn(0), score(0), mg(0), eg(0) {}
+    bpn(0), bnn(0), bbn(0), brn(0), bqn(0), score(0), mg(0), eg(0), scale_factor(1) {}
 
   int evaluate(const bool wtm) {
     evaluate_pieces();
@@ -2171,7 +2223,7 @@ public:
     return both_n == 5 && wrn + brn == 3;
   }
 
-  // Vs king + (PNBRQ) ?
+  // Vs king + ( PNBRQ ) ?
   bool is_easy() const {
     return g_wtm ? black_n == 2 : white_n == 2;
   }
@@ -2261,7 +2313,7 @@ bool FastMove(const int ms) {
 }
 
 void SearchRootMoves(const bool is_eg) {
-  auto good        = 0;
+  int good         = 0;
   const auto start = Now();
   const std::function<int()> best = std::bind(g_wtm ? BestW : BestB);
 
@@ -2324,7 +2376,7 @@ void MakeMove() {
 }
 
 void TakeSpecialFen() {
-  TokenPop();
+  TokenPop(); // fen
 
   std::string fen = "";
   for (; TokenOk() && !Token("moves", 0); TokenPop())
@@ -2334,10 +2386,8 @@ void TakeSpecialFen() {
 }
 
 void UciFen() {
-  if (Token("startpos"))
-    Fen(kStartPos);
-  else
-    TakeSpecialFen();
+  Token("startpos") ? Fen(kStartPos)
+                    : TakeSpecialFen();
 }
 
 void UciMoves() {
@@ -2586,7 +2636,6 @@ void InitLMR() {
       g_lmr[d][m] = Between<int>(1, static_cast<int>(std::log(d) * std::log(m) * 0.25), 4);
 }
 
-// Mayhem Debug util
 [[maybe_unused]] void Debug(const std::string &fen = "-") {
   std::cout << "sizeof(Hash_t): " << sizeof(Hash_t) << "\n\n" << std::endl;
 

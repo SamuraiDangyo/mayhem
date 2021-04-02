@@ -13,9 +13,9 @@ FILES    = main.cpp lib/nnue.cpp lib/polyglotbook.cpp
 
 # For Windows add: -DWINDOWS 
 
-BFLAGS   = -std=c++17 -O3 -flto -march=native -mpopcnt
+BFLAGS   = -std=c++17 -O3 -flto -march=native -mpopcnt 
 WFLAGS   = -Wall -Wextra -pedantic -DNDEBUG
-NFLAGS   = -DUSE_SSE41 -msse4.1 -DUSE_SSSE3 -mssse3 -DUSE_SSE2 -msse2 -DUSE_SSE -msse
+NFLAGS   = -DUSE_AVX2 -mavx2
 CXXFLAGS = $(BFLAGS) $(WFLAGS) $(NFLAGS)
 
 #

@@ -10,7 +10,7 @@ Works well w/o them of course.
 Strength in Blitz: Classical mode ( ~2300 Elo ) and NNUE mode ( ~3000 Elo ).
 
 Simple `make` should build a good binary.
-If not then remove *NNUE flags* _one-by-one_ until it does.
+If not then you need to play w/ *compiler flags*.
 
 Default settings are the best.
 If needed increase _Hash / MoveOverhead_ in longer games.
