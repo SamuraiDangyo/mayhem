@@ -55,7 +55,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 3.8",
+  kVersion  = "Mayhem 3.9",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::vector<std::string>
@@ -531,7 +531,7 @@ void SetupHashtable() {
 // Hash
 
 inline std::uint64_t Hash(const bool wtm) {
-  auto h = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[wtm ? 1 : 0] ^ g_zobrist_castle[g_board->castle],
+  auto h = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[int(wtm)] ^ g_zobrist_castle[g_board->castle],
        b = Both();
 
   for (; b; b = ClearBit(b)) {
@@ -1711,11 +1711,11 @@ private:
   }
 
   // Force black king in the corner + get closer
-  void bonus_corner_w() {
+  void bonus_mating_w() {
     score += 6 * any_corner_bonus(bk) + 4 * closer_bonus(wk, bk);
   }
 
-  void bonus_corner_b() {
+  void bonus_mating_b() {
     score -= 6 * any_corner_bonus(wk) + 4 * closer_bonus(wk, bk);
   }
 
@@ -1732,56 +1732,36 @@ private:
   void bonus_special_4men() {
     // KQvK(RNB)
     if (wqn && (brn || bnn || bbn)) {
-      bonus_corner_w();
+      bonus_mating_w();
     // KRvK(NB) -> Drawish
     } else if (wrn && (bnn || bbn)) {
       scale_factor = 4;
-      bonus_corner_w();
+      bonus_mating_w();
     // K(RNB)vKQ
     } else if (bqn && (wrn || wnn || wbn)) {
-      bonus_corner_b();
+      bonus_mating_b();
     // K(NB)vKR -> Drawish
     } else if (brn && (wnn || wbn)) {
       scale_factor = 4;
-      bonus_corner_b();
+      bonus_mating_b();
     }
   }
 
   void bonus_special_5men() {
     // KRRvKR / KR(NB)vK(NB)
-    if (     (wrn == 2 && brn) || (wrn && (wbn || wnn) && (bbn || bnn))) bonus_corner_w();
+    if (     (wrn == 2 && brn) || (wrn && (wbn || wnn) && (bbn || bnn))) bonus_mating_w();
     // KRvKRR / K(NB)vKR(NB)
-    else if ((brn == 2 && wrn) || (brn && (bbn || bnn) && (wbn || wnn))) bonus_corner_b();
+    else if ((brn == 2 && wrn) || (brn && (bbn || bnn) && (wbn || wnn))) bonus_mating_b();
   }
 
   void white_is_mating() {
-    if (both_n == 4) {
-      // KNBvK
-      if (wnn && wbn) {
-         bonus_knbk_w();
-         return;
-      // KNNvK -> Drawish
-      } else if (wnn == 2) {
-        scale_factor = 4;
-      }
-    }
-
-    bonus_corner_w();
+    (both_n == 4 && (wnn && wbn)) ? bonus_knbk_w()
+                                  : bonus_mating_w();
   }
 
   void black_is_mating() {
-    if (both_n == 4) {
-      // KvKNB
-      if (bnn && bbn) {
-         bonus_knbk_b();
-         return;
-      // KvKNN -> Drawish
-      } else if (bnn == 2) {
-        scale_factor = 4;
-      }
-    }
-
-    bonus_corner_b();
+    (both_n == 4 && (bnn && bbn)) ? bonus_knbk_b()
+                                  : bonus_mating_b();
   }
 
   // Special EG functions. To avoid always doing "Tabula rasa"
@@ -2084,7 +2064,6 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
 
     g_nullmove_active = true;
     const auto score  = SearchW(alpha, *beta, depth - (depth / 4 + 3), ply);
-
     g_nullmove_active = false;
 
     g_board           = tmp;
@@ -2636,7 +2615,7 @@ void InitLMR() {
       g_lmr[d][m] = Between<int>(1, static_cast<int>(std::log(d) * std::log(m) * 0.25), 4);
 }
 
-[[maybe_unused]] void Debug(const std::string &fen = "-") {
+[[maybe_unused]] void Debug(const std::string &fen) {
   std::cout << "sizeof(Hash_t): " << sizeof(Hash_t) << "\n\n" << std::endl;
 
   Fen(fen);
