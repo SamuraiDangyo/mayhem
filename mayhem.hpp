@@ -97,6 +97,8 @@ constexpr int
                         {9,  14, 14, 19, 24, 99}, {8, 13, 13, 18, 23, 99},
                         {7,  12, 12, 17, 22, 99}, {6, 11, 11, 16, 21, 99}},
   kTempo             = 25,
+  kBishopPair        = 20,
+  kChecks            = 17,
   kPesto[6][2][64]   = // Material baked in
     {{{82, 82, 82, 82, 82, 82, 82, 82, 47, 81, 62, 59, 67, 106, 120, 60, 56, 78, 78,
        72, 85, 85, 115, 70, 55, 80, 77, 94, 99, 88, 92, 57, 68, 95, 88, 103, 105, 94,
@@ -388,7 +390,6 @@ T Between(const T x, const T y, const T z) {
 }
 
 std::uint32_t Nps(const std::uint64_t nodes, const std::uint32_t ms) {
-  // Assert(ms + 1 == 0, "Error #11: Impossible");
   return (1000 * nodes) / (ms + 1);
 }
 
@@ -773,7 +774,7 @@ void FenReset() {
   for (auto i = 0; i < 6; i++) g_board->white[i] = g_board->black[i] = 0;
 }
 
-// 1 king per side (and) 32 <= pieces (and) Not under checks
+// 1 king per side and 32 <= pieces and Not under checks
 bool BoardOk() {
   return (PopCount(g_board->white[5]) == 1 && PopCount(g_board->black[5]) == 1)
       && (PopCount(Both()) <= 32)
@@ -1206,47 +1207,33 @@ void AddPromotionB(const int from, const int to, const int piece) {
 
 void AddPromotionStuffW(const int from, const int to) {
   auto *tmp = g_board;
-
   if (g_underpromos) {
-    for (const auto p : {5, 4, 3, 2}) {
+    for (const auto p : {+5, +2, +4, +3}) { // QNRB
       AddPromotionW(from, to, p);
       g_board = tmp;
     }
-  } else {
-    const auto n = g_moves_n;
-    AddPromotionW(from, to, 5);
-    g_board      = tmp;
-    // Allow only N-underpromo that checks black king
-    if (n != g_moves_n && (g_knight_moves[to] & g_board->black[5])) {
-      AddPromotionW(from, to, 2);
-      g_board = tmp;
-    }
+  } else { // Only Q
+    AddPromotionW(from, to, +5);
+    g_board = tmp;
   }
 }
 
 void AddPromotionStuffB(const int from, const int to) {
   auto *tmp = g_board;
-
   if (g_underpromos) {
-    for (const auto p : {-5, -4, -3, -2}) {
+    for (const auto p : {-5, -2, -4, -3}) {
       AddPromotionB(from, to, p);
       g_board = tmp;
     }
   } else {
-    const auto n = g_moves_n;
     AddPromotionB(from, to, -5);
-    g_board      = tmp;
-    if (n != g_moves_n && (g_knight_moves[to] & g_board->white[5])) {
-      AddPromotionB(from, to, -2);
-      g_board = tmp;
-    }
+    g_board = tmp;
   }
 }
 
 void AddNormalStuffW(const int from, const int to) {
   const auto me = g_board->pieces[from], eat = g_board->pieces[to];
 
-  // Assert(me > 0, "Error #8: Impossible");
   g_moves[g_moves_n]     = *g_board;
   g_board                = &g_moves[g_moves_n];
   g_board->from          = from;
@@ -1275,7 +1262,6 @@ void AddNormalStuffW(const int from, const int to) {
 void AddNormalStuffB(const int from, const int to) {
   const auto me = g_board->pieces[from], eat = g_board->pieces[to];
 
-  // Assert(me < 0, "Error #9: Impossible");
   g_moves[g_moves_n]      = *g_board;
   g_board                 = &g_moves[g_moves_n];
   g_board->from           = from;
@@ -1550,7 +1536,7 @@ bool EasyDraw(const bool wtm) {
   return pawns_n == 1 ? ProbeKPK(wtm) : pawns_n == 0;
 }
 
-// Classical evaluation. To finish the game mainly or in no NNUE
+// Classical evaluation. To finish the game mainly or no NNUE
 class ClassicalEval {
 private:
   const std::uint64_t white, black, both;
@@ -1710,7 +1696,7 @@ private:
     score += wtm ? +kTempo : -kTempo;
   }
 
-  // Force black king in the corner + get closer
+  // Force black king in the corner and get closer
   void bonus_mating_w() {
     score += 6 * any_corner_bonus(bk) + 4 * closer_bonus(wk, bk);
   }
@@ -1720,13 +1706,13 @@ private:
   }
 
   void bonus_checks() {
-    if (     ChecksW()) score += 10;
-    else if (ChecksB()) score -= 10;
+    if (     ChecksW()) score += kChecks;
+    else if (ChecksB()) score -= kChecks;
   }
 
   void bonus_bishop_pair() {
-    if (wbn >= 2) score += 15;
-    if (bbn >= 2) score -= 15;
+    if (wbn >= 2) score += kBishopPair;
+    if (bbn >= 2) score -= kBishopPair;
   }
 
   void bonus_special_4men() {
@@ -1754,14 +1740,41 @@ private:
     else if ((brn == 2 && wrn) || (brn && (bbn || bnn) && (wbn || wnn))) bonus_mating_b();
   }
 
+  // Blind KBPvK ( Not perfect, just a hint ) -> Drawish ?
+  void check_blind_bishop_w() {
+    if (white_n == 3 && wbn && wpn) {
+      const auto wpx   = Xcoord(Ctz(g_board->white[0]));
+      const auto color = g_board->white[2] & 0x55aa55aa55aa55aaULL;
+      if ((color && wpx == 7) || (!color && wpx == 0))
+        scale_factor = 2;
+    }
+  }
+
+  void check_blind_bishop_b() {
+    if (black_n == 3 && bbn && bpn) {
+      const auto bpx   = Xcoord(Ctz(g_board->black[0]));
+      const auto color = g_board->black[2] & 0x55aa55aa55aa55aaULL;
+      if ((!color && bpx == 7) || (color && bpx == 0))
+        scale_factor = 2;
+    }
+  }
+
   void white_is_mating() {
-    (both_n == 4 && (wnn && wbn)) ? bonus_knbk_w()
-                                  : bonus_mating_w();
+    if (white_n == 3 && wnn && wbn) {
+      bonus_knbk_w();
+    } else {
+      bonus_mating_w();
+      check_blind_bishop_w();
+    }
   }
 
   void black_is_mating() {
-    (both_n == 4 && (bnn && bbn)) ? bonus_knbk_b()
-                                  : bonus_mating_b();
+    if (black_n == 3 && bnn && bbn) {
+      bonus_knbk_b();
+    } else {
+      bonus_mating_b();
+      check_blind_bishop_b();
+    }
   }
 
   // Special EG functions. To avoid always doing "Tabula rasa"
@@ -1842,7 +1855,7 @@ int EvaluateNNUE(const bool wtm) {
 
 int Evaluate(const bool wtm) {
   if (EasyDraw(wtm)) return 0;
-  return g_scale[g_board->rule50] * static_cast<float>(g_classical ? 4 * EvaluateClassical(wtm) : EvaluateNNUE(wtm));
+  return g_scale[g_board->rule50] * static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm) / 4);
 }
 
 // Search
@@ -1852,7 +1865,7 @@ void Speak(const int score, const std::uint64_t ms) {
             << " nodes "     << g_nodes
             << " time "      << ms
             << " nps "       << Nps(g_nodes, ms)
-            << " score cp "  << ((g_wtm ? +1 : -1) * (std::abs(score) == kInf ? score / 100 : score / 4))
+            << " score cp "  << ((g_wtm ? +1 : -1) * (std::abs(score) == kInf ? score / 100 : score))
             << " pv "        << MoveName(g_root) << std::endl;
 }
 
@@ -2023,7 +2036,7 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
       && (!g_is_pv)
       // Enough depth ?
       && (depth >= 3)
-      // Non pawn material (or) at least 2 pawns ( Zugzwang ... ) ?
+      // Non pawn material or at least 2 pawns ( Zugzwang ... ) ?
       && ((g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4])
         || PopCount(g_board->white[0]) >= 2)
       // Not under checks ?
@@ -2121,7 +2134,7 @@ int BestW() {
 
   for (auto i = 0; i < g_root_n; i++) {
     g_board = g_root + i;
-    // 1 + 2 moves too good (and) not tactical -> pv
+    // 1 + 2 moves too good and not tactical -> pv
     g_is_pv = i <= 1 && !g_root[i].score;
 
     if (g_depth >= 1 && i >= 1) {
@@ -2137,7 +2150,7 @@ int BestW() {
 
     if (score > alpha) {
       // Skip underpromos unless really good ( 3+ pawns )
-      if (IsUnderpromo(g_root + i) && ((score + (3 * 4 * 100)) < alpha)) continue;
+      if (IsUnderpromo(g_root + i) && ((score + (3 * 100)) < alpha)) continue;
       alpha  = score;
       best_i = i;
     }
@@ -2166,7 +2179,7 @@ int BestB() {
     if (g_stop_search) return g_best_score;
 
     if (score < beta) {
-      if (IsUnderpromo(g_root + i) && ((score - (3 * 4 * 100)) > beta)) continue;
+      if (IsUnderpromo(g_root + i) && ((score - (3 * 100)) > beta)) continue;
       beta   = score;
       best_i = i;
     }
@@ -2179,37 +2192,22 @@ int BestB() {
 // Material detection for classical activation
 class Material {
 private:
-  const int wpn, wnn, wbn, wrn, wqn, bpn, bnn, bbn, brn, bqn, white_n, black_n, both_n;
+  const int white_n, black_n, both_n;
 
 public:
   Material() :
-    wpn(PopCount(g_board->white[0])),
-    wnn(PopCount(g_board->white[1])),
-    wbn(PopCount(g_board->white[2])),
-    wrn(PopCount(g_board->white[3])),
-    wqn(PopCount(g_board->white[4])),
-    bpn(PopCount(g_board->black[0])),
-    bnn(PopCount(g_board->black[1])),
-    bbn(PopCount(g_board->black[2])),
-    brn(PopCount(g_board->black[3])),
-    bqn(PopCount(g_board->black[4])),
-    white_n(wpn + wnn + wbn + wrn + wqn + 1),
-    black_n(bpn + bnn + bbn + brn + bqn + 1),
+    white_n(PopCount(White())),
+    black_n(PopCount(Black())),
     both_n(white_n + black_n) {}
 
-  // KRRvKR / KRvKRR / KRRRvK ? / KvKRRR ?
-  bool is_5men() const {
-    return both_n == 5 && wrn + brn == 3;
+  // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
+  bool is_rook_ending() const {
+    return both_n == 5 && PopCount(g_board->white[3] | g_board->black[3]) == 3;
   }
 
-  // Vs king + ( PNBRQ ) ?
+  // Vs king + (PNBRQ) ?
   bool is_easy() const {
-    return g_wtm ? black_n == 2 : white_n == 2;
-  }
-
-  // Vs naked king
-  bool is_naked_king() const {
-    return g_wtm ? black_n == 1 : white_n == 1;
+    return g_wtm ? black_n <= 2 : white_n <= 2;
   }
 
   // 7 pieces or less both side -> Endgame
@@ -2219,13 +2217,9 @@ public:
 };
 
 void Activation(const Material &m) {
-  if ( (!g_nnue_exist) // No NNUE -> Classical eval
-      || m.is_easy()
-      || m.is_5men())
+  // No NNUE or Easy or Rook ending -> Classical eval
+  if ((!g_nnue_exist) || m.is_easy() || m.is_rook_ending())
     g_classical = true;
-
-  if (m.is_naked_king())
-    g_classical = g_nullmove_active = true;
 }
 
 void ThinkReset(const int ms) {
@@ -2243,6 +2237,7 @@ bool ThinkRandomMove() {
   return true;
 }
 
+// Play the book move from root list
 bool FindBookMove(const int from, const int to, const int type) {
   for (auto i = 0; i < g_root_n; i++)
     if (g_root[i].from == from && g_root[i].to == to) {
@@ -2299,8 +2294,8 @@ void SearchRootMoves(const bool is_eg) {
   for (; (std::abs(g_best_score) != kInf) && (g_depth < g_max_depth) && (!g_stop_search); g_depth++) {
     g_best_score = best();
 
-    // Switch to classical only when the game is decided (4+ pawns) !
-    if (!g_classical && is_eg && std::abs(g_best_score) > (4 * 4 * 100) && ++good >= 7)
+    // Switch to classical only when the game is decided ( 4+ pawns ) !
+    if (!g_classical && is_eg && std::abs(g_best_score) > (4 * 100) && ++good >= 7)
       g_classical = true;
 
     Speak(g_best_score, Now() - start);
@@ -2325,7 +2320,7 @@ void Think(const int ms) {
   EvalRootMoves();
   SortAll();
 
-  g_underpromos = false;
+  g_underpromos = false; // Underpromos are (almost) useless
   SearchRootMoves(m.is_endgame());
   g_underpromos = true;
 
@@ -2616,15 +2611,8 @@ void InitLMR() {
 }
 
 [[maybe_unused]] void Debug(const std::string &fen) {
-  std::cout << "sizeof(Hash_t): " << sizeof(Hash_t) << "\n\n" << std::endl;
-
   Fen(fen);
-  MgenRoot();
-  EvalRootMoves();
-  SortAll();
-  for (auto i = 0; i < g_root_n; i++)
-    std::cout << i << ": " << MoveName(g_root + i) << " : " << g_root[i].score << std::endl;
-
+  Think(10000);
   std::exit(EXIT_SUCCESS);
 }
 
