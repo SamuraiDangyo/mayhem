@@ -55,7 +55,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 4.0",
+  kVersion  = "Mayhem 4.01",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::vector<std::string>
@@ -331,7 +331,7 @@ float
   g_scale[128] = {};
 
 std::string
-  g_eval_file = "nn-0e698aa9eb8b.nnue",
+  g_eval_file = "nn-cb80fb9393af.nnue",
   g_book_file = "performance.bin";
 
 // Prototypes
@@ -2345,7 +2345,7 @@ void Think(const int ms) {
   SortAll();
 
   // Underpromos are almost useless for gameplay
-  // Disable if you need full" analysis
+  // Disable if you need "full" analysis
   g_underpromos = false; 
   SearchRootMoves(m.is_endgame());
   g_underpromos = true;
