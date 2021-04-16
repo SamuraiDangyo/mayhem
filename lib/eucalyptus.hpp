@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <iostream>
+#include <cstdint>
 
 namespace eucalyptus {
   constexpr std::uint64_t kKpk[2 * 24 * 64] = {

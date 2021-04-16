@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <iostream>
+#include <cstdint>
 
 namespace poseidon {
   constexpr std::uint32_t kEntries = 58545;
