@@ -55,7 +55,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 3.9",
+  kVersion  = "Mayhem 4.0",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::vector<std::string>
@@ -87,7 +87,7 @@ const std::vector<std::string>
 
 constexpr int
   kMaxMoves          = 218,
-  kMaxDepth          = 55,
+  kMaxDepth          = 60,
   kInf               = 1048576,
   kKingVectors[16]   = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1},
   kKnightVectors[16] = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2},
@@ -331,7 +331,7 @@ float
   g_scale[128] = {};
 
 std::string
-  g_eval_file = "nn-62ef826d1a6d.nnue",
+  g_eval_file = "nn-0e698aa9eb8b.nnue",
   g_book_file = "performance.bin";
 
 // Prototypes
@@ -532,15 +532,14 @@ void SetupHashtable() {
 // Hash
 
 inline std::uint64_t Hash(const bool wtm) {
-  auto h = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[int(wtm)] ^ g_zobrist_castle[g_board->castle],
-       b = Both();
+  auto hash = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[int(wtm)] ^ g_zobrist_castle[g_board->castle];
 
-  for (; b; b = ClearBit(b)) {
-    const auto sq = Ctz(b);
-    h ^= g_zobrist_board[g_board->pieces[sq] + 6][sq];
+  for (auto both = Both(); both; both = ClearBit(both)) {
+    const auto sq = Ctz(both);
+    hash         ^= g_zobrist_board[g_board->pieces[sq] + 6][sq];
   }
 
-  return h;
+  return hash;
 }
 
 // Tokenizer
@@ -771,7 +770,7 @@ void FenReset() {
 
   for (const auto i : {0, 1})  g_castle_w[i] = g_castle_empty_w[i] = g_castle_b[i] = g_castle_empty_b[i] = 0x0ULL;
   for (const auto i : {0, 1})  g_rook_w[i] = g_rook_b[i] = 0;
-  for (auto i = 0; i < 6; i++) g_board->white[i] = g_board->black[i] = 0;
+  for (auto i = 0; i < 6; i++) g_board->white[i] = g_board->black[i] = 0x0ULL;
 }
 
 // 1 king per side and 32 <= pieces and Not under checks
@@ -1536,326 +1535,347 @@ bool EasyDraw(const bool wtm) {
   return pawns_n == 1 ? ProbeKPK(wtm) : pawns_n == 0;
 }
 
-// Classical evaluation. To finish the game mainly or no NNUE
+// Classical evaluation. To finish the game or no NNUE
 class ClassicalEval {
-private:
-  const std::uint64_t white, black, both;
-  int white_n, black_n, both_n, wk, bk, wpn, wnn, wbn, wrn, wqn,
-      bpn, bnn, bbn, brn, bqn, score, mg, eg, scale_factor;
+  private:
+    const std::uint64_t white, black, both;
+    const bool wtm;
+    int white_n, black_n, both_n, wk, bk, wpn, wnn, wbn, wrn, wqn,
+        bpn, bnn, bbn, brn, bqn, score, mg, eg, scale_factor;
 
-  int pow2(const int x) const {
-    return x * x;
-  }
-
-  int flip_y(const int sq) const {
-    return sq ^ 56;
-  }
-
-  int closer_bonus(const int sq1, const int sq2) const {
-    return pow2(7 - std::abs(Xcoord(sq1) - Xcoord(sq2))) + pow2(7 - std::abs(Ycoord(sq1) - Ycoord(sq2)));
-  }
-
-  int any_corner_bonus(const int sq) const {
-    return std::max({closer_bonus(sq, 0), closer_bonus(sq, 7), closer_bonus(sq, 56), closer_bonus(sq, 63)});
-  }
-
-  inline void add(const int v1, const int v2) {
-    mg += v1;
-    eg += v2;
-  }
-
-  inline void add(const int a, const int b, const int k) {
-    add(a * k, b * k);
-  }
-
-  void pesto_w(const int p, const int sq) {
-    add(+kPesto[p][0][sq], +kPesto[p][1][sq]);
-  }
-
-  void pesto_b(const int p, const int sq) {
-    add(-kPesto[p][0][flip_y(sq)], -kPesto[p][1][flip_y(sq)]);
-  }
-
-  void mobility_w(const int k, const std::uint64_t m) {
-    score += k * PopCount(m);
-  }
-
-  void mobility_b(const int k, const std::uint64_t m) {
-    score -= k * PopCount(m);
-  }
-
-  void pawn_w(const int sq) {
-    wpn++;
-    pesto_w(0, sq);
-  }
-
-  void pawn_b(const int sq) {
-    bpn++;
-    pesto_b(0, sq);
-  }
-
-  void knight_w(const int sq) {
-    wnn++;
-    pesto_w(1, sq);
-    mobility_w(2, g_knight_moves[sq] & (~white));
-  }
-
-  void knight_b(const int sq) {
-    bnn++;
-    pesto_b(1, sq);
-    mobility_b(2, g_knight_moves[sq] & (~black));
-  }
-
-  void bishop_w(const int sq) {
-    wbn++;
-    pesto_w(2, sq);
-    mobility_w(3, BishopMagicMoves(sq, both) & (~white));
-  }
-
-  void bishop_b(const int sq) {
-    bbn++;
-    pesto_b(2, sq);
-    mobility_b(3, BishopMagicMoves(sq, both) & (~black));
-  }
-
-  void rook_w(const int sq) {
-    wrn++;
-    pesto_w(3, sq);
-    mobility_w(3, RookMagicMoves(sq, both) & (~white));
-  }
-
-  void rook_b(const int sq) {
-    brn++;
-    pesto_b(3, sq);
-    mobility_b(3, RookMagicMoves(sq, both) & (~black));
-  }
-
-  void queen_w(const int sq) {
-    wqn++;
-    pesto_w(4, sq);
-    mobility_w(2, (BishopMagicMoves(sq, both) | RookMagicMoves(sq, both)) & (~white));
-  }
-
-  void queen_b(const int sq) {
-    bqn++;
-    pesto_b(4, sq);
-    mobility_b(2, (BishopMagicMoves(sq, both) | RookMagicMoves(sq, both)) & (~black));
-  }
-
-  void king_w(const int sq) {
-    wk = sq;
-    pesto_w(5, sq);
-    mobility_w(1, g_king_moves[sq] & (~white));
-  }
-
-  void king_b(const int sq) {
-    bk = sq;
-    pesto_b(5, sq);
-    mobility_b(1, g_king_moves[sq] & (~black));
-  }
-
-  void eval_piece(const int sq) {
-    switch (g_board->pieces[sq]) {
-      case +1: pawn_w(sq);   break;
-      case +2: knight_w(sq); break;
-      case +3: bishop_w(sq); break;
-      case +4: rook_w(sq);   break;
-      case +5: queen_w(sq);  break;
-      case +6: king_w(sq);   break;
-      case -1: pawn_b(sq);   break;
-      case -2: knight_b(sq); break;
-      case -3: bishop_b(sq); break;
-      case -4: rook_b(sq);   break;
-      case -5: queen_b(sq);  break;
-      case -6: king_b(sq);   break;
+    int pow2(const int x) const {
+      return x * x;
     }
-  }
 
-  void evaluate_pieces() {
-    for (auto b = both; b; b = ClearBit(b))
-      eval_piece(Ctz(b));
-
-    white_n = wpn + wnn + wbn + wrn + wqn + 1;
-    black_n = bpn + bnn + bbn + brn + bqn + 1;
-    both_n  = white_n + black_n;
-  }
-
-  void bonus_knbk_w() {
-    score += 2 * closer_bonus(wk, bk);
-    score += (g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? 10 * std::max(closer_bonus(0, bk), closer_bonus(63, bk))
-                                                         : 10 * std::max(closer_bonus(7, bk), closer_bonus(56, bk));
-  }
-
-  void bonus_knbk_b() {
-    score -= 2 * closer_bonus(wk, bk);
-    score -= (g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? 10 * std::max(closer_bonus(0, wk), closer_bonus(63, wk))
-                                                         : 10 * std::max(closer_bonus(7, wk), closer_bonus(56, wk));
-  }
-
-  void bonus_tempo(const bool wtm) {
-    score += wtm ? +kTempo : -kTempo;
-  }
-
-  // Force black king in the corner and get closer
-  void bonus_mating_w() {
-    score += 6 * any_corner_bonus(bk) + 4 * closer_bonus(wk, bk);
-  }
-
-  void bonus_mating_b() {
-    score -= 6 * any_corner_bonus(wk) + 4 * closer_bonus(wk, bk);
-  }
-
-  void bonus_checks() {
-    if (     ChecksW()) score += kChecks;
-    else if (ChecksB()) score -= kChecks;
-  }
-
-  void bonus_bishop_pair() {
-    if (wbn >= 2) score += kBishopPair;
-    if (bbn >= 2) score -= kBishopPair;
-  }
-
-  void bonus_special_4men() {
-    // KQvK(RNB)
-    if (wqn && (brn || bnn || bbn)) {
-      bonus_mating_w();
-    // KRvK(NB) -> Drawish
-    } else if (wrn && (bnn || bbn)) {
-      scale_factor = 4;
-      bonus_mating_w();
-    // K(RNB)vKQ
-    } else if (bqn && (wrn || wnn || wbn)) {
-      bonus_mating_b();
-    // K(NB)vKR -> Drawish
-    } else if (brn && (wnn || wbn)) {
-      scale_factor = 4;
-      bonus_mating_b();
+    int flip_y(const int sq) const {
+      return sq ^ 56;
     }
-  }
 
-  void bonus_special_5men() {
-    // KRRvKR / KR(NB)vK(NB)
-    if (     (wrn == 2 && brn) || (wrn && (wbn || wnn) && (bbn || bnn))) bonus_mating_w();
-    // KRvKRR / K(NB)vKR(NB)
-    else if ((brn == 2 && wrn) || (brn && (bbn || bnn) && (wbn || wnn))) bonus_mating_b();
-  }
-
-  // Blind KBPvK ( Not perfect, just a hint ) -> Drawish ?
-  void check_blind_bishop_w() {
-    if (white_n == 3 && wbn && wpn) {
-      const auto wpx   = Xcoord(Ctz(g_board->white[0]));
-      const auto color = g_board->white[2] & 0x55aa55aa55aa55aaULL;
-      if ((color && wpx == 7) || (!color && wpx == 0))
-        scale_factor = 2;
+    int closer_bonus(const int sq1, const int sq2) const {
+      return pow2(7 - std::abs(Xcoord(sq1) - Xcoord(sq2))) + pow2(7 - std::abs(Ycoord(sq1) - Ycoord(sq2)));
     }
-  }
 
-  void check_blind_bishop_b() {
-    if (black_n == 3 && bbn && bpn) {
-      const auto bpx   = Xcoord(Ctz(g_board->black[0]));
-      const auto color = g_board->black[2] & 0x55aa55aa55aa55aaULL;
-      if ((!color && bpx == 7) || (color && bpx == 0))
-        scale_factor = 2;
+    int any_corner_bonus(const int sq) const {
+      return std::max({this->closer_bonus(sq, 0),  this->closer_bonus(sq, 7), 
+                       this->closer_bonus(sq, 56), this->closer_bonus(sq, 63)});
     }
-  }
 
-  void white_is_mating() {
-    if (white_n == 3 && wnn && wbn) {
-      bonus_knbk_w();
-    } else {
-      bonus_mating_w();
-      check_blind_bishop_w();
+    inline void add(const int a, const int b) {
+      this->mg += a;
+      this->eg += b;
     }
-  }
 
-  void black_is_mating() {
-    if (black_n == 3 && bnn && bbn) {
-      bonus_knbk_b();
-    } else {
-      bonus_mating_b();
-      check_blind_bishop_b();
+    inline void add(const int a, const int b, const int k) {
+      this->add(a * k, b * k);
     }
-  }
 
-  // Special EG functions. To avoid always doing "Tabula rasa"
-  void bonus_special() {
-    if (     black_n == 1) white_is_mating();
-    else if (white_n == 1) black_is_mating();
-    else if (both_n  == 4) bonus_special_4men();
-    else if (both_n  == 5) bonus_special_5men();
-  }
+    void pesto_w(const int p, const int sq) {
+      this->add(+kPesto[p][0][sq], +kPesto[p][1][sq]);
+    }
 
-  int calculate_score() {
-    const auto n = Between<int>(2, both_n, 32);
-    const auto s = (n * mg + (32 - n) * eg) / 32;
-    return (score + s) / scale_factor;
-  }
+    void pesto_b(const int p, const int sq) {
+      this->add(-kPesto[p][0][this->flip_y(sq)], -kPesto[p][1][this->flip_y(sq)]);
+    }
 
-public:
-  ClassicalEval() :
-    white(White()), black(Black()), both(white | black),
-    white_n(0), black_n(0), both_n(0), wk(0), bk(0), wpn(0), wnn(0), wbn(0), wrn(0), wqn(0),
-    bpn(0), bnn(0), bbn(0), brn(0), bqn(0), score(0), mg(0), eg(0), scale_factor(1) {}
+    void mobility_w(const int k, const std::uint64_t m) {
+      this->score += k * PopCount(m);
+    }
 
-  int evaluate(const bool wtm) {
-    evaluate_pieces();
-    bonus_tempo(wtm);
-    bonus_checks();
-    bonus_bishop_pair();
-    bonus_special();
-    return calculate_score();
-  }
+    void mobility_b(const int k, const std::uint64_t m) {
+      this->score -= k * PopCount(m);
+    }
+
+    void pawn_w(const int sq) {
+      this->wpn++;
+      this->pesto_w(0, sq);
+    }
+
+    void pawn_b(const int sq) {
+      this->bpn++;
+      this->pesto_b(0, sq);
+    }
+
+    void knight_w(const int sq) {
+      this->wnn++;
+      this->pesto_w(1, sq);
+      this->mobility_w(2, g_knight_moves[sq] & (~this->white));
+    }
+
+    void knight_b(const int sq) {
+      this->bnn++;
+      this->pesto_b(1, sq);
+      this->mobility_b(2, g_knight_moves[sq] & (~this->black));
+    }
+
+    void bishop_w(const int sq) {
+      this->wbn++;
+      this->pesto_w(2, sq);
+      this->mobility_w(3, BishopMagicMoves(sq, this->both) & (~this->white));
+    }
+
+    void bishop_b(const int sq) {
+      this->bbn++;
+      this->pesto_b(2, sq);
+      this->mobility_b(3, BishopMagicMoves(sq, this->both) & (~this->black));
+    }
+
+    void rook_w(const int sq) {
+      this->wrn++;
+      this->pesto_w(3, sq);
+      this->mobility_w(3, RookMagicMoves(sq, this->both) & (~this->white));
+    }
+
+    void rook_b(const int sq) {
+      this->brn++;
+      this->pesto_b(3, sq);
+      this->mobility_b(3, RookMagicMoves(sq, this->both) & (~this->black));
+    }
+
+    void queen_w(const int sq) {
+      this->wqn++;
+      this->pesto_w(4, sq);
+      this->mobility_w(2, (BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) & (~this->white));
+    }
+
+    void queen_b(const int sq) {
+      this->bqn++;
+      this->pesto_b(4, sq);
+      this->mobility_b(2, (BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) & (~this->black));
+    }
+
+    void king_w(const int sq) {
+      this->wk = sq;
+      this->pesto_w(5, sq);
+      this->mobility_w(1, g_king_moves[sq] & (~this->white));
+    }
+
+    void king_b(const int sq) {
+      this->bk = sq;
+      this->pesto_b(5, sq);
+      this->mobility_b(1, g_king_moves[sq] & (~this->black));
+    }
+
+    void eval_piece(const int sq) {
+      switch (g_board->pieces[sq]) {
+        case +1: this->pawn_w(sq);   break;
+        case +2: this->knight_w(sq); break;
+        case +3: this->bishop_w(sq); break;
+        case +4: this->rook_w(sq);   break;
+        case +5: this->queen_w(sq);  break;
+        case +6: this->king_w(sq);   break;
+        case -1: this->pawn_b(sq);   break;
+        case -2: this->knight_b(sq); break;
+        case -3: this->bishop_b(sq); break;
+        case -4: this->rook_b(sq);   break;
+        case -5: this->queen_b(sq);  break;
+        case -6: this->king_b(sq);   break;
+      }
+    }
+
+    void evaluate_pieces() {
+      for (auto b = this->both; b; b = ClearBit(b))
+        this->eval_piece(Ctz(b));
+
+      this->white_n = this->wpn + this->wnn + this->wbn + this->wrn + this->wqn + 1;
+      this->black_n = this->bpn + this->bnn + this->bbn + this->brn + this->bqn + 1;
+      this->both_n  = this->white_n + this->black_n;
+    }
+
+    void bonus_knbk_w() {
+      this->score += 2 * this->closer_bonus(this->wk, this->bk);
+      this->score += (g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? 
+                       10 * std::max(this->closer_bonus(0, this->bk), this->closer_bonus(63, this->bk))
+                     : 10 * std::max(this->closer_bonus(7, this->bk), this->closer_bonus(56, this->bk));
+    }
+
+    void bonus_knbk_b() {
+      this->score -= 2 * this->closer_bonus(this->wk, this->bk);
+      this->score -= (g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? 
+                       10 * std::max(this->closer_bonus(0, this->wk), this->closer_bonus(63, this->wk))
+                     : 10 * std::max(this->closer_bonus(7, this->wk), this->closer_bonus(56, this->wk));
+    }
+
+    void bonus_tempo() {
+      this->score += this->wtm ? +kTempo : -kTempo;
+    }
+
+    // Force black king in the corner and get closer
+    void bonus_mating_w() {
+      this->score += 6 * this->any_corner_bonus(this->bk) + 4 * this->closer_bonus(this->wk, this->bk);
+    }
+
+    void bonus_mating_b() {
+      this->score -= 6 * this->any_corner_bonus(this->wk) + 4 * this->closer_bonus(this->wk, this->bk);
+    }
+
+    void bonus_checks() {
+      if (     ChecksW()) this->score += kChecks;
+      else if (ChecksB()) this->score -= kChecks;
+    }
+
+    void bonus_bishop_pair() {
+      if (this->wbn >= 2) this->score += kBishopPair;
+      if (this->bbn >= 2) this->score -= kBishopPair;
+    }
+
+    void bonus_special_4men() {
+      // KQvK(RNB)
+      if (this->wqn && (this->brn || this->bnn || this->bbn)) {
+        this->bonus_mating_w();
+      // KRvK(NB) -> Drawish
+      } else if (this->wrn && (this->bnn || this->bbn)) {
+        this->scale_factor = 4;
+        this->bonus_mating_w();
+      // K(RNB)vKQ
+      } else if (this->bqn && (this->wrn || this->wnn || this->wbn)) {
+        this->bonus_mating_b();
+      // K(NB)vKR -> Drawish
+      } else if (this->brn && (this->wnn || this->wbn)) {
+        this->scale_factor = 4;
+        this->bonus_mating_b();
+      }
+    }
+
+    void bonus_special_5men() {
+      // KRRvKR / KR(NB)vK(NB)
+      if (     (this->wrn == 2 && this->brn) || (this->wrn && (this->wbn || this->wnn) && (this->bbn || this->bnn))) 
+        this->bonus_mating_w();
+      // KRvKRR / K(NB)vKR(NB)
+      else if ((this->brn == 2 && this->wrn) || (this->brn && (this->bbn || this->bnn) && (this->wbn || this->wnn))) 
+        this->bonus_mating_b();
+    }
+
+    // Blind KBPvK ( Not perfect, just a hint ) -> Drawish ?
+    void check_blind_bishop_w() {
+      if (this->white_n == 3 && this->wbn && this->wpn) {
+        const auto wpx   = Xcoord(Ctz(g_board->white[0]));
+        const auto color = g_board->white[2] & 0x55aa55aa55aa55aaULL;
+        if ((color && wpx == 7) || (!color && wpx == 0))
+          this->scale_factor = 2;
+      }
+    }
+
+    void check_blind_bishop_b() {
+      if (this->black_n == 3 && this->bbn && this->bpn) {
+        const auto bpx   = Xcoord(Ctz(g_board->black[0]));
+        const auto color = g_board->black[2] & 0x55aa55aa55aa55aaULL;
+        if ((!color && bpx == 7) || (color && bpx == 0))
+          this->scale_factor = 2;
+      }
+    }
+
+    void white_is_mating() {
+      if (this->white_n == 3 && this->wnn && this->wbn) {
+        this->bonus_knbk_w();
+      } else {
+        this->bonus_mating_w();
+        this->check_blind_bishop_w();
+      }
+    }
+
+    void black_is_mating() {
+      if (this->black_n == 3 && this->bnn && this->bbn) {
+        this->bonus_knbk_b();
+      } else {
+        this->bonus_mating_b();
+        this->check_blind_bishop_b();
+      }
+    }
+
+    // Special EG functions. To avoid always doing "Tabula rasa"
+    void bonus_special() {
+      if (     this->black_n == 1) this->white_is_mating();
+      else if (this->white_n == 1) this->black_is_mating();
+      else if (this->both_n  == 4) this->bonus_special_4men();
+      else if (this->both_n  == 5) this->bonus_special_5men();
+    }
+
+    int calculate_score() {
+      const auto n = Between<int>(2, this->both_n, 32);
+      const auto s = (n * this->mg + (32 - n) * this->eg) / 32;
+      return (this->score + s) / this->scale_factor;
+    }
+
+  public:
+    ClassicalEval(const bool wtm2) :
+      white(White()), black(Black()), both(this->white | this->black), wtm(wtm2),
+      white_n(0), black_n(0), both_n(0), wk(0), bk(0), wpn(0), wnn(0), wbn(0), wrn(0), wqn(0),
+      bpn(0), bnn(0), bbn(0), brn(0), bqn(0), score(0), mg(0), eg(0), scale_factor(1) {}
+
+    int evaluate() {
+      this->evaluate_pieces();
+      this->bonus_tempo();
+      this->bonus_checks();
+      this->bonus_bishop_pair();
+      this->bonus_special();
+      return this->calculate_score();
+    }
+};
+
+class NnueEval {
+  private:
+    const bool wtm;
+
+    int probe() {
+      int pieces[33], squares[33], i = 2;
+
+      for (auto both = Both(); both; both = ClearBit(both)) {
+        const auto sq = Ctz(both);
+        switch (g_board->pieces[sq]) {
+          case +1: case +2: case +3: case +4: case +5:
+            pieces[i]    = 7 - g_board->pieces[sq];
+            squares[i++] = sq;
+            break;
+          case -1: case -2: case -3: case -4: case -5:
+            pieces[i]    = 13 + g_board->pieces[sq];
+            squares[i++] = sq;
+            break;
+          case +6:
+            pieces[0]  = 1;
+            squares[0] = sq;
+            break;
+          case -6:
+            pieces[1]  = 7;
+            squares[1] = sq;
+            break;
+        }
+      }
+
+      pieces[i] = squares[i] = 0;
+
+      return this->wtm ? +(nnue::nnue_evaluate(0, pieces, squares) + kTempo)
+                       : -(nnue::nnue_evaluate(1, pieces, squares) + kTempo);
+    }
+
+  public:
+    NnueEval(const bool wtm2) : wtm(wtm2) {}
+
+    int evaluate() {
+      const auto hash = Hash(wtm);
+      auto *entry     = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
+      if (entry->eval_hash == hash) return entry->score;
+      entry->eval_hash = hash;
+      return entry->score = probe();
+    }
 };
 
 int EvaluateClassical(const bool wtm) {
-  ClassicalEval e;
-  return e.evaluate(wtm);
-}
-
-int ProbeNNUE(const bool wtm) {
-  int pieces[33], squares[33], i = 2;
-
-  for (auto both = Both(); both; both = ClearBit(both)) {
-    const auto sq = Ctz(both);
-    switch (g_board->pieces[sq]) {
-      case +1: case +2: case +3: case +4: case +5:
-        pieces[i]    = 7 - g_board->pieces[sq];
-        squares[i++] = sq;
-        break;
-      case -1: case -2: case -3: case -4: case -5:
-        pieces[i]    = 13 + g_board->pieces[sq];
-        squares[i++] = sq;
-        break;
-      case +6:
-        pieces[0]  = 1;
-        squares[0] = sq;
-        break;
-      case -6:
-        pieces[1]  = 7;
-        squares[1] = sq;
-        break;
-    }
-  }
-
-  pieces[i] = squares[i] = 0;
-
-  return wtm ? +(nnue::nnue_evaluate(0, pieces, squares) + kTempo)
-             : -(nnue::nnue_evaluate(1, pieces, squares) + kTempo);
+  ClassicalEval e(wtm);
+  return e.evaluate();
 }
 
 int EvaluateNNUE(const bool wtm) {
-  const auto hash = Hash(wtm);
-  auto *entry     = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
+  NnueEval e(wtm);
+  return e.evaluate() / 4;
+}
 
-  if (entry->eval_hash == hash) return entry->score;
-
-  entry->eval_hash = hash;
-  return entry->score = ProbeNNUE(wtm);
+int FullEvaluate(const bool wtm) {
+  return g_scale[g_board->rule50] * static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm));
 }
 
 int Evaluate(const bool wtm) {
-  if (EasyDraw(wtm)) return 0;
-  return g_scale[g_board->rule50] * static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm) / 4);
+  return EasyDraw(wtm) ? 0
+                       : FullEvaluate(wtm);
 }
 
 // Search
@@ -1966,7 +1986,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   if (moves_n == 1 || (depth == 1 && checks)) depth++;
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  auto *entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
+  auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
   SortByScore(entry, hash);
 
   for (auto i = 0; i < moves_n; i++) {
@@ -2002,7 +2022,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   if (moves_n == 1 || (depth == 1 && checks)) depth++;
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  auto *entry = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
+  auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
   SortByScore(entry, hash);
 
   for (auto i = 0; i < moves_n; i++) {
@@ -2130,7 +2150,9 @@ int SearchB(const int alpha, int beta, const int depth, const int ply) {
 
 // Root search
 int BestW() {
-  auto score = 0, best_i = 0, alpha = -kInf;
+  auto score  = 0;
+  auto best_i = 0;
+  auto alpha  = -kInf;
 
   for (auto i = 0; i < g_root_n; i++) {
     g_board = g_root + i;
@@ -2161,7 +2183,9 @@ int BestW() {
 }
 
 int BestB() {
-  auto score = 0, best_i = 0, beta = +kInf;
+  auto score  = 0;
+  auto best_i = 0;
+  auto beta   = +kInf;
 
   for (auto i = 0; i < g_root_n; i++) {
     g_board = g_root + i;
@@ -2191,29 +2215,29 @@ int BestB() {
 
 // Material detection for classical activation
 class Material {
-private:
-  const int white_n, black_n, both_n;
+  private:
+    const int white_n, black_n, both_n;
 
-public:
-  Material() :
-    white_n(PopCount(White())),
-    black_n(PopCount(Black())),
-    both_n(white_n + black_n) {}
+  public:
+    Material() :
+      white_n(PopCount(White())),
+      black_n(PopCount(Black())),
+      both_n(this->white_n + this->black_n) {}
 
-  // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
-  bool is_rook_ending() const {
-    return both_n == 5 && PopCount(g_board->white[3] | g_board->black[3]) == 3;
-  }
+    // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
+    bool is_rook_ending() const {
+      return this->both_n == 5 && PopCount(g_board->white[3] | g_board->black[3]) == 3;
+    }
 
-  // Vs king + (PNBRQ) ?
-  bool is_easy() const {
-    return g_wtm ? black_n <= 2 : white_n <= 2;
-  }
+    // Vs king + (PNBRQ) ?
+    bool is_easy() const {
+      return g_wtm ? this->black_n <= 2 : this->white_n <= 2;
+    }
 
-  // 7 pieces or less both side -> Endgame
-  bool is_endgame() const {
-    return g_wtm ? black_n <= 7 : white_n <= 7;
-  }
+    // 7 pieces or less both side -> Endgame
+    bool is_endgame() const {
+      return g_wtm ? this->black_n <= 7 : this->white_n <= 7;
+    }
 };
 
 void Activation(const Material &m) {
@@ -2256,8 +2280,8 @@ bool ProbeBook() {
 
   if (!move) return false;
 
-  const auto from = 8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7),
-             to   = 8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7);
+  const auto from = 8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7);
+  const auto to   = 8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7);
 
   auto type = 0;
   for (const auto i : {0, 1, 2, 3}) // Promos
@@ -2320,7 +2344,9 @@ void Think(const int ms) {
   EvalRootMoves();
   SortAll();
 
-  g_underpromos = false; // Underpromos are (almost) useless
+  // Underpromos are almost useless for gameplay
+  // Disable if you need full" analysis
+  g_underpromos = false; 
   SearchRootMoves(m.is_endgame());
   g_underpromos = true;
 
@@ -2501,11 +2527,13 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
 
 std::uint64_t MakeSliderMagicMoves(const int *slider_vectors, const int sq, const std::uint64_t moves) {
   std::uint64_t possible_moves = 0x0ULL;
-  const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
+  const auto x_pos = Xcoord(sq);
+  const auto y_pos = Ycoord(sq);
 
   for (auto i = 0; i < 4; i++)
     for (auto j = 1; j < 8; j++) {
-      const auto x = x_pos + j * slider_vectors[2 * i], y = y_pos + j * slider_vectors[2 * i + 1];
+      const auto x = x_pos + j * slider_vectors[2 * i];
+      const auto y = y_pos + j * slider_vectors[2 * i + 1];
       if (!OnBoard(x, y)) break;
       const auto tmp  = Bit(8 * y + x);
       possible_moves |= tmp;
@@ -2537,13 +2565,16 @@ void InitRookMagics() {
 
 std::uint64_t MakeSliderMoves(const int sq, const int *slider_vectors) {
   std::uint64_t moves = 0x0ULL;
-  const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
+  const auto x_pos    = Xcoord(sq);
+  const auto y_pos    = Ycoord(sq);
 
   for (auto i = 0; i < 4; i++) {
-    const auto dx = slider_vectors[2 * i], dy = slider_vectors[2 * i + 1];
+    const auto dx     = slider_vectors[2 * i];
+    const auto dy     = slider_vectors[2 * i + 1];
     std::uint64_t tmp = 0x0ULL;
     for (auto j = 1; j < 8; j++) {
-      const auto x = x_pos + j * dx, y = y_pos + j * dy;
+      const auto x = x_pos + j * dx;
+      const auto y = y_pos + j * dy;
       if (!OnBoard(x, y)) break;
       tmp |= Bit(8 * y + x);
     }
@@ -2563,10 +2594,12 @@ void InitSliderMoves() {
 
 std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int *jump_vectors) {
   std::uint64_t moves = 0x0ULL;
-  const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
+  const auto x_pos    = Xcoord(sq);
+  const auto y_pos    = Ycoord(sq);
 
   for (auto i = 0; i < len; i++) {
-    const auto x = x_pos + jump_vectors[2 * i], y = y_pos + dy * jump_vectors[2 * i + 1];
+    const auto x = x_pos + jump_vectors[2 * i];
+    const auto y = y_pos + dy * jump_vectors[2 * i + 1];
     if (OnBoard(x, y)) moves |= Bit(8 * y + x);
   }
 

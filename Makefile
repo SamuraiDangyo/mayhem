@@ -3,24 +3,25 @@
 # Copyright (C) 2020-2021 Toni Helminen <GPLv3>
 #
 
-# 
+#
 # Definitions
 #
 
 CXX      = clang++
 EXE      = mayhem
-FILES    = main.cpp lib/nnue.cpp lib/polyglotbook.cpp
+FILES    = lib/polyglotbook.cpp lib/nnue.cpp main.cpp
 
-# For Windows add: -DWINDOWS 
+# For Windows add: -DWINDOWS
+# No avx2? Use: -DUSE_SSE -msse
 
-BFLAGS   = -std=c++17 -O3 -flto -march=native -mpopcnt 
+BFLAGS   = -std=c++17 -O3 -flto -lm -march=native -mpopcnt
 WFLAGS   = -Wall -Wextra -pedantic -DNDEBUG
 NFLAGS   = -DUSE_AVX2 -mavx2
 CXXFLAGS = $(BFLAGS) $(WFLAGS) $(NFLAGS)
 
 #
 # Targets
-# 
+#
 
 all:
 	$(CXX) $(CXXFLAGS) -o $(EXE) $(FILES)

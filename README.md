@@ -15,6 +15,6 @@ If not then you need to play w/ *compiler flags*.
 Default settings are the best.
 If needed increase _Hash / MoveOverhead_ in longer games.
 
-Credits: SF ( EvalFile + PolyGlot ) and Dr. Shawul ( NNUE lib ).
+Credits: SF ( PolyGlot ) and Dr. Shawul ( NNUE lib ).
 
 Happy hacking!
