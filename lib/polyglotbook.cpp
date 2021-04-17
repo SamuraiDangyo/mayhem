@@ -42,8 +42,8 @@ PolyglotBook::PolyglotBook() :
 
 PolyglotBook::~PolyglotBook() {
 
-  if (is_open())
-    close();
+  if (this->is_open())
+    this->close();
 
 }
 
@@ -88,9 +88,10 @@ std::uint64_t PolyglotBook::polyglot_key() {
   //
   // Board
   //
-  for (auto both = polyboard.both; both; both = clear_bit(both)) {
-    const auto sq = ctz(both);
-    switch (polyboard.pieces[sq]) {
+  for (auto both = this->polyboard.both; both; both = this->clear_bit(both)) {
+    const auto sq = this->ctz(both);
+
+    switch (this->polyboard.pieces[sq]) {
       case -1: key ^= kZobrist.PG.psq[0][sq];  break;
       case +1: key ^= kZobrist.PG.psq[1][sq];  break;
       case -2: key ^= kZobrist.PG.psq[2][sq];  break;
@@ -109,20 +110,20 @@ std::uint64_t PolyglotBook::polyglot_key() {
   //
   // Castling rights
   //
-  if (polyboard.castling & 0x1) key ^= kZobrist.PG.castling[0];
-  if (polyboard.castling & 0x2) key ^= kZobrist.PG.castling[1];
-  if (polyboard.castling & 0x4) key ^= kZobrist.PG.castling[2];
-  if (polyboard.castling & 0x8) key ^= kZobrist.PG.castling[3];
+  if (this->polyboard.castling & 0x1) key ^= kZobrist.PG.castling[0];
+  if (this->polyboard.castling & 0x2) key ^= kZobrist.PG.castling[1];
+  if (this->polyboard.castling & 0x4) key ^= kZobrist.PG.castling[2];
+  if (this->polyboard.castling & 0x8) key ^= kZobrist.PG.castling[3];
 
   //
   // En passant
   //
-  if (is_ep_legal()) key ^= kZobrist.PG.enpassant[polyboard.epsq % 8];
+  if (this->is_ep_legal()) key ^= kZobrist.PG.enpassant[this->polyboard.epsq % 8];
 
   //
   // Turn
   //
-  if (polyboard.wtm) key ^= kZobrist.PG.turn;
+  if (this->polyboard.wtm) key ^= kZobrist.PG.turn;
 
   //
   // The key is ready
@@ -136,12 +137,12 @@ std::uint64_t PolyglotBook::polyglot_key() {
 
 bool PolyglotBook::open(const std::string &file) {
 
-  if (is_open()) // Cannot close an already closed file
-      close();
+  if (this->is_open()) // Cannot close an already closed file
+      this->close();
 
   std::ifstream::open(file, std::ifstream::in | std::ifstream::binary);
 
-  const auto opened = is_open();
+  const auto opened = this->is_open();
   std::ifstream::clear(); // Reset any error flag to allow a retry ifstream::open()
 
   return opened;
@@ -155,7 +156,7 @@ bool PolyglotBook::open(const std::string &file) {
 
 bool PolyglotBook::open_book(const std::string &file) {
 
-  return open(file);
+  return this->open(file);
 
 }
 
@@ -167,15 +168,17 @@ bool PolyglotBook::on_board(const int x, const int y) {
 
 bool PolyglotBook::is_ep_legal() {
 
-  if (polyboard.epsq == -1)
+  if (this->polyboard.epsq == -1)
     return false;
 
-  const auto x = polyboard.epsq % 8, y = polyboard.epsq / 8;
+  const auto x = this->polyboard.epsq % 8;
+  const auto y = this->polyboard.epsq / 8;
 
-  return polyboard.wtm ? (     on_board(x - 1, y) && polyboard.pieces[8 * y + x - 1] == -1)
-                           || (on_board(x + 1, y) && polyboard.pieces[8 * y + x + 1] == -1)
-                       : (     on_board(x - 1, y) && polyboard.pieces[8 * y + x - 1] == +1)
-                           || (on_board(x + 1, y) && polyboard.pieces[8 * y + x + 1] == +1);
+  return this->polyboard.wtm ?
+      (this->on_board(x - 1, y) && this->polyboard.pieces[8 * y + x - 1] == -1) ||
+      (this->on_board(x + 1, y) && this->polyboard.pieces[8 * y + x + 1] == -1)
+    : (this->on_board(x - 1, y) && this->polyboard.pieces[8 * y + x - 1] == +1) ||
+      (this->on_board(x + 1, y) && this->polyboard.pieces[8 * y + x + 1] == +1);
 
 }
 
@@ -186,38 +189,38 @@ PolyglotBook& PolyglotBook::setup(
     const std::int8_t epsq,
     const bool wtm) {
 
-  polyboard.pieces   = pieces;
-  polyboard.both     = both;
-  polyboard.castling = castling;
-  polyboard.epsq     = epsq;
-  polyboard.wtm      = wtm;
+  this->polyboard.pieces   = pieces;
+  this->polyboard.both     = both;
+  this->polyboard.castling = castling;
+  this->polyboard.epsq     = epsq;
+  this->polyboard.wtm      = wtm;
 
   return *this;
 
 }
 
-int PolyglotBook::probe(const bool pickBest) {
+int PolyglotBook::probe(const bool pick_best) {
 
-  if (!is_open())
+  if (!this->is_open())
     return 0;
 
   Entry e;
   std::uint16_t best = 0;
   unsigned sum       = 0;
   int move           = 0;
-  const auto key     = polyglot_key();
+  const auto key     = this->polyglot_key();
 
-  seekg(find_first(key) * sizeof(Entry), std::ios_base::beg);
+  this->seekg(this->find_first(key) * sizeof(Entry), std::ios_base::beg);
 
-  while (*this >> e, e.key == key && good()) {
+  while (*this >> e, e.key == key && this->good()) {
       best = std::max(best, e.count);
       sum += e.count;
 
       // Choose book move according to its score. If a move has a very high
       // score it has a higher probability of being choosen than a move with
       // a lower score. Note that first entry is always chosen.
-      if (   (!pickBest && sum && (std::rand() % sum) < e.count)
-          || ( pickBest && e.count == best)) {
+      if (   (!pick_best && sum && (std::rand() % sum) < e.count)
+          || ( pick_best && e.count == best)) {
           move = e.move;
       }
   }
@@ -244,20 +247,20 @@ int PolyglotBook::probe(const bool pickBest) {
 
 std::size_t PolyglotBook::find_first(const std::uint64_t key) {
 
-  seekg(0, std::ios::end); // Move pointer to end, so tellg() gets file's size
+  this->seekg(0, std::ios::end); // Move pointer to end, so tellg() gets file's size
 
-  std::size_t low = 0, high = (std::size_t) tellg() / sizeof(Entry) - 1;
+  std::size_t low = 0, high = (std::size_t) this->tellg() / sizeof(Entry) - 1;
 
   //assert(low <= high);
 
-  while (low < high && good()) {
+  while (low < high && this->good()) {
 
     const std::size_t mid = (low + high) / 2;
     Entry e;
 
     //assert(mid >= low && mid < high);
 
-    seekg(mid * sizeof(Entry), ios_base::beg);
+    this->seekg(mid * sizeof(Entry), ios_base::beg);
     *this >> e;
 
     if (key <= e.key)

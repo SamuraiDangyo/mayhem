@@ -25,7 +25,7 @@ CXXFLAGS = $(BFLAGS) $(WFLAGS) $(NFLAGS)
 all:
 	$(CXX) $(CXXFLAGS) -o $(EXE) $(FILES)
 
-# For older CPUs
+# For old CPUs
 oldcpu:
 	g++ $(BFLAGS) $(WFLAGS) -DUSE_SSE2 -msse2 -o $(EXE) $(FILES)
 

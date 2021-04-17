@@ -2118,7 +2118,7 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
 int SearchW(int alpha, const int beta, const int depth, const int ply) {
   g_nodes++;
 
-  if (g_stop_search || TimeCheckSearch()) return 0;
+  if (TimeCheckSearch()) return 0;
   if (depth <= 0 || ply >= kMaxDepth) return QSearchW(alpha, beta, g_qs_depth);
 
   const auto rule50 = g_board->rule50;
