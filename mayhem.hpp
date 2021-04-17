@@ -2316,8 +2316,8 @@ bool FastMove(const int ms) {
 }
 
 void SearchRootMoves(const bool is_eg) {
-  int good         = 0;
-  const auto start = Now();
+  int good       = 0;
+  const auto now = Now();
   const std::function<int()> best = std::bind(g_wtm ? BestW : BestB);
 
   for (; (std::abs(g_best_score) != kInf) && (g_depth < g_max_depth) && (!g_stop_search); g_depth++) {
@@ -2327,13 +2327,13 @@ void SearchRootMoves(const bool is_eg) {
     if (!g_classical && is_eg && std::abs(g_best_score) > (4 * 100) && ++good >= 7)
       g_classical = true;
 
-    Speak(g_best_score, Now() - start);
+    Speak(g_best_score, Now() - now);
     g_qs_depth = std::min(g_qs_depth + 2, 12);
   }
 
   UserLevel();
   g_last_eval = g_best_score;
-  Speak(g_best_score, Now() - start);
+  Speak(g_best_score, Now() - now);
 }
 
 void Think(const int ms) {
@@ -2670,7 +2670,7 @@ void Init() {
 }
 
 void Bench() {
-  const auto start    = Now();
+  const auto now      = Now();
   std::uint64_t nodes = 0x0ULL;
 
   for (const auto &fen : kBench) {
@@ -2681,7 +2681,7 @@ void Bench() {
     std::cout << std::endl;
   }
 
-  std::cout << "===\n\n" << "NPS: " << Nps(nodes, Now() - start) << std::endl;
+  std::cout << "===\n\n" << "NPS: " << Nps(nodes, Now() - now) << std::endl;
 }
 
 void PrintVersion() {
