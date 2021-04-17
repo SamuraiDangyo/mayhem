@@ -55,7 +55,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 4.01",
+  kVersion  = "Mayhem 4.1",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::vector<std::string>
@@ -521,7 +521,7 @@ int CreateKey(const int max, const int block) {
 }
 
 void SetupHashtable() {
-  g_hash_mb      = Between<int>(4, g_hash_mb, 1048576);
+  g_hash_mb      = Between<int>(4, g_hash_mb, 1048576); // 4 MB -> 1 TB
   g_hash_entries = CreateKey((1 << 20) * g_hash_mb, sizeof(struct Hash_t));
   g_hash.reset(new struct Hash_t[g_hash_entries]);
 
@@ -696,7 +696,7 @@ int Rank2Num(const char r) {
 
 void FenBoard(const std::string &board) {
   int sq = 56;
-  for (std::size_t i = 0, len = board.length(); i < len && sq >= 0; i++) {
+  for (std::size_t i = 0, len = board.length(); /* O(n) */ i < len && sq >= 0; i++) {
     const auto c = board[i];
     if (c == '/')             sq -= 16;
     else if (std::isdigit(c)) sq += Empty2Num(c);
@@ -871,7 +871,8 @@ char PromoLetter(const std::int8_t piece) {
 }
 
 const std::string MoveName(const struct Board_t *move) {
-  auto from = move->from, to = move->to;
+  auto from = move->from;
+  auto to   = move->to;
 
   switch (move->type) {
     case 1:
@@ -1231,7 +1232,8 @@ void AddPromotionStuffB(const int from, const int to) {
 }
 
 void AddNormalStuffW(const int from, const int to) {
-  const auto me = g_board->pieces[from], eat = g_board->pieces[to];
+  const auto me  = g_board->pieces[from];
+  const auto eat = g_board->pieces[to];
 
   g_moves[g_moves_n]     = *g_board;
   g_board                = &g_moves[g_moves_n];
@@ -1259,7 +1261,8 @@ void AddNormalStuffW(const int from, const int to) {
 }
 
 void AddNormalStuffB(const int from, const int to) {
-  const auto me = g_board->pieces[from], eat = g_board->pieces[to];
+  const auto me  = g_board->pieces[from];
+  const auto eat = g_board->pieces[to];
 
   g_moves[g_moves_n]      = *g_board;
   g_board                 = &g_moves[g_moves_n];
@@ -1556,7 +1559,7 @@ class ClassicalEval {
     }
 
     int any_corner_bonus(const int sq) const {
-      return std::max({this->closer_bonus(sq, 0),  this->closer_bonus(sq, 7), 
+      return std::max({this->closer_bonus(sq, 0),  this->closer_bonus(sq, 7),
                        this->closer_bonus(sq, 56), this->closer_bonus(sq, 63)});
     }
 
@@ -1683,14 +1686,14 @@ class ClassicalEval {
 
     void bonus_knbk_w() {
       this->score += 2 * this->closer_bonus(this->wk, this->bk);
-      this->score += (g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? 
+      this->score += (g_board->white[2] & 0xaa55aa55aa55aa55ULL) ?
                        10 * std::max(this->closer_bonus(0, this->bk), this->closer_bonus(63, this->bk))
                      : 10 * std::max(this->closer_bonus(7, this->bk), this->closer_bonus(56, this->bk));
     }
 
     void bonus_knbk_b() {
       this->score -= 2 * this->closer_bonus(this->wk, this->bk);
-      this->score -= (g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? 
+      this->score -= (g_board->black[2] & 0xaa55aa55aa55aa55ULL) ?
                        10 * std::max(this->closer_bonus(0, this->wk), this->closer_bonus(63, this->wk))
                      : 10 * std::max(this->closer_bonus(7, this->wk), this->closer_bonus(56, this->wk));
     }
@@ -1738,10 +1741,10 @@ class ClassicalEval {
 
     void bonus_special_5men() {
       // KRRvKR / KR(NB)vK(NB)
-      if (     (this->wrn == 2 && this->brn) || (this->wrn && (this->wbn || this->wnn) && (this->bbn || this->bnn))) 
+      if (     (this->wrn == 2 && this->brn) || (this->wrn && (this->wbn || this->wnn) && (this->bbn || this->bnn)))
         this->bonus_mating_w();
       // KRvKRR / K(NB)vKR(NB)
-      else if ((this->brn == 2 && this->wrn) || (this->brn && (this->bbn || this->bnn) && (this->wbn || this->wnn))) 
+      else if ((this->brn == 2 && this->wrn) || (this->brn && (this->bbn || this->bnn) && (this->wbn || this->wnn)))
         this->bonus_mating_b();
     }
 
@@ -1855,7 +1858,7 @@ class NnueEval {
       auto *entry     = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
       if (entry->eval_hash == hash) return entry->score;
       entry->eval_hash = hash;
-      return entry->score = probe();
+      return entry->score = this->probe();
     }
 };
 
@@ -2172,7 +2175,8 @@ int BestW() {
 
     if (score > alpha) {
       // Skip underpromos unless really good ( 3+ pawns )
-      if (IsUnderpromo(g_root + i) && ((score + (3 * 100)) < alpha)) continue;
+      if (IsUnderpromo(g_root + i) && ((score + (3 * 100)) < alpha))
+        continue;
       alpha  = score;
       best_i = i;
     }
@@ -2203,7 +2207,8 @@ int BestB() {
     if (g_stop_search) return g_best_score;
 
     if (score < beta) {
-      if (IsUnderpromo(g_root + i) && ((score - (3 * 100)) > beta)) continue;
+      if (IsUnderpromo(g_root + i) && ((score - (3 * 100)) > beta))
+        continue;
       beta   = score;
       best_i = i;
     }
@@ -2346,7 +2351,7 @@ void Think(const int ms) {
 
   // Underpromos are almost useless for gameplay
   // Disable if you need "full" analysis
-  g_underpromos = false; 
+  g_underpromos = false;
   SearchRootMoves(m.is_endgame());
   g_underpromos = true;
 

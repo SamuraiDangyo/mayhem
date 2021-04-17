@@ -12,9 +12,8 @@ EXE      = mayhem
 FILES    = lib/polyglotbook.cpp lib/nnue.cpp main.cpp
 
 # For Windows add: -DWINDOWS
-# No avx2? Use: -DUSE_SSE -msse
 
-BFLAGS   = -std=c++17 -O3 -flto -lm -march=native -mpopcnt
+BFLAGS   = -std=c++17 -O3 -flto -march=native -mpopcnt
 WFLAGS   = -Wall -Wextra -pedantic -DNDEBUG
 NFLAGS   = -DUSE_AVX2 -mavx2
 CXXFLAGS = $(BFLAGS) $(WFLAGS) $(NFLAGS)
@@ -26,7 +25,11 @@ CXXFLAGS = $(BFLAGS) $(WFLAGS) $(NFLAGS)
 all:
 	$(CXX) $(CXXFLAGS) -o $(EXE) $(FILES)
 
+# For older CPUs
+oldcpu:
+	g++ $(BFLAGS) $(WFLAGS) -DUSE_SSE2 -msse2 -o $(EXE) $(FILES)
+
 clean:
 	rm -f $(EXE)
 
-.PHONY: all clean
+.PHONY: all oldcpu clean
