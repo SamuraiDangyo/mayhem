@@ -2363,7 +2363,7 @@ void Think(const int ms) {
   SortAll();
 
   // Timing thread
-	std::thread th_time([]{ CheckTime(); });
+  std::thread th_time([]{ CheckTime(); });
 
   // Underpromos are almost useless for gameplay
   // Disable if you need "full" analysis
