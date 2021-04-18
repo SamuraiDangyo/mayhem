@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // Headers
 
 #include <thread>
+#include <atomic>
 #include <functional>
 #include <algorithm>
 #include <cmath>
@@ -313,8 +314,11 @@ std::uint64_t
   g_stop_search_time = 0x0ULL, g_r50_positions[128] = {}, g_nodes = 0x0ULL, g_good = 0x0ULL;
 
 bool
-  g_chess960 = false, g_wtm = false, g_stop_search = false, g_underpromos = true, g_nullmove_active = false,
+  g_chess960 = false, g_wtm = false,  g_underpromos = true, g_nullmove_active = false,
   g_is_pv = false, g_analyzing = false, g_book_exist = false, g_nnue_exist = false, g_classical = false;
+
+std::atomic<bool>
+  g_stop_search(false);
 
 std::vector<std::string>
   g_tokens = {};
@@ -2241,7 +2245,7 @@ void Activation(const Material &m) {
 }
 
 void ThinkReset(const int ms) {
-  g_classical = g_nullmove_active = g_stop_search = g_is_pv = false;
+  g_stop_search = g_classical = g_nullmove_active = g_is_pv = false;
   g_qs_depth = g_best_score = g_nodes = g_depth = 0;
   g_stop_search_time = Now() + std::max(0, ms);
 }
@@ -2297,7 +2301,7 @@ bool FastMove(const int ms) {
       || (ms <= 1)         // Hurry up !
       || ThinkRandomMove() // Level 0
       // Make sure we have at least 100ms for book lookup
-      || (g_book_exist && ms > 100 && !g_analyzing && ProbeBook())) {
+      || (g_book_exist && ms >= 100 && !g_analyzing && ProbeBook())) {
     Speak(g_last_eval, 0);
     return true;
   }
@@ -2341,11 +2345,10 @@ bool TimeCheckSearch() {
 
 // Check time every 5ms
 void CheckTime() {
-  if (g_stop_search) return;
-
-  if (!(g_stop_search = TimeCheckSearch())) {
+  while (!g_stop_search) {
     std::this_thread::sleep_for(std::chrono::milliseconds(5)); // zZzZz ...
-    CheckTime();
+    if (g_stop_search) return;
+    g_stop_search = TimeCheckSearch();
   }
 }
 
@@ -2362,7 +2365,7 @@ void Think(const int ms) {
   EvalRootMoves();
   SortAll();
 
-  // Timing thread
+  // Time check thread
   std::thread th_time([]{ CheckTime(); });
 
   // Underpromos are almost useless for gameplay
