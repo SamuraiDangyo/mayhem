@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Headers
 
+#include <thread>
 #include <functional>
 #include <algorithm>
 #include <cmath>
@@ -858,7 +859,8 @@ char Rank2Char(const int r) {
 }
 
 const std::string MoveStr(const int from, const int to) {
-  return std::string{File2Char(Xcoord(from)), Rank2Char(Ycoord(from)), File2Char(Xcoord(to)), Rank2Char(Ycoord(to))};
+  return std::string{File2Char(Xcoord(from)), Rank2Char(Ycoord(from)),
+                     File2Char(Xcoord(to)),   Rank2Char(Ycoord(to))};
 }
 
 char PromoLetter(const std::int8_t piece) {
@@ -1907,25 +1909,12 @@ bool Draw(const bool wtm) {
   return false;
 }
 
-bool UserStop() {
-  if (!g_analyzing || !InputAvailable()) return false;
-  Input();
-  return Token("stop");
-}
-
-bool TimeCheckSearch() {
-  static std::uint64_t ticks = 0x0ULL;
-  if ((++ticks & 0xFFULL)) return g_stop_search;
-  if ((Now() >= g_stop_search_time) || UserStop()) return g_stop_search = true;
-  return g_stop_search;
-}
-
 // 1. Check against standpat to see whether we are better -> Done
 // 2. Iterate deeper
 int QSearchW(int alpha, const int beta, const int depth) {
   g_nodes++;
 
-  if (TimeCheckSearch()) return 0;
+  if (g_stop_search) return 0;
   alpha = std::max(alpha, Evaluate(true));
   if (depth <= 0 || alpha >= beta) return alpha;
 
@@ -2118,7 +2107,7 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
 int SearchW(int alpha, const int beta, const int depth, const int ply) {
   g_nodes++;
 
-  if (TimeCheckSearch()) return 0;
+  if (g_stop_search) return 0;
   if (depth <= 0 || ply >= kMaxDepth) return QSearchW(alpha, beta, g_qs_depth);
 
   const auto rule50 = g_board->rule50;
@@ -2157,7 +2146,7 @@ int BestW() {
   auto best_i = 0;
   auto alpha  = -kInf;
 
-  for (auto i = 0; i < g_root_n; i++) {
+  for (auto i = 0; i < g_root_n && !g_stop_search; i++) {
     g_board = g_root + i;
     // 1 + 2 moves too good and not tactical -> pv
     g_is_pv = i <= 1 && !g_root[i].score;
@@ -2171,8 +2160,6 @@ int BestW() {
       score = SearchB(alpha, kInf, g_depth, 0);
     }
 
-    if (g_stop_search) return g_best_score;
-
     if (score > alpha) {
       // Skip underpromos unless really good ( 3+ pawns )
       if (IsUnderpromo(g_root + i) && ((score + (3 * 100)) < alpha))
@@ -2181,6 +2168,8 @@ int BestW() {
       best_i = i;
     }
   }
+
+  if (g_stop_search) return g_best_score;
 
   SortRoot(best_i);
   return alpha;
@@ -2191,7 +2180,7 @@ int BestB() {
   auto best_i = 0;
   auto beta   = +kInf;
 
-  for (auto i = 0; i < g_root_n; i++) {
+  for (auto i = 0; i < g_root_n && !g_stop_search; i++) {
     g_board = g_root + i;
     g_is_pv = i <= 1 && !g_root[i].score;
 
@@ -2204,8 +2193,6 @@ int BestB() {
       score = SearchW(-kInf, beta, g_depth, 0);
     }
 
-    if (g_stop_search) return g_best_score;
-
     if (score < beta) {
       if (IsUnderpromo(g_root + i) && ((score - (3 * 100)) > beta))
         continue;
@@ -2213,6 +2200,8 @@ int BestB() {
       best_i = i;
     }
   }
+
+  if (g_stop_search) return g_best_score;
 
   SortRoot(best_i);
   return beta;
@@ -2307,7 +2296,8 @@ bool FastMove(const int ms) {
   if (   (g_root_n <= 1)   // Only move
       || (ms <= 1)         // Hurry up !
       || ThinkRandomMove() // Level 0
-      || (g_book_exist && ms > 10 && !g_analyzing && ProbeBook())) { // Book move
+      // Make sure we have at least 100ms for book lookup
+      || (g_book_exist && ms > 100 && !g_analyzing && ProbeBook())) {
     Speak(g_last_eval, 0);
     return true;
   }
@@ -2331,9 +2321,32 @@ void SearchRootMoves(const bool is_eg) {
     g_qs_depth = std::min(g_qs_depth + 2, 12);
   }
 
+  // Also stop the time thread
+  g_stop_search = true;
+
   UserLevel();
   g_last_eval = g_best_score;
   Speak(g_best_score, Now() - now);
+}
+
+bool UserStop() {
+  if (!g_analyzing || !InputAvailable()) return false;
+  Input();
+  return Token("stop");
+}
+
+bool TimeCheckSearch() {
+  return Now() >= g_stop_search_time || UserStop();
+}
+
+// Check time every 5ms
+void CheckTime() {
+  if (g_stop_search) return;
+
+  if (!(g_stop_search = TimeCheckSearch())) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(5)); // zZzZz ...
+    CheckTime();
+  }
 }
 
 void Think(const int ms) {
@@ -2349,11 +2362,17 @@ void Think(const int ms) {
   EvalRootMoves();
   SortAll();
 
+  // Timing thread
+	std::thread th_time([]{ CheckTime(); });
+
   // Underpromos are almost useless for gameplay
   // Disable if you need "full" analysis
   g_underpromos = false;
   SearchRootMoves(m.is_endgame());
   g_underpromos = true;
+
+  // Wait for the time thread to finish
+  th_time.join();
 
   g_board = tmp;
 }

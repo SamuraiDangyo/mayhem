@@ -177,7 +177,8 @@ bool PolyglotBook::is_ep_legal() {
   return this->polyboard.wtm ?
       (this->on_board(x - 1, y) && this->polyboard.pieces[8 * y + x - 1] == -1) ||
       (this->on_board(x + 1, y) && this->polyboard.pieces[8 * y + x + 1] == -1)
-    : (this->on_board(x - 1, y) && this->polyboard.pieces[8 * y + x - 1] == +1) ||
+      :
+      (this->on_board(x - 1, y) && this->polyboard.pieces[8 * y + x - 1] == +1) ||
       (this->on_board(x + 1, y) && this->polyboard.pieces[8 * y + x + 1] == +1);
 
 }
