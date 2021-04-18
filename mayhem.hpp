@@ -2054,7 +2054,7 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
       && (depth >= 3)
       // Non pawn material or at least 2 pawns ( Zugzwang ... ) ?
       && ((g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4])
-        || PopCount(g_board->white[0]) >= 2)
+         || PopCount(g_board->white[0]) >= 2)
       // Not under checks ?
       && (!ChecksB())
       // Looks good ?
@@ -2084,7 +2084,7 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
       && (!g_is_pv)
       && (depth >= 3)
       && ((g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4])
-        || PopCount(g_board->black[0]) >= 2)
+         || PopCount(g_board->black[0]) >= 2)
       && (!ChecksW())
       && (alpha >= Evaluate(false))) {
     const auto ep     = g_board->epsq;
@@ -2250,15 +2250,6 @@ void ThinkReset(const int ms) {
   g_stop_search_time = Now() + std::max(0, ms);
 }
 
-bool ThinkRandomMove() {
-  if (g_level) return false;
-
-  const auto i = Random(0, g_root_n - 1);
-  if (i) Swap(g_root, g_root + i);
-
-  return true;
-}
-
 // Play the book move from root list
 bool FindBookMove(const int from, const int to, const int type) {
   for (auto i = 0; i < g_root_n; i++)
@@ -2291,6 +2282,15 @@ bool ProbeBook() {
   return FindBookMove(from, to, type);
 }
 
+bool ThinkRandomMove() {
+  if (g_level) return false;
+
+  if (const auto i = Random(0, g_root_n - 1))
+    Swap(g_root, g_root + i);
+
+  return true;
+}
+
 void UserLevel() {
   if ((g_level >= 1 && g_level <= 9) && (Random(0, 9) >= g_level))
     Swap(g_root, g_root + 1);
@@ -2300,8 +2300,7 @@ bool FastMove(const int ms) {
   if (   (g_root_n <= 1)   // Only move
       || (ms <= 1)         // Hurry up !
       || ThinkRandomMove() // Level 0
-      // Make sure we have at least 100ms for book lookup
-      || (g_book_exist && ms >= 100 && !g_analyzing && ProbeBook())) {
+      || (g_book_exist && ms >= 100 && ProbeBook())) { // At least 100ms for the book lookup
     Speak(g_last_eval, 0);
     return true;
   }
@@ -2314,7 +2313,7 @@ void SearchRootMoves(const bool is_eg) {
   const auto now = Now();
   const std::function<int()> best = std::bind(g_wtm ? BestW : BestB);
 
-  for (; (std::abs(g_best_score) != kInf) && (g_depth < g_max_depth) && (!g_stop_search); g_depth++) {
+  for (; std::abs(g_best_score) != kInf && g_depth < g_max_depth && !g_stop_search; g_depth++) {
     g_best_score = best();
 
     // Switch to classical only when the game is decided ( 4+ pawns ) !
@@ -2347,8 +2346,7 @@ bool TimeCheckSearch() {
 void CheckTime() {
   while (!g_stop_search) {
     std::this_thread::sleep_for(std::chrono::milliseconds(5)); // zZzZz ...
-    if (g_stop_search) return;
-    g_stop_search = TimeCheckSearch();
+    g_stop_search = g_stop_search || TimeCheckSearch(); // Terminated or time's up
   }
 }
 
@@ -2668,12 +2666,6 @@ void InitLMR() {
   for (auto d = 0; d < kMaxDepth; d++)
     for (auto m = 0; m < kMaxMoves; m++)
       g_lmr[d][m] = Between<int>(1, static_cast<int>(std::log(d) * std::log(m) * 0.25), 4);
-}
-
-[[maybe_unused]] void Debug(const std::string &fen) {
-  Fen(fen);
-  Think(10000);
-  std::exit(EXIT_SUCCESS);
 }
 
 void Init() {
