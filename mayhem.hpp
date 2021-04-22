@@ -32,6 +32,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstdint>
 #include <ctime>
 #include <array>
+#include <string>
 
 extern "C" {
 #include <sys/time.h>
@@ -2304,7 +2305,8 @@ bool FastMove(const int ms) {
   if (   (g_root_n <= 1)     // Only move
       || (ms <= 1)           // Hurry up !
       || (ThinkRandomMove()) // Level 0
-      || (g_book_exist && ms >= 100 && !g_analyzing && ProbeBook())) { // At least 100ms for the book lookup
+      // At least 100ms for the book lookup
+      || (g_book_exist && ms >= 100 && !g_analyzing && ProbeBook())) { 
     Speak(g_last_eval, 0);
     return true;
   }
@@ -2328,12 +2330,8 @@ void SearchRootMoves(const bool is_eg) {
     g_qs_depth = std::min(g_qs_depth + 2, 12);
   }
 
-  // Also stop the time thread
-  g_stop_search = true;
-
   UserLevel();
-  g_last_eval = g_best_score;
-  Speak(g_best_score, Now() - now);
+  Speak((g_last_eval = g_best_score), Now() - now);
 }
 
 void Think(const int ms) {

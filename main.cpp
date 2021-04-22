@@ -3,6 +3,7 @@
 // Copyright (C) 2020-2021 Toni Helminen <GPLv3>
 //
 
+#include <string>
 #include "mayhem.hpp"
 
 // "I want to cause havoc. I want to cause mayhem - and I mean the worst mayhem you can see."
