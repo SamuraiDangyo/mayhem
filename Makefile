@@ -32,4 +32,5 @@ oldcpu:
 clean:
 	rm -f $(EXE)
 
+# If this file exists
 .PHONY: all oldcpu clean

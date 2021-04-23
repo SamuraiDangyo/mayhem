@@ -3,15 +3,16 @@
 // Copyright (C) 2020-2021 Toni Helminen <GPLv3>
 //
 
-#include <string>
 #include "mayhem.hpp"
 
-// "I want to cause havoc. I want to cause mayhem - and I mean the worst mayhem you can see."
+// "The louder the dogs bark the less a lion feels threatened."
 int main(int argc, char **argv) {
   mayhem::Init();
   mayhem::PrintVersion();
 
-  argc == 2 && std::string(argv[1]) == "--bench" ? mayhem::Bench() : mayhem::UciLoop();
+  argc == 2 && std::string(argv[1]) == "--bench" ?
+    mayhem::Bench() :
+    mayhem::UciLoop();
 
   return EXIT_SUCCESS;
 }
