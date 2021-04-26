@@ -15,6 +15,4 @@ If not then modify *compiler flags*.
 Default settings are the best.
 If needed increase _Hash / MoveOverhead_ in longer games.
 
-Credits: SF ( PolyGlot code ) and Dr. Shawul ( NNUE lib ).
-
 Happy hacking!
