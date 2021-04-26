@@ -75,37 +75,36 @@ inline int PolyglotBook::ctz(const std::uint64_t bb) {
 
 }
 
-inline std::uint64_t PolyglotBook::clear_bit(const std::uint64_t bb) {
+inline int PolyglotBook::ctz_pop(std::uint64_t *bb) {
 
-  return bb & (bb - 0x1ULL);
+  const auto ret = this->ctz(*bb);
+  *bb = *bb & (*bb - 0x1ULL);
+  return ret;
 
 }
 
 std::uint64_t PolyglotBook::polyglot_key() {
 
-  std::uint64_t key = 0;
+  std::uint64_t key = 0x0ULL;
 
   //
   // Board
   //
-  for (auto both = this->polyboard.both; both; both = this->clear_bit(both)) {
-    const auto sq = this->ctz(both);
-
-    switch (this->polyboard.pieces[sq]) {
-      case -1: key ^= kZobrist.PG.psq[0][sq];  break;
+  for (auto both = this->polyboard.both; both; )
+    switch (const auto sq = this->ctz_pop(&both); this->polyboard.pieces[sq]) {
       case +1: key ^= kZobrist.PG.psq[1][sq];  break;
-      case -2: key ^= kZobrist.PG.psq[2][sq];  break;
       case +2: key ^= kZobrist.PG.psq[3][sq];  break;
-      case -3: key ^= kZobrist.PG.psq[4][sq];  break;
       case +3: key ^= kZobrist.PG.psq[5][sq];  break;
-      case -4: key ^= kZobrist.PG.psq[6][sq];  break;
       case +4: key ^= kZobrist.PG.psq[7][sq];  break;
-      case -5: key ^= kZobrist.PG.psq[8][sq];  break;
       case +5: key ^= kZobrist.PG.psq[9][sq];  break;
-      case -6: key ^= kZobrist.PG.psq[10][sq]; break;
       case +6: key ^= kZobrist.PG.psq[11][sq]; break;
+      case -1: key ^= kZobrist.PG.psq[0][sq];  break;
+      case -2: key ^= kZobrist.PG.psq[2][sq];  break;
+      case -3: key ^= kZobrist.PG.psq[4][sq];  break;
+      case -4: key ^= kZobrist.PG.psq[6][sq];  break;
+      case -5: key ^= kZobrist.PG.psq[8][sq];  break;
+      case -6: key ^= kZobrist.PG.psq[10][sq]; break;
     }
-  }
 
   //
   // Castling rights
@@ -184,7 +183,7 @@ bool PolyglotBook::is_ep_legal() {
 }
 
 PolyglotBook& PolyglotBook::setup(
-    std::int8_t* pieces,
+    std::int8_t *pieces,
     const std::uint64_t both,
     const std::uint8_t castling,
     const std::int8_t epsq,
@@ -241,7 +240,6 @@ int PolyglotBook::probe(const bool pick_best) {
 
 }
 
-
 /// find_first() takes a book key as input, and does a binary search through
 /// the book file for the given key. Returns the index of the leftmost book
 /// entry with the same key as the input.
@@ -252,14 +250,10 @@ std::size_t PolyglotBook::find_first(const std::uint64_t key) {
 
   std::size_t low = 0, high = (std::size_t) this->tellg() / sizeof(Entry) - 1;
 
-  //assert(low <= high);
-
   while (low < high && this->good()) {
 
     const std::size_t mid = (low + high) / 2;
     Entry e;
-
-    //assert(mid >= low && mid < high);
 
     this->seekg(mid * sizeof(Entry), ios_base::beg);
     *this >> e;
@@ -269,8 +263,6 @@ std::size_t PolyglotBook::find_first(const std::uint64_t key) {
     else
         low = mid + 1;
   }
-
-  //assert(low == high);
 
   return low;
 

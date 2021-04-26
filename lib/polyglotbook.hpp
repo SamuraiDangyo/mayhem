@@ -66,7 +66,7 @@ private:
   } polyboard;
 
   int ctz(const std::uint64_t);
-  std::uint64_t clear_bit(const std::uint64_t);
+  int ctz_pop(std::uint64_t*);
   std::uint64_t polyglot_key();
   bool open(const std::string&);
   std::size_t find_first(const std::uint64_t);
