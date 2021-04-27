@@ -389,7 +389,7 @@ inline std::uint64_t Bit(const int nbits) {
   return 0x1ULL << nbits;
 }
 
-template <class T>
+template <typename T>
 T Between(const T x, const T y, const T z) {
   return std::max(x, std::min(y, z));
 }
@@ -435,16 +435,13 @@ void Assert(const bool test, const std::string &msg) {
   std::exit(EXIT_FAILURE);
 }
 
-std::uint64_t Mixer(const std::uint64_t num) {
-  return (num << 7) ^ (num >> 5);
-}
-
 std::uint64_t Random64() {
   static std::uint64_t a = 0X12311227ULL, b = 0X1931311ULL, c = 0X13138141ULL;
+  const auto mixer = [](const std::uint64_t num) { return (num << 7) ^ (num >> 5); };
   a ^= b + c;
   b ^= b * c + 0x1717711ULL;
   c  = (3 * c) + 0x1ULL;
-  return Mixer(a) ^ Mixer(b) ^ Mixer(c);
+  return mixer(a) ^ mixer(b) ^ mixer(c);
 }
 
 std::uint64_t Random8x64() {
@@ -574,7 +571,7 @@ int TokenNumber(const int n = 0) {
   return TokenOk(n) ? std::stoi(g_tokens[g_tokens_nth + n]) : 0;
 }
 
-bool Peek(const std::string &s, const int n = 0) {
+bool TokenPeek(const std::string &s, const int n = 0) {
   return TokenOk(n) ? s == g_tokens[g_tokens_nth + n] : false;
 }
 
@@ -609,7 +606,7 @@ void FindKings() {
     else if (g_board->pieces[i] == -6) g_king_b = i;
 }
 
-void BuildCBB1() {
+void BuildCastlingBitboards1() {
   if (g_board->castle & 0x1) {
     g_castle_w[0]       = Fill(g_king_w, 6);
     g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5     )) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
@@ -631,7 +628,7 @@ void BuildCBB1() {
   }
 }
 
-void BuildCBB2() {
+void BuildCastlingBitboards2() {
   for (const auto i : {0, 1}) {
     g_castle_empty_w[i] &= 0xFFULL;
     g_castle_empty_b[i] &= 0xFF00000000000000ULL;
@@ -641,8 +638,8 @@ void BuildCBB2() {
 }
 
 void BuildCastlingBitboards() {
-  BuildCBB1();
-  BuildCBB2();
+  BuildCastlingBitboards1();
+  BuildCastlingBitboards2();
 }
 
 // Fen handling
@@ -1079,14 +1076,14 @@ void AddCastleOOOB() {
   ++g_moves_n;
 }
 
-void Add_OO_W() {
+void AddOOW() {
   if ((g_board->castle & 0x1) && !(g_castle_empty_w[0] & g_both)) {
     AddCastleOOW();
     g_board = g_board_orig;
   }
 }
 
-void Add_OOO_W() {
+void AddOOOW() {
   if ((g_board->castle & 0x2) && !(g_castle_empty_w[1] & g_both)) {
     AddCastleOOOW();
     g_board = g_board_orig;
@@ -1094,18 +1091,18 @@ void Add_OOO_W() {
 }
 
 void MgenCastlingMovesW() {
-  Add_OO_W();
-  Add_OOO_W();
+  AddOOW();
+  AddOOOW();
 }
 
-void Add_OO_B() {
+void AddOOB() {
   if ((g_board->castle & 0x4) && !(g_castle_empty_b[0] & g_both)) {
     AddCastleOOB();
     g_board = g_board_orig;
   }
 }
 
-void Add_OOO_B() {
+void AddOOOB() {
   if ((g_board->castle & 0x8) && !(g_castle_empty_b[1] & g_both)) {
     AddCastleOOOB();
     g_board = g_board_orig;
@@ -1113,8 +1110,8 @@ void Add_OOO_B() {
 }
 
 void MgenCastlingMovesB() {
-  Add_OO_B();
-  Add_OOO_B();
+  AddOOB();
+  AddOOOB();
 }
 
 void CheckCastlingRightsW() {
@@ -2405,21 +2402,21 @@ void UciPosition() {
 }
 
 void UciSetoption() {
-  if (Peek("name") && Peek("UCI_Chess960", 1) && Peek("value", 2)) {
-    g_chess960 = Peek("true", 3);
+  if (TokenPeek("name") && TokenPeek("UCI_Chess960", 1) && TokenPeek("value", 2)) {
+    g_chess960 = TokenPeek("true", 3);
     TokenPop(4);
-  } else if (Peek("name") && Peek("Hash", 1) && Peek("value", 2)) {
+  } else if (TokenPeek("name") && TokenPeek("Hash", 1) && TokenPeek("value", 2)) {
     g_hash_mb = TokenNumber(3);
     SetupHashtable();
     TokenPop(4);
-  } else if (Peek("name") && Peek("MoveOverhead", 1) && Peek("value", 2)) {
+  } else if (TokenPeek("name") && TokenPeek("MoveOverhead", 1) && TokenPeek("value", 2)) {
     g_move_overhead = Between<int>(0, TokenNumber(3), 5000);
     TokenPop(4);
-  } else if (Peek("name") && Peek("EvalFile", 1) && Peek("value", 2)) {
+  } else if (TokenPeek("name") && TokenPeek("EvalFile", 1) && TokenPeek("value", 2)) {
     g_eval_file = TokenCurrent(3);
     SetupNNUE();
     TokenPop(4);
-  } else if (Peek("name") && Peek("BookFile", 1) && Peek("value", 2)) {
+  } else if (TokenPeek("name") && TokenPeek("BookFile", 1) && TokenPeek("value", 2)) {
     g_book_file = TokenCurrent(3);
     SetupBook();
     TokenPop(4);
