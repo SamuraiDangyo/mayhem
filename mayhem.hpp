@@ -347,6 +347,7 @@ bool ChecksW();
 bool ChecksB();
 std::uint64_t RookMagicMoves(const int, const std::uint64_t);
 std::uint64_t BishopMagicMoves(const int, const std::uint64_t);
+template <int> void BuildCastlingBitboard() { } 
 
 // Utils
 
@@ -557,6 +558,7 @@ void TokenPop(const int n = 1) {
   g_tokens_nth += n;
 }
 
+// If true then pop n
 bool Token(const std::string &token, const int n = 1) {
   if (TokenOk() && token == TokenCurrent()) {
     TokenPop(n);
@@ -604,7 +606,7 @@ void FindKings() {
     else if (g_board->pieces[i] == -6) g_king_b = i;
 }
 
-void BuildCastlingBitboards1() {
+template <> void BuildCastlingBitboard<1>() {
   if (g_board->castle & 0x1) {
     g_castle_w[0]       = Fill(g_king_w, 6);
     g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5     )) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
@@ -626,7 +628,7 @@ void BuildCastlingBitboards1() {
   }
 }
 
-void BuildCastlingBitboards2() {
+template <> void BuildCastlingBitboard<2>() {
   for (const auto i : {0, 1}) {
     g_castle_empty_w[i] &= 0xFFULL;
     g_castle_empty_b[i] &= 0xFF00000000000000ULL;
@@ -636,8 +638,8 @@ void BuildCastlingBitboards2() {
 }
 
 void BuildCastlingBitboards() {
-  BuildCastlingBitboards1();
-  BuildCastlingBitboards2();
+  BuildCastlingBitboard<1>();
+  BuildCastlingBitboard<2>();
 }
 
 // Fen handling
