@@ -516,15 +516,9 @@ void SetupNNUE() {
 
 // Hashtable
 
-int CreateKey(const int max, const int block) {
-  int ret = 1;
-  for ( ; ret * block <= max; ++ret);
-  return ret - 1;
-}
-
 void SetupHashtable() {
   g_hash_mb      = Between<int>(4, g_hash_mb, 1048576); // 4 MB -> 1 TB
-  g_hash_entries = CreateKey((1 << 20) * g_hash_mb, sizeof(HashEntry));
+  g_hash_entries = ((1 << 20) * g_hash_mb) / sizeof(HashEntry);
   g_hash.reset(new HashEntry[g_hash_entries]);
 
   for (std::size_t i = 0; i < g_hash_entries; ++i)
@@ -560,7 +554,7 @@ void TokenPop(const int n = 1) {
 }
 
 bool Token(const std::string &token, const int n = 1) {
-  if (TokenOk(0) && token == TokenCurrent()) {
+  if (TokenOk() && token == TokenCurrent()) {
     TokenPop(n);
     return true;
   }
@@ -2389,10 +2383,8 @@ void UciFen() {
 }
 
 void UciMoves() {
-  while (TokenOk()) {
+  for ( ; TokenOk(); TokenPop())
     MakeMove();
-    TokenPop();
-  }
 }
 
 void UciPosition() {
@@ -2490,8 +2482,7 @@ bool UciCommands() {
   else if (Token("uci"))        UciUci();
   else if (Token("quit"))       return false;
 
-  // Ignore the rest
-  for ( ; TokenOk(); TokenPop());
+  g_tokens_nth = g_tokens.size(); // Ignore the rest
 
   return true;
 }
