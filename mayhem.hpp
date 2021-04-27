@@ -516,14 +516,18 @@ void SetupNNUE() {
 
 // Hashtable
 
+void ResetHashtable() {
+  for (std::size_t i = 0; i < g_hash_entries; ++i) {
+    auto &t = g_hash[i];
+    t.eval_hash = t.sort_hash = t.score = t.killer = t.good = t.quiet = 0;
+  }
+}
+
 void SetupHashtable() {
   g_hash_mb      = Between<int>(4, g_hash_mb, 1048576); // 4 MB -> 1 TB
-  g_hash_entries = ((1 << 20) * g_hash_mb) / sizeof(HashEntry);
+  g_hash_entries = ((1 << 20) * g_hash_mb) / (sizeof(HashEntry));
   g_hash.reset(new HashEntry[g_hash_entries]);
-
-  for (std::size_t i = 0; i < g_hash_entries; ++i)
-    g_hash[i].eval_hash = g_hash[i].sort_hash = g_hash[i].score =
-      g_hash[i].killer = g_hash[i].good = g_hash[i].quiet = 0;
+  ResetHashtable();
 }
 
 // Hash
