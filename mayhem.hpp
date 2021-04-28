@@ -550,7 +550,7 @@ bool TokenOk(const int n = 0) {
   return g_tokens_nth + n < g_tokens.size(); // O(1)
 }
 
-const std::string TokenCurrent(const int n = 0) {
+const std::string TokenNth(const int n = 0) {
   return TokenOk(n) ? g_tokens[g_tokens_nth + n] : "";
 }
 
@@ -560,7 +560,7 @@ void TokenPop(const int n = 1) {
 
 // If true then pop n
 bool Token(const std::string &token, const int n = 1) {
-  if (TokenOk() && token == TokenCurrent()) {
+  if (TokenOk() && token == TokenNth()) {
     TokenPop(n);
     return true;
   }
@@ -606,7 +606,8 @@ void FindKings() {
     else if (g_board->pieces[i] == -6) g_king_b = i;
 }
 
-template <> void BuildCastlingBitboard<1>() {
+template <> 
+void BuildCastlingBitboard<1>() {
   if (g_board->castle & 0x1) {
     g_castle_w[0]       = Fill(g_king_w, 6);
     g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5     )) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
@@ -628,7 +629,8 @@ template <> void BuildCastlingBitboard<1>() {
   }
 }
 
-template <> void BuildCastlingBitboard<2>() {
+template <> 
+void BuildCastlingBitboard<2>() {
   for (const auto i : {0, 1}) {
     g_castle_empty_w[i] &= 0xFFULL;
     g_castle_empty_b[i] &= 0xFF00000000000000ULL;
@@ -710,7 +712,7 @@ void FenAddCastle(int *rooks, const int sq, const int castle) {
   g_board->castle |= castle;
 }
 
-void AddChess960Castling(const char file) {
+void FenAddChess960Castling(const char file) {
   if (file >= 'A' && file <= 'H') {
     const auto tmp = file - 'A';
     if (     tmp > g_king_w) FenAddCastle(g_rook_w + 0, tmp, 0x1);
@@ -729,7 +731,7 @@ void FenKQkq(const std::string &KQkq) {
       case 'Q': FenAddCastle(g_rook_w + 1, 0, 0x2);      break;
       case 'k': FenAddCastle(g_rook_b + 0, 56 + 7, 0x4); break;
       case 'q': FenAddCastle(g_rook_b + 1, 56 + 0, 0x8); break;
-      default:  AddChess960Castling(f);                  break;
+      default:  FenAddChess960Castling(f);               break;
     }
 }
 
@@ -2353,44 +2355,44 @@ void Think(const int ms) {
 
 // UCI
 
-void Make(const int root_i) {
+void UciMake(const int root_i) {
   g_r50_positions[g_board->rule50] = Hash(g_wtm);
   g_board_tmp = g_root[root_i];
   g_board     = &g_board_tmp;
   g_wtm       = !g_wtm;
 }
 
-void MakeMove() {
-  const auto move = TokenCurrent();
+void UciMakeMove() {
+  const auto move = TokenNth();
 
   MgenRoot();
   for (auto i = 0; i < g_root_n; ++i)
     if (move == MoveName(g_root + i)) {
-      Make(i);
+      UciMake(i);
       return;
     }
 
   Assert(false, "Error #3: Bad move !");
 }
 
-void TakeSpecialFen() {
+void UciTakeSpecialFen() {
   TokenPop(); // fen
 
   std::string fen = "";
   for ( ; TokenOk() && !Token("moves", 0); TokenPop())
-    fen += TokenCurrent() + " ";
+    fen += TokenNth() + " ";
 
   Fen(fen);
 }
 
 void UciFen() {
   Token("startpos") ? Fen(kStartPos)
-                    : TakeSpecialFen();
+                    : UciTakeSpecialFen();
 }
 
 void UciMoves() {
   for ( ; TokenOk(); TokenPop())
-    MakeMove();
+    UciMakeMove();
 }
 
 void UciPosition() {
@@ -2411,11 +2413,11 @@ void UciSetoption() {
     g_move_overhead = Between<int>(0, TokenNumber(3), 5000);
     TokenPop(4);
   } else if (TokenPeek("name") && TokenPeek("EvalFile", 1) && TokenPeek("value", 2)) {
-    g_eval_file = TokenCurrent(3);
+    g_eval_file = TokenNth(3);
     SetupNNUE();
     TokenPop(4);
   } else if (TokenPeek("name") && TokenPeek("BookFile", 1) && TokenPeek("value", 2)) {
-    g_book_file = TokenCurrent(3);
+    g_book_file = TokenNth(3);
     SetupBook();
     TokenPop(4);
   }
