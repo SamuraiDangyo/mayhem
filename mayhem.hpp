@@ -314,9 +314,8 @@ std::uint64_t
   g_stop_search_time = 0x0ULL, g_r50_positions[128] = {}, g_nodes = 0x0ULL, g_good = 0x0ULL;
 
 bool
-  g_chess960 = false, g_wtm = false, g_underpromos = true,
-  g_nullmove_active = false, g_stop_search = false, g_is_pv = false, g_analyzing = false,
-  g_book_exist = false, g_nnue_exist = false, g_classical = false;
+  g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active = false, g_stop_search = false, 
+  g_is_pv = false, g_analyzing = false, g_book_exist = false, g_nnue_exist = false, g_classical = false;
 
 std::vector<std::string>
   g_tokens = {};
@@ -497,7 +496,7 @@ void SetupBook() {
     filename     = g_book_file;
   }
 
-  if (!g_book_exist) std::cerr << "Warning: Missing PolyGlot BookFile !" << std::endl;
+  if (!g_book_exist) std::cerr << "Warning: Bad BookFile !" << std::endl;
 }
 
 void SetupNNUE() {
@@ -512,7 +511,7 @@ void SetupNNUE() {
     filename     = g_eval_file;
   }
 
-  if (!g_nnue_exist) std::cerr << "Warning: Missing NNUE EvalFile !" << std::endl;
+  if (!g_nnue_exist) std::cerr << "Warning: Bad EvalFile !" << std::endl;
 }
 
 // Hashtable
@@ -1719,11 +1718,11 @@ class ClassicalEval {
 
     // Force black king in the corner and get closer
     void bonus_mating_w() {
-      this->score += 6 * this->any_corner_bonus(this->bk) + 5 * this->closer_bonus(this->wk, this->bk);
+      this->score += 6 * this->any_corner_bonus(this->bk) + 4 * this->closer_bonus(this->wk, this->bk);
     }
 
     void bonus_mating_b() {
-      this->score -= 6 * this->any_corner_bonus(this->wk) + 5 * this->closer_bonus(this->bk, this->wk);
+      this->score -= 6 * this->any_corner_bonus(this->wk) + 4 * this->closer_bonus(this->bk, this->wk);
     }
 
     void bonus_checks() {
@@ -1930,7 +1929,7 @@ bool UserStop() {
 // Time checking
 inline bool CheckTime() {
   static std::uint64_t ticks = 0x0ULL;
-  if ((++ticks & 0x1FFULL)) return false;
+  if ((++ticks & 0x1FFULL)) return false; // Read clock every 512 ticks (white / 2 x both)
   return Now() >= g_stop_search_time || UserStop();
 }
 
@@ -1939,14 +1938,15 @@ inline bool CheckTime() {
 int QSearchW(int alpha, const int beta, const int depth) {
   ++g_nodes;
 
-  if (g_stop_search || (g_stop_search = CheckTime())) return 0;
-  alpha = std::max(alpha, Evaluate(true));
-  if (depth <= 0 || alpha >= beta) return alpha;
+  if (g_stop_search || (g_stop_search = CheckTime())) 
+    return 0;
+  if (((alpha = std::max(alpha, Evaluate(true))) >= beta) || depth <= 0)
+    return alpha;
 
   Board moves[64];
   const auto moves_n = MgenTacticalW(moves);
 
-  SortAll();
+  SortAll(); // So few moves, so sort them all
 
   for (auto i = 0; i < moves_n; ++i) {
     g_board = moves + i;
@@ -1960,9 +1960,10 @@ int QSearchW(int alpha, const int beta, const int depth) {
 int QSearchB(const int alpha, int beta, const int depth) {
   ++g_nodes;
 
-  if (g_stop_search) return 0;
-  beta = std::min(beta, Evaluate(false));
-  if (depth <= 0 || alpha >= beta) return beta;
+  if (g_stop_search) 
+    return 0;
+  if ((alpha >= (beta = std::min(beta, Evaluate(false)))) || depth <= 0) 
+    return beta;
 
   Board moves[64];
   const auto moves_n = MgenTacticalB(moves);
@@ -1979,10 +1980,7 @@ int QSearchB(const int alpha, int beta, const int depth) {
 }
 
 // Update hashtable sorting algorithm
-void UpdateSort(HashEntry *entry,
-                const enum MoveType type,
-                const std::uint64_t hash,
-                const std::uint8_t index) {
+void UpdateSort(HashEntry *entry, const enum MoveType type, const std::uint64_t hash, const std::uint8_t index) {
   entry->sort_hash = hash;
   switch (type) {
     case MoveType::kKiller: entry->killer = index + 1; break;
@@ -2248,9 +2246,9 @@ class Material {
       return g_wtm ? this->black_n <= 2 : this->white_n <= 2;
     }
 
-    // 7 pieces or less both side -> Endgame
+    // 5 pieces or less both side -> Endgame
     bool is_endgame() const {
-      return g_wtm ? this->black_n <= 7 : this->white_n <= 7;
+      return g_wtm ? this->black_n <= 5 : this->white_n <= 5;
     }
 };
 
@@ -2319,10 +2317,9 @@ void SearchRootMoves(const bool is_eg) {
 
   for ( ; std::abs(g_best_score) != kInf && g_depth < g_max_depth && !g_stop_search; ++g_depth) {
     g_best_score = best();
-
+    
     // Switch to classical only when the game is decided ( 4+ pawns ) !
-    if (!g_classical && is_eg && std::abs(g_best_score) > (4 * 100) && ++good >= 7)
-      g_classical = true;
+    g_classical = g_classical || (is_eg && std::abs(g_best_score) > (4 * 100) && ++good >= 7);
 
     Speak(g_best_score, Now() - now);
     g_qs_depth = std::min(g_qs_depth + 2, 12);
@@ -2657,7 +2654,7 @@ void Bench() {
   for (const auto &fen : kBench) {
     std::cout << "[ " << fen << " ]" << std::endl;
     Fen(fen);
-    Think(2000);
+    Think(3000); 
     nodes += g_nodes;
     std::cout << std::endl;
   }
