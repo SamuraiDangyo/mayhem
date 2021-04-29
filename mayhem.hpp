@@ -266,7 +266,6 @@ struct Board {
   std::int8_t
     pieces[64], // Pieces white and black
     epsq;       // En passant square
-
   std::uint8_t
     index,      // Sorting index
     from,       // From square
@@ -277,12 +276,12 @@ struct Board {
 };
 
 struct HashEntry {
-  std::uint64_t
-    eval_hash, sort_hash;
-  std::int32_t
-    score;
-  std::uint8_t
-    killer, good, quiet;
+  std::uint64_t // Hashes for eval and sort
+    eval_hash = 0x0ULL, sort_hash = 0x0ULL;
+  std::int32_t // Score for NNUE only
+    score = 0;
+  std::uint8_t // Indexes for sorting
+    killer = 0, good = 0, quiet = 0;
 };
 
 // Enums
@@ -516,18 +515,10 @@ void SetupNNUE() {
 
 // Hashtable
 
-void ResetHashtable() {
-  for (std::size_t i = 0; i < g_hash_entries; ++i) {
-    auto &t = g_hash[i];
-    t.eval_hash = t.sort_hash = t.score = t.killer = t.good = t.quiet = 0;
-  }
-}
-
 void SetupHashtable() {
   g_hash_mb      = Between<int>(4, g_hash_mb, 1048576); // 4 MB -> 1 TB
   g_hash_entries = ((1 << 20) * g_hash_mb) / (sizeof(HashEntry));
   g_hash.reset(new HashEntry[g_hash_entries]);
-  ResetHashtable();
 }
 
 // Hash
