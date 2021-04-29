@@ -11,11 +11,9 @@ Works well w/o them of course.
 Strength in Blitz: Classical mode ( ~2300 Elo ) and NNUE mode ( ~3000 Elo ).
 
 Simple `make` should build a good binary.
-If not then modify *compiler flags*.
+If not then see `Makefile`.
 
 If needed adjust _MoveOverhead / Hash_ values.
-See `Makefile / mayhem.hpp` for more details.
-
 Credits: polyglotbook.cpp and nnue.cpp.
 
 Happy hacking !

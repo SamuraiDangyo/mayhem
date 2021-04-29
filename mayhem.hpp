@@ -314,7 +314,7 @@ std::uint64_t
   g_stop_search_time = 0x0ULL, g_r50_positions[128] = {}, g_nodes = 0x0ULL, g_good = 0x0ULL;
 
 bool
-  g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active = false, g_stop_search = false, 
+  g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active = false, g_stop_search = false,
   g_is_pv = false, g_analyzing = false, g_book_exist = false, g_nnue_exist = false, g_classical = false;
 
 std::vector<std::string>
@@ -346,7 +346,7 @@ bool ChecksW();
 bool ChecksB();
 std::uint64_t RookMagicMoves(const int, const std::uint64_t);
 std::uint64_t BishopMagicMoves(const int, const std::uint64_t);
-template <int> void BuildCastlingBitboard() { } 
+template <int> void BuildCastlingBitboard() { }
 
 // Utils
 
@@ -605,7 +605,7 @@ void FindKings() {
     else if (g_board->pieces[i] == -6) g_king_b = i;
 }
 
-template <> 
+template <>
 void BuildCastlingBitboard<1>() {
   if (g_board->castle & 0x1) {
     g_castle_w[0]       = Fill(g_king_w, 6);
@@ -628,7 +628,7 @@ void BuildCastlingBitboard<1>() {
   }
 }
 
-template <> 
+template <>
 void BuildCastlingBitboard<2>() {
   for (const auto i : {0, 1}) {
     g_castle_empty_w[i] &= 0xFFULL;
@@ -1938,7 +1938,7 @@ inline bool CheckTime() {
 int QSearchW(int alpha, const int beta, const int depth) {
   ++g_nodes;
 
-  if (g_stop_search || (g_stop_search = CheckTime())) 
+  if (g_stop_search || (g_stop_search = CheckTime()))
     return 0;
   if (((alpha = std::max(alpha, Evaluate(true))) >= beta) || depth <= 0)
     return alpha;
@@ -1960,9 +1960,9 @@ int QSearchW(int alpha, const int beta, const int depth) {
 int QSearchB(const int alpha, int beta, const int depth) {
   ++g_nodes;
 
-  if (g_stop_search) 
+  if (g_stop_search)
     return 0;
-  if ((alpha >= (beta = std::min(beta, Evaluate(false)))) || depth <= 0) 
+  if ((alpha >= (beta = std::min(beta, Evaluate(false)))) || depth <= 0)
     return beta;
 
   Board moves[64];
@@ -2317,7 +2317,7 @@ void SearchRootMoves(const bool is_eg) {
 
   for ( ; std::abs(g_best_score) != kInf && g_depth < g_max_depth && !g_stop_search; ++g_depth) {
     g_best_score = best();
-    
+
     // Switch to classical only when the game is decided ( 4+ pawns ) !
     g_classical = g_classical || (is_eg && std::abs(g_best_score) > (4 * 100) && ++good >= 7);
 
@@ -2654,7 +2654,7 @@ void Bench() {
   for (const auto &fen : kBench) {
     std::cout << "[ " << fen << " ]" << std::endl;
     Fen(fen);
-    Think(3000); 
+    Think(3000);
     nodes += g_nodes;
     std::cout << std::endl;
   }
