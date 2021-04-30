@@ -517,8 +517,8 @@ void SetupNNUE() {
 
 void SetupHashtable() {
   g_hash_mb      = Between<int>(4, g_hash_mb, 1048576); // 4 MB -> 1 TB
-  g_hash_entries = ((1 << 20) * g_hash_mb) / (sizeof(HashEntry));
-  g_hash.reset(new HashEntry[g_hash_entries]);
+  g_hash_entries = ((1 << 20) * g_hash_mb) / (sizeof(HashEntry)); // Hash / Block
+  g_hash.reset(new HashEntry[g_hash_entries]); // Claim space
 }
 
 // Hash
