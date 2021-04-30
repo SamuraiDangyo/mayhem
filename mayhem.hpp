@@ -751,9 +751,7 @@ void FenGen(const std::string &fen) {
 }
 
 void FenReset() {
-  constexpr Board empty = {};
-
-  g_board_tmp   = empty;
+  g_board_tmp   = {};
   g_board       = &g_board_tmp;
   g_wtm         = true;
   g_board->epsq = -1;
