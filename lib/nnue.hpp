@@ -73,8 +73,6 @@ INLINE uint16_t readu_le_u16(const void *p)
   return q[0] | (q[1] << 8);
 }
 
-#define clamp(a, b, c) ((a) < (b) ? (b) : (a) > (c) ? (c) : (a))
-
 // misc.hpp end
 
 #ifdef __cplusplus
