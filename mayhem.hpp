@@ -723,7 +723,7 @@ void FenEp(const std::string &ep) {
 
 void FenRule50(const std::string &rule50) {
   if (rule50.length() == 0 || rule50[0] == '-') return;
-  g_board->rule50 = std::clamp<std::uint8_t>(2 * std::stoi(rule50), 0, 100);
+  g_board->rule50 = std::clamp<std::uint8_t>(std::stoi(rule50), 0, 100);
 }
 
 void FenGen(const std::string &fen) {
