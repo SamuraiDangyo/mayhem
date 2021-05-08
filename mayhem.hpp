@@ -81,8 +81,8 @@ const std::array<std::string, 16>
   };
 
 constexpr int
-  kMaxMoves          = 218,
-  kMaxDepth          = 60,
+  kMaxMoves          = 256,
+  kMaxDepth          = 64,
   kInf               = 1048576,
   kKingVectors[16]   = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1},
   kKnightVectors[16] = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2},
@@ -418,10 +418,9 @@ inline std::uint64_t Now() {
 }
 
 void Assert(const bool test, const std::string &msg) {
-  if (!test) {
-    std::cerr << msg << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
+  if (test) return;
+  std::cerr << msg << std::endl;
+  std::exit(EXIT_FAILURE);
 }
 
 std::uint64_t Random64() {
@@ -475,16 +474,12 @@ void Input() {
 // Lib
 
 void SetupBook() {
-  g_book_exist = g_book_file == "-" ? false : g_book.open_book(g_book_file);
-
-  if (!g_book_exist)
+  if (!(g_book_exist = g_book_file == "-" ? false : g_book.open_book(g_book_file)))
     std::cerr << "Warning: Bad BookFile !" << std::endl;
 }
 
 void SetupNNUE() {
-  g_nnue_exist = g_eval_file == "-" ? false : nnue::nnue_init(g_eval_file.c_str());
-
-  if (!g_nnue_exist)
+  if (!(g_nnue_exist = g_eval_file == "-" ? false : nnue::nnue_init(g_eval_file.c_str())))
     std::cerr << "Warning: Bad EvalFile !" << std::endl;
 }
 
@@ -676,13 +671,15 @@ void FenAddCastle(int *rooks, const int sq, const int castle) {
 
 void FenAddChess960Castling(const char file) {
   if (file >= 'A' && file <= 'H') {
-    const auto tmp = file - 'A';
-    if (     tmp > g_king_w) FenAddCastle(g_rook_w + 0, tmp, 0x1);
-    else if (tmp < g_king_w) FenAddCastle(g_rook_w + 1, tmp, 0x2);
+    if (const auto tmp = file - 'A'; tmp > g_king_w)
+      FenAddCastle(g_rook_w + 0, tmp, 0x1);
+    else if (tmp < g_king_w)
+      FenAddCastle(g_rook_w + 1, tmp, 0x2);
   } else if (file >= 'a' && file <= 'h') {
-    const auto tmp = file - 'a';
-    if (     tmp > g_king_b) FenAddCastle(g_rook_b + 0, 56 + tmp, 0x4);
-    else if (tmp < g_king_b) FenAddCastle(g_rook_b + 1, 56 + tmp, 0x8);
+    if (const auto tmp = file - 'a'; tmp > g_king_b)
+      FenAddCastle(g_rook_b + 0, 56 + tmp, 0x4);
+    else if (tmp < g_king_b)
+      FenAddCastle(g_rook_b + 1, 56 + tmp, 0x8);
   }
 }
 
@@ -729,8 +726,8 @@ void FenReset() {
   g_board->epsq = -1;
   g_king_w = g_king_b = 0;
 
-  for (const auto i : {0, 1})  g_castle_w[i] = g_castle_empty_w[i] = g_castle_b[i] = g_castle_empty_b[i] = 0x0ULL;
-  for (const auto i : {0, 1})  g_rook_w[i] = g_rook_b[i] = 0;
+  for (const auto i : {0, 1}) g_castle_w[i] = g_castle_empty_w[i] = g_castle_b[i] = g_castle_empty_b[i] = 0x0ULL;
+  for (const auto i : {0, 1}) g_rook_w[i] = g_rook_b[i] = 0;
   for (auto i = 0; i < 6; ++i) g_board->white[i] = g_board->black[i] = 0x0ULL;
 }
 
@@ -744,20 +741,20 @@ void Fen(const std::string &fen) {
 
 inline bool ChecksHereW(const int sq) {
   const auto both = Both();
-  return ((g_pawn_checks_b[sq]        &  g_board->white[0])
-        | (g_knight_moves[sq]         &  g_board->white[1])
-        | (BishopMagicMoves(sq, both) & (g_board->white[2] | g_board->white[4]))
-        | (RookMagicMoves(sq, both)   & (g_board->white[3] | g_board->white[4]))
-        | (g_king_moves[sq]           &  g_board->white[5]));
+  return (g_pawn_checks_b[sq]        &  g_board->white[0]) |
+         (g_knight_moves[sq]         &  g_board->white[1]) |
+         (BishopMagicMoves(sq, both) & (g_board->white[2] | g_board->white[4])) |
+         (RookMagicMoves(sq, both)   & (g_board->white[3] | g_board->white[4])) |
+         (g_king_moves[sq]           &  g_board->white[5]);
 }
 
 inline bool ChecksHereB(const int sq) {
   const auto both = Both();
-  return ((g_pawn_checks_w[sq]        &  g_board->black[0])
-        | (g_knight_moves[sq]         &  g_board->black[1])
-        | (BishopMagicMoves(sq, both) & (g_board->black[2] | g_board->black[4]))
-        | (RookMagicMoves(sq, both)   & (g_board->black[3] | g_board->black[4]))
-        | (g_king_moves[sq]           &  g_board->black[5]));
+  return (g_pawn_checks_w[sq]        &  g_board->black[0]) |
+         (g_knight_moves[sq]         &  g_board->black[1]) |
+         (BishopMagicMoves(sq, both) & (g_board->black[2] | g_board->black[4])) |
+         (RookMagicMoves(sq, both)   & (g_board->black[3] | g_board->black[4])) |
+         (g_king_moves[sq]           &  g_board->black[5]);
 }
 
 bool ChecksCastleW(std::uint64_t squares) {
@@ -887,10 +884,10 @@ void EvalRootMoves() {
 
   for (auto i = 0; i < g_root_n; ++i) {
     g_board         = g_root + i;
-    g_board->score +=   (g_board->type == 8 ? 1000 : 0) // =q
-                      + (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) // OO|OOO
-                      + (IsUnderpromo(g_board) ? -5000 : 0) // =rbn
-                      + (g_wtm ? +1 : -1) * Evaluate(g_wtm); // Full eval
+    g_board->score += (g_board->type == 8 ? 1000 : 0) + // =q
+                      (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) + // OO|OOO
+                      (IsUnderpromo(g_board) ? -5000 : 0) + // =rbn
+                      (g_wtm ? +1 : -1) * Evaluate(g_wtm); // Full eval
   }
 
   g_board = tmp;
@@ -1495,8 +1492,8 @@ struct ClassicalEval {
   }
 
   int closer_bonus(const int sq1, const int sq2) const {
-    return pow2(7 - std::abs(Xcoord(sq1) - Xcoord(sq2)))
-         + pow2(7 - std::abs(Ycoord(sq1) - Ycoord(sq2)));
+    return pow2(7 - std::abs(Xcoord(sq1) - Xcoord(sq2))) +
+           pow2(7 - std::abs(Ycoord(sq1) - Ycoord(sq2)));
   }
 
   int any_corner_bonus(const int sq) const {
@@ -1812,12 +1809,13 @@ int Evaluate(const bool wtm) {
 // Search
 
 void Speak(const int score, const std::uint64_t ms) {
-  std::cout << "info depth " << std::min(g_max_depth, g_depth + 1)
-            << " nodes "     << g_nodes
-            << " time "      << ms
-            << " nps "       << Nps(g_nodes, ms)
-            << " score cp "  << ((g_wtm ? +1 : -1) * (std::abs(score) == kInf ? score / 100 : score))
-            << " pv "        << MoveName(g_root) << std::endl;
+  std::cout <<
+    "info depth " << std::min(g_max_depth, g_depth + 1) <<
+    " nodes " << g_nodes <<
+    " time " << ms <<
+    " nps " << Nps(g_nodes, ms) <<
+    " score cp " << ((g_wtm ? +1 : -1) * (std::abs(score) == kInf ? score / 100 : score)) <<
+    " pv " << MoveName(g_root) << std::endl;
 }
 
 // g_r50_positions.pop() must contain hash !
@@ -1861,10 +1859,10 @@ int QSearchW(int alpha, const int beta, const int depth) {
   if (((alpha = std::max(alpha, Evaluate(true))) >= beta) || depth <= 0)
     return alpha;
 
-  Board moves[64];
+  Board moves[kMaxMoves]; // Paranoid ...
   const auto moves_n = MgenTacticalW(moves);
 
-  SortAll(); // So few moves, so sort them all
+  SortAll(); // Very few moves, so sort them all
 
   for (auto i = 0; i < moves_n; ++i) {
     g_board = moves + i;
@@ -1884,7 +1882,7 @@ int QSearchB(const int alpha, int beta, const int depth) {
   if ((alpha >= (beta = std::min(beta, Evaluate(false)))) || depth <= 0)
     return beta;
 
-  Board moves[64];
+  Board moves[kMaxMoves];
   const auto moves_n = MgenTacticalB(moves);
 
   SortAll();
@@ -1990,17 +1988,17 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
 // If we do nothing and we are still better -> Done
 bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
   // No nullmove on the path ?
-  if (   (!g_nullmove_active)
+  if ((!g_nullmove_active) &&
       // Not pv ?
-      && (!g_is_pv)
+      (!g_is_pv) &&
       // Enough depth ?
-      && (depth >= 3)
+      (depth >= 3) &&
       // Non pawn material or at least 2 pawns ( Zugzwang ... ) ?
-      && ((g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4]) || (PopCount(g_board->white[0]) >= 2))
+      ((g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4]) || (PopCount(g_board->white[0]) >= 2)) &&
       // Not under checks ?
-      && (!ChecksB())
+      (!ChecksB()) &&
       // Looks good ?
-      && (Evaluate(true) >= beta)) {
+      (Evaluate(true) >= beta)) {
     const auto ep     = g_board->epsq;
     auto *tmp         = g_board;
     g_board->epsq     = -1;
@@ -2022,12 +2020,12 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
 }
 
 bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
-  if (   (!g_nullmove_active)
-      && (!g_is_pv)
-      && (depth >= 3)
-      && ((g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4]) || (PopCount(g_board->black[0]) >= 2))
-      && (!ChecksW())
-      && (alpha >= Evaluate(false))) {
+  if ((!g_nullmove_active) &&
+      (!g_is_pv) &&
+      (depth >= 3) &&
+      ((g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4]) || (PopCount(g_board->black[0]) >= 2)) &&
+      (!ChecksW()) &&
+      (alpha >= Evaluate(false))) {
     const auto ep     = g_board->epsq;
     auto *tmp         = g_board;
     g_board->epsq     = -1;
@@ -2227,10 +2225,9 @@ bool ProbeBook() {
 }
 
 bool FastMove(const int ms) {
-  if (   (g_root_n <= 1) // Only move
-      || (ms <= 1)       // Hurry up !
-      // At least 100+ms for the book lookup
-      || (g_book_exist && ms > 100 && ProbeBook())) {
+  if ((g_root_n <= 1) || // Only move
+      (ms <= 1) ||       // Hurry up !
+      (g_book_exist && ms > 100 && ProbeBook())) { // At least 100+ms for the book lookup
     Speak(g_last_eval, 0);
     return true;
   }
@@ -2391,14 +2388,15 @@ void UciGo() {
 }
 
 void UciUci() {
-  std::cout << "id name " << kVersion << "\n"
-    << "id author Toni Helminen" << "\n"
-    << "option name UCI_Chess960 type check default " << (g_chess960 ? "true" : "false") << "\n"
-    << "option name Hash type spin default "          << g_hash_mb       << " min 4 max 1048576" << "\n"
-    << "option name MoveOverhead type spin default "  << g_move_overhead << " min 0 max 5000" << "\n"
-    << "option name EvalFile type string default "    << g_eval_file     << "\n"
-    << "option name BookFile type string default "    << g_book_file     << "\n"
-    << "uciok" << std::endl; // flush
+  std::cout <<
+    "id name " << kVersion << "\n" <<
+    "id author Toni Helminen" << "\n" <<
+    "option name UCI_Chess960 type check default " << (g_chess960 ? "true" : "false") << "\n" <<
+    "option name Hash type spin default " << g_hash_mb << " min 4 max 1048576" << "\n" <<
+    "option name MoveOverhead type spin default " << g_move_overhead << " min 0 max 5000" << "\n" <<
+    "option name EvalFile type string default " << g_eval_file << "\n" <<
+    "option name BookFile type string default " << g_book_file << "\n" <<
+    "uciok" << std::endl; // flush
 }
 
 bool UciCommands() {
