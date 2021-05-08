@@ -10,8 +10,7 @@ int main(int argc, char **argv) {
   mayhem::Init();
   mayhem::PrintVersion();
 
-  argc == 2 && std::string(argv[1]) == "--bench" ?
-    mayhem::Bench() : mayhem::UciLoop();
+  argc == 2 && std::string(argv[1]) == "bench" ? mayhem::Bench() : mayhem::UciLoop();
 
   return EXIT_SUCCESS;
 }
