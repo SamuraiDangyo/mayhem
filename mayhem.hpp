@@ -774,12 +774,7 @@ const std::string MoveStr(const int from, const int to) {
 }
 
 char PromoLetter(const std::int8_t piece) {
-  switch (std::abs(piece)) {
-    case 2:  return 'n';
-    case 3:  return 'b';
-    case 4:  return 'r';
-    default: return 'q'; // 5
-  }
+  return "nbrq"[std::abs(piece) - 2];
 }
 
 const std::string MoveName(const Board *move) {
@@ -1468,7 +1463,7 @@ struct ClassicalEval {
   }
 
   void pesto_w(const int p, const int sq) {
-    *this << std::make_pair<int, int>(+kPesto[p][0][sq], +kPesto[p][1][sq]);
+    *this << std::make_pair(+kPesto[p][0][sq], +kPesto[p][1][sq]);
   }
 
   void pesto_b(const int p, const int sq) {
@@ -1816,7 +1811,7 @@ int QSearchW(int alpha, const int beta, const int depth) {
   if (((alpha = std::max(alpha, Evaluate(true))) >= beta) || depth <= 0)
     return alpha;
 
-  Board moves[kMaxMoves]; // Paranoid ...
+  Board moves[128]; // Paranoid ...
   const auto moves_n = MgenTacticalW(moves);
 
   SortAll(); // Very few moves, so sort them all
@@ -1839,7 +1834,7 @@ int QSearchB(const int alpha, int beta, const int depth) {
   if ((alpha >= (beta = std::min(beta, Evaluate(false)))) || depth <= 0)
     return beta;
 
-  Board moves[kMaxMoves];
+  Board moves[128];
   const auto moves_n = MgenTacticalB(moves);
 
   SortAll();
