@@ -62,22 +62,22 @@ const std::string
 
 const std::array<std::string, 16>
   kBench = {
-    "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0",               // Qxh3
-    "8/4kp2/4p1p1/2p1r3/PpP5/3R4/1P1K1PP1/8 w - - 0",                   // g4
-    "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0",                    // Nb5
+    "R7/P4k2/8/8/8/8/r7/6K1 w - - 0",                                   // Rh8
+    "r3k2r/pb1q1p2/8/2p1pP2/4p1p1/B1P1Q1P1/P1P3K1/R4R2 b kq - 0",       // Qd2+
     "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0",           // Nxa7+
+    "8/4kp2/4p1p1/2p1r3/PpP5/3R4/1P1K1PP1/8 w - - 0",                   // g4
+    "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0",               // Qxh3
+    "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0",                        // g3
+    "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0",                    // Nb5
     "8/6pp/4p3/1p1n4/1NbkN1P1/P4P1P/1PR3K1/r7 w - - 0",                 // Rxc4+
     "2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0",         // Nxd4+
     "nrq4r/2k1p3/1p1pPnp1/pRpP1p2/P1P2P2/2P1BB2/1R2Q1P1/6K1 w - - 0",   // Bxc5
-    "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0",                        // g3
     "3r2k1/5p2/6p1/4b3/1P2P3/1R2P2p/P1K1N3/8 b - - 0",                  // Rd1
     "1k1r4/pp1r1pp1/4n1p1/2R5/2Pp1qP1/3P2QP/P4PB1/1R4K1 w - - 0",       // Bxb7
     "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0",             // Rxg7
     "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0",           // Qxc6
-    "R7/P4k2/8/8/8/8/r7/6K1 w - - 0",                                   // Rh8
     "r1b2rk1/ppqn1p1p/2n1p1p1/2b3N1/2N5/PP1BP3/1B3PPP/R2QK2R w KQ - 0", // Qh5
-    "8/8/2N4p/p5kP/P1K5/1P6/8/4b3 w - - 0",                             // Nxa5
-    "8/8/p1p5/1p5p/1P5p/8/PPP2K1p/4R1rk w - - 0"                        // Rf1
+    "8/8/2N4p/p5kP/P1K5/1P6/8/4b3 w - - 0"                              // Nxa5
   };
 
 constexpr int
@@ -396,25 +396,25 @@ inline bool IsUnderpromo(const Board *b) {
 
 extern "C" {
 #ifdef WINDOWS
-bool InputAvailable() {
-  return _kbhit();
-}
+  bool InputAvailable() {
+    return _kbhit();
+  }
 #else
-bool InputAvailable() {
-  fd_set fd;
-  struct timeval tv;
-  FD_ZERO(&fd);
-  FD_SET(STDIN_FILENO, &fd);
-  tv.tv_sec = tv.tv_usec = 0;
-  select(STDIN_FILENO + 1, &fd, 0, 0, &tv);
-  return FD_ISSET(STDIN_FILENO, &fd) > 0;
-}
+  bool InputAvailable() {
+    fd_set fd;
+    struct timeval tv;
+    FD_ZERO(&fd);
+    FD_SET(STDIN_FILENO, &fd);
+    tv.tv_sec = tv.tv_usec = 0;
+    select(STDIN_FILENO + 1, &fd, 0, 0, &tv);
+    return FD_ISSET(STDIN_FILENO, &fd) > 0;
+  }
 #endif
 
-inline std::uint64_t Now() {
-  struct timeval tv;
-  return gettimeofday(&tv, NULL) ? 0x0ULL : (1000 * tv.tv_sec + tv.tv_usec / 1000);
-}
+  inline std::uint64_t Now() {
+    struct timeval tv;
+    return gettimeofday(&tv, NULL) ? 0x0ULL : (1000 * tv.tv_sec + tv.tv_usec / 1000);
+  }
 }
 
 void Assert(const bool test, const std::string &msg) {
@@ -624,36 +624,15 @@ int Piece2Num(const char p) {
 }
 
 int Empty2Num(const char e) {
-  switch (e) {
-    case '1': return 1;
-    case '2': return 2;
-    case '3': return 3;
-    case '4': return 4;
-    case '5': return 5;
-    case '6': return 6;
-    case '7': return 7;
-    default:  return 8; // '8'
-  }
+  return e - '0';
 }
 
 int File2Num(const char f) {
-  switch (f) {
-    case 'a': return 0;
-    case 'b': return 1;
-    case 'c': return 2;
-    case 'd': return 3;
-    case 'e': return 4;
-    case 'f': return 5;
-    case 'g': return 6;
-    default:  return 7; // 'h'
-  }
+  return f - 'a';
 }
 
 int Rank2Num(const char r) {
-  switch (r) {
-    case '3': return 2;
-    default:  return 5; // '6'
-  }
+  return r == '3' ? 2 : 5; // '3' / '6'
 }
 
 void FenBoard(const std::string &board) {
@@ -782,29 +761,11 @@ inline bool ChecksB() {
 // Move printing
 
 char File2Char(const int f) {
-  switch (f) {
-    case 0:  return 'a';
-    case 1:  return 'b';
-    case 2:  return 'c';
-    case 3:  return 'd';
-    case 4:  return 'e';
-    case 5:  return 'f';
-    case 6:  return 'g';
-    default: return 'h'; // 7
-  }
+  return 'a' + f;
 }
 
 char Rank2Char(const int r) {
-  switch (r) {
-    case 0:  return '1';
-    case 1:  return '2';
-    case 2:  return '3';
-    case 3:  return '4';
-    case 4:  return '5';
-    case 5:  return '6';
-    case 6:  return '7';
-    default: return '8'; // 7
-  }
+  return '1' + r;
 }
 
 const std::string MoveStr(const int from, const int to) {
@@ -1144,7 +1105,7 @@ void AddPromotionB(const int from, const int to, const int piece) {
 void AddPromotionStuffW(const int from, const int to) {
   auto *tmp = g_board;
   if (g_underpromos) {
-    for (const auto p : {+5, +2, +4, +3})  // QNRB
+    for (const auto p : {+5, +2, +4, +3}) // QNRB
       AddPromotionW(from, to, p), g_board = tmp;
   } else { // Only Q
     AddPromotionW(from, to, +5), g_board = tmp;
@@ -1492,8 +1453,8 @@ struct ClassicalEval {
   }
 
   int closer_bonus(const int sq1, const int sq2) const {
-    return pow2(7 - std::abs(Xcoord(sq1) - Xcoord(sq2))) +
-           pow2(7 - std::abs(Ycoord(sq1) - Ycoord(sq2)));
+    return this->pow2(7 - std::abs(Xcoord(sq1) - Xcoord(sq2))) +
+           this->pow2(7 - std::abs(Ycoord(sq1) - Ycoord(sq2)));
   }
 
   int any_corner_bonus(const int sq) const {
@@ -1501,21 +1462,17 @@ struct ClassicalEval {
                      this->closer_bonus(sq, 56), this->closer_bonus(sq, 63)});
   }
 
-  inline void add(const int a, const int b) {
-    this->mg += a;
-    this->eg += b;
-  }
-
-  inline void add(const int a, const int b, const int k) {
-    this->add(a * k, b * k);
+  inline void operator<<(const std::pair<int, int> p) {
+    this->mg += p.first;
+    this->eg += p.second;
   }
 
   void pesto_w(const int p, const int sq) {
-    this->add(+kPesto[p][0][sq], +kPesto[p][1][sq]);
+    *this << std::make_pair<int, int>(+kPesto[p][0][sq], +kPesto[p][1][sq]);
   }
 
   void pesto_b(const int p, const int sq) {
-    this->add(-kPesto[p][0][this->flip_y(sq)], -kPesto[p][1][this->flip_y(sq)]);
+    *this << std::make_pair(-kPesto[p][0][this->flip_y(sq)], -kPesto[p][1][this->flip_y(sq)]);
   }
 
   void mobility_w(const int k, const std::uint64_t m) {
