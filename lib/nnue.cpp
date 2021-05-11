@@ -945,7 +945,8 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
 {
   (void)inMask; (void)outMask; (void)pack8_and_calc_mask;
 
-  int32_t tmp[outDims];
+  assert(outDims == 32);
+  int32_t tmp[32]; // No VLA / if out vector != 32 crash
 
   for (unsigned i = 0; i < outDims; i++)
     tmp[i] = biases[i];
