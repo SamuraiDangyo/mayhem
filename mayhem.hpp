@@ -61,11 +61,11 @@ const std::string
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::array<std::string, 16>
-  kBench = {
+  kBench = { // Easy fens to pressure search
     "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 ; 1/16 ; Rh8",
     "r3k2r/pb1q1p2/8/2p1pP2/4p1p1/B1P1Q1P1/P1P3K1/R4R2 b kq - 0 ; 2/16 ; Qd2+",
     "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 ; 3/16 ; Nxa7+",
-    "8/4kp2/4p1p1/2p1r3/PpP5/3R4/1P1K1PP1/8 w - - 0 ; 4/16 ; g4",
+    "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 ; 4/16 ; Rxh7+",
     "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0 ; 5/16 ; Qxh3",
     "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0 ; 6/16 ; g3",
     "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0 ; 7/16 ; Nb5",
@@ -76,7 +76,7 @@ const std::array<std::string, 16>
     "1k1r4/pp1r1pp1/4n1p1/2R5/2Pp1qP1/3P2QP/P4PB1/1R4K1 w - - 0 ; 12/16 ; Bxb7",
     "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0 ; 13/16 ; Rxg7",
     "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0 ; 14/16 ; Qxc6",
-    "r1b2rk1/ppqn1p1p/2n1p1p1/2b3N1/2N5/PP1BP3/1B3PPP/R2QK2R w KQ - 0 ; 15/16 ; Qh5",
+    "5bk1/1rQ4p/5pp1/2pP4/3n1PP1/7P/1q3BB1/4R1K1 w - - 0 ; 15/16 ; d6",
     "8/8/2N4p/p5kP/P1K5/1P6/8/4b3 w - - 0 ; 16/16 ; Nxa5"
   };
 
@@ -778,8 +778,7 @@ char PromoLetter(const std::int8_t piece) {
 }
 
 const std::string MoveName(const Board *move) {
-  auto from = move->from;
-  auto to   = move->to;
+  auto from = move->from, to = move->to;
 
   switch (move->type) {
     case 1: from = g_king_w, to = g_chess960 ? g_rook_w[0] : 6; break;
@@ -1009,10 +1008,8 @@ void CheckCastlingRightsB() {
 }
 
 void HandleCastlingRights() {
-  if (g_board->castle) {
-    CheckCastlingRightsW();
-    CheckCastlingRightsB();
-  }
+  if (g_board->castle)
+    CheckCastlingRightsW(), CheckCastlingRightsB();
 }
 
 void ModifyPawnStuffW(const int from, const int to) {
@@ -1066,10 +1063,8 @@ void AddPromotionW(const int from, const int to, const int piece) {
   if (eat <= -1)
     g_board->black[-eat - 1] ^= Bit(to);
 
-  if (!ChecksB()) {
-    HandleCastlingRights();
-    ++g_moves_n;
-  }
+  if (!ChecksB())
+    HandleCastlingRights(), ++g_moves_n;
 }
 
 void AddPromotionB(const int from, const int to, const int piece) {
@@ -1091,10 +1086,8 @@ void AddPromotionB(const int from, const int to, const int piece) {
   if (eat >= +1)
     g_board->white[eat - 1] ^= Bit(to);
 
-  if (!ChecksW()) {
-    HandleCastlingRights();
-    ++g_moves_n;
-  }
+  if (!ChecksW())
+    HandleCastlingRights(), ++g_moves_n;
 }
 
 void AddPromotionStuffW(const int from, const int to) {
@@ -1134,22 +1127,17 @@ inline void CheckNormalCapturesB(const int me, const int eat, const int to) {
 }
 
 inline void AddMoveIfOkW() {
-  if (!ChecksB()) {
-    HandleCastlingRights();
-    ++g_moves_n;
-  }
+  if (!ChecksB())
+    HandleCastlingRights(), ++g_moves_n;
 }
 
 inline void AddMoveIfOkB() {
-  if (!ChecksW()) {
-    HandleCastlingRights();
-    ++g_moves_n;
-  }
+  if (!ChecksW())
+    HandleCastlingRights(), ++g_moves_n;
 }
 
 void AddNormalStuffW(const int from, const int to) {
-  const auto me  = g_board->pieces[from];
-  const auto eat = g_board->pieces[to];
+  const auto me  = g_board->pieces[from], eat = g_board->pieces[to];
 
   g_moves[g_moves_n]     = *g_board;
   g_board                = &g_moves[g_moves_n];
@@ -1169,8 +1157,7 @@ void AddNormalStuffW(const int from, const int to) {
 }
 
 void AddNormalStuffB(const int from, const int to) {
-  const auto me  = g_board->pieces[from];
-  const auto eat = g_board->pieces[to];
+  const auto me  = g_board->pieces[from], eat = g_board->pieces[to];
 
   g_moves[g_moves_n]      = *g_board;
   g_board                 = &g_moves[g_moves_n];
@@ -1448,8 +1435,7 @@ struct ClassicalEval {
   explicit ClassicalEval(const bool wtm2) :
     white(White()), black(Black()), both(this->white | this->black), wtm(wtm2),
     white_n(0), black_n(0), both_n(0), wk(0), bk(0), wpn(0), wnn(0), wbn(0), wrn(0), wqn(0),
-    bpn(0), bnn(0), bbn(0), brn(0), bqn(0), score(0), mg(0), eg(0), scale_factor(1)
-  {}
+    bpn(0), bnn(0), bbn(0), brn(0), bqn(0), score(0), mg(0), eg(0), scale_factor(1) {}
 
   int pow2(const int x) const {
     return x * x;
@@ -1710,9 +1696,7 @@ struct NnueEval {
   const bool wtm;
 
   // explicit -> force curly init
-  explicit NnueEval(const bool wtm2) :
-    wtm(wtm2)
-  {}
+  explicit NnueEval(const bool wtm2) : wtm(wtm2) {}
 
   int probe() {
     int pieces[33], squares[33], i = 2;
@@ -1746,9 +1730,12 @@ struct NnueEval {
   int evaluate() {
     const auto hash = Hash(wtm);
     auto *entry     = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
-    if (entry->eval_hash == hash) return entry->score;
+
+    if (entry->eval_hash == hash)
+      return entry->score;
+
     entry->eval_hash = hash;
-    return (entry->score = this->probe());
+    return entry->score = this->probe();
   }
 };
 
@@ -2121,8 +2108,7 @@ struct Material {
   Material() :
     white_n(PopCount(White())),
     black_n(PopCount(Black())),
-    both_n(this->white_n + this->black_n)
-  {}
+    both_n(this->white_n + this->black_n) {}
 
   // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
   bool is_rook_ending() const {

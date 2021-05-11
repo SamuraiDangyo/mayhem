@@ -1,4 +1,5 @@
 # Mayhem
+
 Linux UCI Chess960 engine.
 Written in C++17 language.
 Licensed under the GPLv3.
@@ -11,6 +12,7 @@ Strength in Blitz: Classical mode ( ~2300 Elo ) / NNUE mode ( ~3000 Elo ).
 
 Simple `make` should build a good binary.
 See `Makefile` for more information.
+Try `./mayhem bench` for measuring search speed.
 
 If needed adjust _MoveOverhead / Hash_ values accordingly.
 Credit for _polyglotbook.cpp and nnue.cpp_.
