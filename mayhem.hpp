@@ -57,27 +57,27 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 4.4",
+  kVersion  = "Mayhem 4.5",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::array<std::string, 16>
   kBench = {
-    "R7/P4k2/8/8/8/8/r7/6K1 w - - 0",                                   // Rh8
-    "r3k2r/pb1q1p2/8/2p1pP2/4p1p1/B1P1Q1P1/P1P3K1/R4R2 b kq - 0",       // Qd2+
-    "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0",           // Nxa7+
-    "8/4kp2/4p1p1/2p1r3/PpP5/3R4/1P1K1PP1/8 w - - 0",                   // g4
-    "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0",               // Qxh3
-    "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0",                        // g3
-    "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0",                    // Nb5
-    "8/6pp/4p3/1p1n4/1NbkN1P1/P4P1P/1PR3K1/r7 w - - 0",                 // Rxc4+
-    "2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0",         // Nxd4+
-    "nrq4r/2k1p3/1p1pPnp1/pRpP1p2/P1P2P2/2P1BB2/1R2Q1P1/6K1 w - - 0",   // Bxc5
-    "3r2k1/5p2/6p1/4b3/1P2P3/1R2P2p/P1K1N3/8 b - - 0",                  // Rd1
-    "1k1r4/pp1r1pp1/4n1p1/2R5/2Pp1qP1/3P2QP/P4PB1/1R4K1 w - - 0",       // Bxb7
-    "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0",             // Rxg7
-    "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0",           // Qxc6
-    "r1b2rk1/ppqn1p1p/2n1p1p1/2b3N1/2N5/PP1BP3/1B3PPP/R2QK2R w KQ - 0", // Qh5
-    "8/8/2N4p/p5kP/P1K5/1P6/8/4b3 w - - 0"                              // Nxa5
+    "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 ; 1/16 ; Rh8",
+    "r3k2r/pb1q1p2/8/2p1pP2/4p1p1/B1P1Q1P1/P1P3K1/R4R2 b kq - 0 ; 2/16 ; Qd2+",
+    "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 ; 3/16 ; Nxa7+",
+    "8/4kp2/4p1p1/2p1r3/PpP5/3R4/1P1K1PP1/8 w - - 0 ; 4/16 ; g4",
+    "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0 ; 5/16 ; Qxh3",
+    "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0 ; 6/16 ; g3",
+    "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0 ; 7/16 ; Nb5",
+    "8/6pp/4p3/1p1n4/1NbkN1P1/P4P1P/1PR3K1/r7 w - - 0 ; 8/16 ; Rxc4+",
+    "2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0 ; 9/16 ; Nxd4+",
+    "nrq4r/2k1p3/1p1pPnp1/pRpP1p2/P1P2P2/2P1BB2/1R2Q1P1/6K1 w - - 0 ; 10/16 ; Bxc5",
+    "3r2k1/5p2/6p1/4b3/1P2P3/1R2P2p/P1K1N3/8 b - - 0 ; 11/16 ; Rd1",
+    "1k1r4/pp1r1pp1/4n1p1/2R5/2Pp1qP1/3P2QP/P4PB1/1R4K1 w - - 0 ; 12/16 ; Bxb7",
+    "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0 ; 13/16 ; Rxg7",
+    "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0 ; 14/16 ; Qxc6",
+    "r1b2rk1/ppqn1p1p/2n1p1p1/2b3N1/2N5/PP1BP3/1B3PPP/R2QK2R w KQ - 0 ; 15/16 ; Qh5",
+    "8/8/2N4p/p5kP/P1K5/1P6/8/4b3 w - - 0 ; 16/16 ; Nxa5"
   };
 
 constexpr int
@@ -836,7 +836,7 @@ void SortByScore(const HashEntry *entry, const std::uint64_t hash) {
 }
 
 void EvalRootMoves() {
-  auto *tmp = g_board;
+  auto *tmp = g_board; // Have to call eval()
 
   for (auto i = 0; i < g_root_n; ++i) {
     g_board         = g_root + i;
@@ -1117,6 +1117,36 @@ void AddPromotionStuffB(const int from, const int to) {
   }
 }
 
+inline void CheckNormalCapturesW(const int me, const int eat, const int to) {
+  if (eat <= -1) {
+    g_board->black[-eat - 1] ^= Bit(to);
+    g_board->score            = kMvv[me - 1][-eat - 1];
+    g_board->rule50           = 0;
+  }
+}
+
+inline void CheckNormalCapturesB(const int me, const int eat, const int to) {
+  if (eat >= +1) {
+    g_board->white[eat - 1] ^= Bit(to);
+    g_board->score           = kMvv[-me - 1][eat - 1];
+    g_board->rule50          = 0;
+  }
+}
+
+inline void AddMoveIfOkW() {
+  if (!ChecksB()) {
+    HandleCastlingRights();
+    ++g_moves_n;
+  }
+}
+
+inline void AddMoveIfOkB() {
+  if (!ChecksW()) {
+    HandleCastlingRights();
+    ++g_moves_n;
+  }
+}
+
 void AddNormalStuffW(const int from, const int to) {
   const auto me  = g_board->pieces[from];
   const auto eat = g_board->pieces[to];
@@ -1131,20 +1161,11 @@ void AddNormalStuffW(const int from, const int to) {
   g_board->pieces[from]  = 0;
   g_board->pieces[to]    = me;
   g_board->white[me - 1] = (g_board->white[me - 1] ^ Bit(from)) | Bit(to);
-  ++g_board->rule50;
+  g_board->rule50       += 1;
 
-  if (eat <= -1) {
-    g_board->black[-eat - 1] ^= Bit(to);
-    g_board->score            = kMvv[me - 1][-eat - 1];
-    g_board->rule50           = 0;
-  }
-
+  CheckNormalCapturesW(me, eat, to);
   ModifyPawnStuffW(from, to);
-
-  if (!ChecksB()) {
-    HandleCastlingRights();
-    ++g_moves_n;
-  }
+  AddMoveIfOkW();
 }
 
 void AddNormalStuffB(const int from, const int to) {
@@ -1161,20 +1182,11 @@ void AddNormalStuffB(const int from, const int to) {
   g_board->pieces[to]     = me;
   g_board->pieces[from]   = 0;
   g_board->black[-me - 1] = (g_board->black[-me - 1] ^ Bit(from)) | Bit(to);
-  ++g_board->rule50;
+  g_board->rule50        += 1;
 
-  if (eat >= 1) {
-    g_board->score           = kMvv[-me - 1][eat - 1];
-    g_board->rule50          = 0;
-    g_board->white[eat - 1] ^= Bit(to);
-  }
-
+  CheckNormalCapturesB(me, eat, to);
   ModifyPawnStuffB(from, to);
-
-  if (!ChecksW()) {
-    HandleCastlingRights();
-    ++g_moves_n;
-  }
+  AddMoveIfOkB();
 }
 
 void AddW(const int from, const int to) {
@@ -1423,7 +1435,7 @@ bool EasyDraw(const bool wtm) {
   const auto pawns_n = PopCount(g_board->white[0] | g_board->black[0]);
 
   // Check KPK ? / Bare kings ? -> Draw
-  return pawns_n == 1 ? ProbeKPK(wtm) : pawns_n == 0;
+  return pawns_n == 1 ? ProbeKPK(wtm) : (pawns_n == 0);
 }
 
 // Classical evaluation. To finish the game or no NNUE
@@ -1736,7 +1748,7 @@ struct NnueEval {
     auto *entry     = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
     if (entry->eval_hash == hash) return entry->score;
     entry->eval_hash = hash;
-    return entry->score = this->probe();
+    return (entry->score = this->probe());
   }
 };
 
@@ -1761,13 +1773,12 @@ int Evaluate(const bool wtm) {
 // Search
 
 void Speak(const int score, const std::uint64_t ms) {
-  std::cout <<
-    "info depth " << std::min(g_max_depth, g_depth + 1) <<
-    " nodes " << g_nodes <<
-    " time " << ms <<
-    " nps " << Nps(g_nodes, ms) <<
-    " score cp " << ((g_wtm ? +1 : -1) * (std::abs(score) == kInf ? score / 100 : score)) <<
-    " pv " << MoveName(g_root) << std::endl;
+  std::cout << "info depth " << std::min(g_max_depth, g_depth + 1);
+  std::cout << " nodes " << g_nodes;
+  std::cout << " time " << ms;
+  std::cout << " nps " << Nps(g_nodes, ms);
+  std::cout << " score cp " << ((g_wtm ? +1 : -1) * (std::abs(score) == kInf ? score / 100 : score));
+  std::cout << " pv " << MoveName(g_root) << std::endl; // flush
 }
 
 // g_r50_positions.pop() must contain hash !
@@ -2340,15 +2351,14 @@ void UciGo() {
 }
 
 void UciUci() {
-  std::cout <<
-    "id name " << kVersion << "\n" <<
-    "id author Toni Helminen" << "\n" <<
-    "option name UCI_Chess960 type check default " << (g_chess960 ? "true" : "false") << "\n" <<
-    "option name Hash type spin default " << g_hash_mb << " min 4 max 1048576" << "\n" <<
-    "option name MoveOverhead type spin default " << g_move_overhead << " min 0 max 5000" << "\n" <<
-    "option name EvalFile type string default " << g_eval_file << "\n" <<
-    "option name BookFile type string default " << g_book_file << "\n" <<
-    "uciok" << std::endl; // flush
+  std::cout << "id name " << kVersion << "\n";
+  std::cout << "id author Toni Helminen" << "\n";
+  std::cout << "option name UCI_Chess960 type check default " << (g_chess960 ? "true" : "false") << "\n";
+  std::cout << "option name Hash type spin default " << g_hash_mb << " min 4 max 1048576" << "\n";
+  std::cout << "option name MoveOverhead type spin default " << g_move_overhead << " min 0 max 5000" << "\n";
+  std::cout << "option name EvalFile type string default " << g_eval_file << "\n";
+  std::cout << "option name BookFile type string default " << g_book_file << "\n";
+  std::cout << "uciok" << std::endl; // flush
 }
 
 bool UciCommands() {
@@ -2399,13 +2409,15 @@ std::uint64_t MakeSliderMagicMoves(const int *slider_vectors, const int sq, cons
     for (auto j = 1; j < 8; ++j) {
       const auto x = x_pos + j * slider_vectors[2 * i];
       const auto y = y_pos + j * slider_vectors[2 * i + 1];
-      if (!OnBoard(x, y)) break;
+      if (!OnBoard(x, y))
+        break;
       const auto tmp  = Bit(8 * y + x);
       possible_moves |= tmp;
-      if (tmp & moves) break;
+      if (tmp & moves)
+        break;
     }
 
-  return possible_moves & (~Bit(sq));
+  return (possible_moves & (~Bit(sq)));
 }
 
 void InitBishopMagics() {
