@@ -81,8 +81,8 @@ const std::array<std::string, 16>
   };
 
 constexpr int
-  kMaxMoves          = 256,
-  kMaxDepth          = 64,
+  kMaxMoves          = 218,
+  kMaxDepth          = 60,
   kInf               = 1048576,
   kKingVectors[16]   = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1},
   kKnightVectors[16] = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2},
@@ -1458,24 +1458,24 @@ struct ClassicalEval {
                      this->closer_bonus(sq, 56), this->closer_bonus(sq, 63)});
   }
 
-  inline void operator<<(const std::pair<int, int> p) {
-    this->mg += p.first;
-    this->eg += p.second;
+  void mgeg(const int mg2, const int eg2) {
+    this->mg += mg2;
+    this->eg += eg2;
   }
 
-  void pesto_w(const int p, const int sq) {
-    *this << std::make_pair(+kPesto[p][0][sq], +kPesto[p][1][sq]);
+  inline void pesto_w(const int p, const int sq) {
+    this->mgeg(+kPesto[p][0][sq], +kPesto[p][1][sq]);
   }
 
-  void pesto_b(const int p, const int sq) {
-    *this << std::make_pair(-kPesto[p][0][this->flip_y(sq)], -kPesto[p][1][this->flip_y(sq)]);
+  inline void pesto_b(const int p, const int sq) {
+    this->mgeg(-kPesto[p][0][this->flip_y(sq)], -kPesto[p][1][this->flip_y(sq)]);
   }
 
-  void mobility_w(const int k, const std::uint64_t m) {
+  inline void mobility_w(const int k, const std::uint64_t m) {
     this->score += k * PopCount(m);
   }
 
-  void mobility_b(const int k, const std::uint64_t m) {
+  inline void mobility_b(const int k, const std::uint64_t m) {
     this->score -= k * PopCount(m);
   }
 
@@ -1812,7 +1812,7 @@ int QSearchW(int alpha, const int beta, const int depth) {
   if (((alpha = std::max(alpha, Evaluate(true))) >= beta) || depth <= 0)
     return alpha;
 
-  Board moves[128]; // Paranoid ...
+  Board moves[64]; // Paranoid ...
   const auto moves_n = MgenTacticalW(moves);
 
   SortAll(); // Very few moves, so sort them all
@@ -1835,7 +1835,7 @@ int QSearchB(const int alpha, int beta, const int depth) {
   if ((alpha >= (beta = std::min(beta, Evaluate(false)))) || depth <= 0)
     return beta;
 
-  Board moves[128];
+  Board moves[64];
   const auto moves_n = MgenTacticalB(moves);
 
   SortAll();
