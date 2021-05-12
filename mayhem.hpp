@@ -61,7 +61,7 @@ const std::string
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::array<std::string, 16>
-  kBench = { // Easy fens to pressure search
+  kBench = { // Easy fens just to pressure search
     "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 ; 1/16 ; Rh8",
     "r3k2r/pb1q1p2/8/2p1pP2/4p1p1/B1P1Q1P1/P1P3K1/R4R2 b kq - 0 ; 2/16 ; Qd2+",
     "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 ; 3/16 ; Nxa7+",
@@ -77,7 +77,7 @@ const std::array<std::string, 16>
     "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0 ; 13/16 ; Rxg7",
     "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0 ; 14/16 ; Qxc6",
     "5bk1/1rQ4p/5pp1/2pP4/3n1PP1/7P/1q3BB1/4R1K1 w - - 0 ; 15/16 ; d6",
-    "8/8/2N4p/p5kP/P1K5/1P6/8/4b3 w - - 0 ; 16/16 ; Nxa5"
+    "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 ; 16/16 ; Ne3"
   };
 
 constexpr int
@@ -339,7 +339,7 @@ bool ChecksW();
 bool ChecksB();
 std::uint64_t RookMagicMoves(const int, const std::uint64_t);
 std::uint64_t BishopMagicMoves(const int, const std::uint64_t);
-template <int> void BuildCastlingBitboard() { }
+template <int> void BuildCastlingBitboard() {}
 
 // Utils
 
@@ -1008,8 +1008,10 @@ void CheckCastlingRightsB() {
 }
 
 void HandleCastlingRights() {
-  if (g_board->castle)
-    CheckCastlingRightsW(), CheckCastlingRightsB();
+  if (g_board->castle) {
+    CheckCastlingRightsW();
+    CheckCastlingRightsB();
+  }
 }
 
 void ModifyPawnStuffW(const int from, const int to) {
@@ -1047,7 +1049,7 @@ void ModifyPawnStuffB(const int from, const int to) {
 void AddPromotionW(const int from, const int to, const int piece) {
   const auto eat = g_board->pieces[to];
 
-  g_moves[g_moves_n]    = *g_board;
+  g_moves[g_moves_n]    = *g_board; // Copy board
   g_board               = &g_moves[g_moves_n];
   g_board->from         = from;
   g_board->to           = to;
@@ -1378,6 +1380,7 @@ int MgenCapturesB(Board *moves) {
   return g_moves_n;
 }
 
+// All moves if under checks or just captures
 int MgenTacticalW(Board *moves) {
   return ChecksB() ? MgenW(moves) : MgenCapturesW(moves);
 }
@@ -1433,9 +1436,9 @@ struct ClassicalEval {
       bpn, bnn, bbn, brn, bqn, score, mg, eg, scale_factor;
 
   explicit ClassicalEval(const bool wtm2) :
-    white(White()), black(Black()), both(this->white | this->black), wtm(wtm2),
-    white_n(0), black_n(0), both_n(0), wk(0), bk(0), wpn(0), wnn(0), wbn(0), wrn(0), wqn(0),
-    bpn(0), bnn(0), bbn(0), brn(0), bqn(0), score(0), mg(0), eg(0), scale_factor(1) {}
+    white(White()), black(Black()), both(this->white | this->black), wtm(wtm2), white_n(0),
+    black_n(0), both_n(0), wk(0), bk(0), wpn(0), wnn(0), wbn(0), wrn(0), wqn(0), bpn(0),
+    bnn(0), bbn(0), brn(0), bqn(0), score(0), mg(0), eg(0), scale_factor(1) {}
 
   int pow2(const int x) const {
     return x * x;
@@ -2388,13 +2391,11 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
 
 std::uint64_t MakeSliderMagicMoves(const int *slider_vectors, const int sq, const std::uint64_t moves) {
   std::uint64_t possible_moves = 0x0ULL;
-  const auto x_pos = Xcoord(sq);
-  const auto y_pos = Ycoord(sq);
+  const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
   for (auto i = 0; i < 4; ++i)
     for (auto j = 1; j < 8; ++j) {
-      const auto x = x_pos + j * slider_vectors[2 * i];
-      const auto y = y_pos + j * slider_vectors[2 * i + 1];
+      const auto x = x_pos + j * slider_vectors[2 * i], y = y_pos + j * slider_vectors[2 * i + 1];
       if (!OnBoard(x, y))
         break;
       const auto tmp  = Bit(8 * y + x);
@@ -2428,16 +2429,13 @@ void InitRookMagics() {
 
 std::uint64_t MakeSliderMoves(const int sq, const int *slider_vectors) {
   std::uint64_t moves = 0x0ULL;
-  const auto x_pos    = Xcoord(sq);
-  const auto y_pos    = Ycoord(sq);
+  const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
   for (auto i = 0; i < 4; ++i) {
-    const auto dx     = slider_vectors[2 * i];
-    const auto dy     = slider_vectors[2 * i + 1];
+    const auto dx = slider_vectors[2 * i], dy = slider_vectors[2 * i + 1];
     std::uint64_t tmp = 0x0ULL;
     for (auto j = 1; j < 8; ++j) {
-      const auto x = x_pos + j * dx;
-      const auto y = y_pos + j * dy;
+      const auto x = x_pos + j * dx, y = y_pos + j * dy;
       if (!OnBoard(x, y))
         break;
       tmp |= Bit(8 * y + x);
@@ -2458,12 +2456,10 @@ void InitSliderMoves() {
 
 std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int *jump_vectors) {
   std::uint64_t moves = 0x0ULL;
-  const auto x_pos    = Xcoord(sq);
-  const auto y_pos    = Ycoord(sq);
+  const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
   for (auto i = 0; i < len; ++i) {
-    const auto x = x_pos + jump_vectors[2 * i];
-    const auto y = y_pos + dy * jump_vectors[2 * i + 1];
+    const auto x = x_pos + jump_vectors[2 * i], y = y_pos + dy * jump_vectors[2 * i + 1];
     if (OnBoard(x, y))
       moves |= Bit(8 * y + x);
   }
