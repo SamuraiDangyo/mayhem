@@ -61,7 +61,7 @@ const std::string
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::array<std::string, 16>
-  kBench = { // Easy fens just to pressure search
+  kBench = { // Easy fens to pressure search
     "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 ; 1/16 ; Rh8",
     "r3k2r/pb1q1p2/8/2p1pP2/4p1p1/B1P1Q1P1/P1P3K1/R4R2 b kq - 0 ; 2/16 ; Qd2+",
     "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 ; 3/16 ; Nxa7+",
@@ -2166,7 +2166,7 @@ bool ProbeBook() {
   int type        = 0;
 
   // PolyGlot promos
-  auto is_promo = [&move](const int i){ return move & (0x1 << (12 + i)); };
+  auto is_promo = [&move](const int v){ return move & (0x1 << (12 + v)); };
   constexpr std::array<int, 4> v = {0, 1, 2, 3};
   const auto res = std::find_if(v.begin(), v.end(), is_promo);
 
