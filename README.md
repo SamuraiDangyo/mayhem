@@ -12,7 +12,7 @@ Strength in Blitz: Classical mode ( ~2300 Elo ) / NNUE mode ( ~3000 Elo ).
 
 Simple `make` should build a good binary.
 See `Makefile` for more information.
-./mayhem bench` should be used to test the build's speed.
+`./mayhem bench` should be used to test your binary's speed.
 
 If needed adjust _MoveOverhead / Hash_ values accordingly.
 Credit for _polyglotbook.cpp and nnue.cpp_.
