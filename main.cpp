@@ -6,7 +6,7 @@ Copyright (C) 2020-2021 Toni Helminen <GPLv3>
 #include "mayhem.hpp"
 
 // "The louder the dogs bark the less a lion feels threatened."
-int main(int argc, char **argv) {
+int main(int argc, char *argv[]) {
   mayhem::Init();
   mayhem::PrintVersion();
 
