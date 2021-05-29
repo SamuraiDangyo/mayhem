@@ -248,7 +248,7 @@ std::size_t PolyglotBook::find_first(const std::uint64_t key) {
 
   this->seekg(0, std::ios::end); // Move pointer to end, so tellg() gets file's size
 
-  std::size_t low = 0, high = (std::size_t) this->tellg() / sizeof(Entry) - 1;
+  std::size_t low = 0, high = static_cast<std::size_t>(this->tellg()) / sizeof(Entry) - 1;
 
   while (low < high && this->good()) {
 
