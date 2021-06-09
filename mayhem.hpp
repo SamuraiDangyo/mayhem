@@ -284,7 +284,8 @@ int
   g_king_w = 0, g_king_b = 0, g_moves_n = 0, g_max_depth = kMaxDepth, g_qs_depth = 0,
   g_depth = 0, g_best_score = 0, g_last_eval = 0, g_lmr[kMaxDepth][kMaxMoves] = {};
 
-std::uint32_t g_hash_entries = 0, g_tokens_nth = 0;
+std::uint32_t
+  g_hash_entries = 0, g_tokens_nth = 0;
 
 std::uint64_t
   g_black = 0x0ULL, g_white = 0x0ULL, g_both = 0x0ULL, g_empty = 0x0ULL, g_pawn_sq = 0x0ULL,
