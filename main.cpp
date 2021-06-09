@@ -7,10 +7,11 @@ Copyright (C) 2020-2021 Toni Helminen <GPLv3>
 
 // "The louder the dogs bark the less a lion feels threatened."
 int main(int argc, char *argv[]) {
-  mayhem::Init();
   mayhem::PrintVersion();
+  mayhem::Init();
 
-  argc == 2 && std::string(argv[1]) == "bench" ? mayhem::Bench() : mayhem::UciLoop();
+  argc == 2 && std::string(argv[1]) == "bench" ?
+    mayhem::Bench() : mayhem::UciLoop();
 
   return EXIT_SUCCESS;
 }

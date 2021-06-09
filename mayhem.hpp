@@ -56,33 +56,30 @@ namespace mayhem {
 
 // Constants
 
-const std::string
-  kVersion  = "Mayhem 4.7",
-  kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+const std::string kVersion  = "Mayhem 4.8",
+                  kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
-const std::array<std::string, 15>
-  kBench = { // Easy fens to pressure search
-    "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 ; 1/15 ; Rh8",
-    "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 ; 2/15 ; Nxa7+",
-    "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 ; 3/15 ; Rxh7+",
-    "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0 ; 4/15 ; Qxh3",
-    "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0 ; 5/15 ; g3",
-    "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0 ; 6/15 ; Nb5",
-    "8/6pp/4p3/1p1n4/1NbkN1P1/P4P1P/1PR3K1/r7 w - - 0 ; 7/15 ; Rxc4+",
-    "2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0 ; 8/15 ; Nxd4+",
-    "nrq4r/2k1p3/1p1pPnp1/pRpP1p2/P1P2P2/2P1BB2/1R2Q1P1/6K1 w - - 0 ; 9/15 ; Bxc5",
-    "3r2k1/5p2/6p1/4b3/1P2P3/1R2P2p/P1K1N3/8 b - - 0 ; 10/15 ; Rd1",
-    "1k1r4/pp1r1pp1/4n1p1/2R5/2Pp1qP1/3P2QP/P4PB1/1R4K1 w - - 0 ; 11/15 ; Bxb7",
-    "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0 ; 12/15 ; Rxg7",
-    "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0 ; 13/15 ; Qxc6",
-    "5bk1/1rQ4p/5pp1/2pP4/3n1PP1/7P/1q3BB1/4R1K1 w - - 0 ; 14/15 ; d6",
-    "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 ; 15/15 ; Ne3"
-  };
+const std::array<std::string, 15> kBench = { // Easy fens to pressure search
+  "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 ; 1/15 ; Rh8",
+  "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 ; 2/15 ; Nxa7+",
+  "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 ; 3/15 ; Rxh7+",
+  "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0 ; 4/15 ; Qxh3",
+  "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0 ; 5/15 ; g3",
+  "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0 ; 6/15 ; Nb5",
+  "8/6pp/4p3/1p1n4/1NbkN1P1/P4P1P/1PR3K1/r7 w - - 0 ; 7/15 ; Rxc4+",
+  "2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0 ; 8/15 ; Nxd4+",
+  "nrq4r/2k1p3/1p1pPnp1/pRpP1p2/P1P2P2/2P1BB2/1R2Q1P1/6K1 w - - 0 ; 9/15 ; Bxc5",
+  "3r2k1/5p2/6p1/4b3/1P2P3/1R2P2p/P1K1N3/8 b - - 0 ; 10/15 ; Rd1",
+  "1k1r4/pp1r1pp1/4n1p1/2R5/2Pp1qP1/3P2QP/P4PB1/1R4K1 w - - 0 ; 11/15 ; Bxb7",
+  "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0 ; 12/15 ; Rxg7",
+  "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0 ; 13/15 ; Qxc6",
+  "5bk1/1rQ4p/5pp1/2pP4/3n1PP1/7P/1q3BB1/4R1K1 w - - 0 ; 14/15 ; d6",
+  "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 ; 15/15 ; Ne3"
+};
 
-constexpr int
+constexpr int kInf   = 1048576,
   kMaxMoves          = 218,
   kMaxDepth          = 60,
-  kInf               = 1048576,
   kKingVectors[16]   = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1},
   kKnightVectors[16] = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2},
   kBishopVectors[8]  = {+1, +1, -1, -1, +1, -1, -1, +1},
@@ -144,8 +141,7 @@ constexpr int
        26, 3, 10, 17, 23, 15, 20, 45, 44, 13, -12, 17, 14, 17, 17, 38, 23, 11, -74, -35,
        -18, -18, -11, 15, 4, -17}}};
 
-constexpr std::uint64_t
-  kRookMagic[64] =
+constexpr std::uint64_t kRookMagic[64] =
     {0x548001400080106cULL, 0x900184000110820ULL,  0x428004200a81080ULL,  0x140088082000c40ULL,
      0x1480020800011400ULL, 0x100008804085201ULL,  0x2a40220001048140ULL, 0x50000810000482aULL,
      0x250020100020a004ULL, 0x3101880100900a00ULL, 0x200a040a00082002ULL, 0x1004300044032084ULL,
@@ -265,7 +261,7 @@ struct Board {
     to,         // To square
     type,       // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
     castle,     // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
-    fifty;     // Rule 50 counter
+    fifty;      // Rule 50 counter
 };
 
 struct HashEntry {
@@ -279,11 +275,7 @@ struct HashEntry {
 
 // Enums
 
-enum class MoveType {
-  kKiller,
-  kGood,
-  kQuiet
-};
+enum class MoveType { kKiller, kGood, kQuiet };
 
 // Variables
 
@@ -292,8 +284,7 @@ int
   g_king_w = 0, g_king_b = 0, g_moves_n = 0, g_max_depth = kMaxDepth, g_qs_depth = 0,
   g_depth = 0, g_best_score = 0, g_last_eval = 0, g_lmr[kMaxDepth][kMaxMoves] = {};
 
-std::uint32_t
-  g_hash_entries = 0, g_tokens_nth = 0;
+std::uint32_t g_hash_entries = 0, g_tokens_nth = 0;
 
 std::uint64_t
   g_black = 0x0ULL, g_white = 0x0ULL, g_both = 0x0ULL, g_empty = 0x0ULL, g_pawn_sq = 0x0ULL,
@@ -313,7 +304,7 @@ std::vector<std::string>
   g_tokens = {};
 
 Board
-  g_board_tmp = {}, *g_board = &g_board_tmp, *g_moves = 0, *g_board_orig = 0, g_root[kMaxMoves] = {};
+  g_board_tmp = {}, *g_board = &g_board_tmp, *g_moves = nullptr, *g_board_orig = nullptr, g_root[kMaxMoves] = {};
 
 polyglotbook::PolyglotBook
   g_book;
@@ -325,8 +316,7 @@ float
   g_scale[128] = {};
 
 std::string
-  g_eval_file = "nn-cb80fb9393af.nnue",
-  g_book_file = "performance.bin";
+  g_eval_file = "nn-cb80fb9393af.nnue", g_book_file = "performance.bin";
 
 // Prototypes
 
@@ -342,15 +332,15 @@ std::uint64_t BishopMagicMoves(const int, const std::uint64_t);
 // Utils
 
 inline std::uint64_t White() {
-  return (g_board->white[0] | g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4] | g_board->white[5]);
+  return g_board->white[0] | g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4] | g_board->white[5];
 }
 
 inline std::uint64_t Black() {
-  return (g_board->black[0] | g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4] | g_board->black[5]);
+  return g_board->black[0] | g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4] | g_board->black[5];
 }
 
 inline std::uint64_t Both() {
-  return (White() | Black());
+  return White() | Black();
 }
 
 inline int Ctz(const std::uint64_t bb) {
@@ -369,23 +359,23 @@ inline int PopCount(const std::uint64_t bb) {
 }
 
 inline int Xcoord(const int sq) {
-  return (sq & 0x7);
+  return sq & 0x7;
 }
 
 inline int Ycoord(const int sq) {
-  return (sq >> 3);
+  return sq >> 3;
 }
 
 inline std::uint64_t Bit(const int nbits) {
-  return (0x1ULL << nbits);
+  return 0x1ULL << nbits;
 }
 
-std::uint32_t Nps(const std::uint64_t nodes, const std::uint32_t ms) {
-  return ((1000 * nodes) / (ms + 1));
+std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
+  return (1000 * nodes) / (ms + 1);
 }
 
 bool OnBoard(const int x, const int y) {
-  return (x >= 0 && x <= 7 && y >= 0 && y <= 7);
+  return x >= 0 && x <= 7 && y >= 0 && y <= 7;
 }
 
 inline bool IsUnderpromo(const Board *b) {
@@ -404,21 +394,14 @@ extern "C" {
     FD_ZERO(&fd);
     FD_SET(STDIN_FILENO, &fd);
     tv.tv_sec = tv.tv_usec = 0;
-    select(STDIN_FILENO + 1, &fd, 0, 0, &tv);
+    select(STDIN_FILENO + 1, &fd, nullptr, nullptr, &tv);
     return FD_ISSET(STDIN_FILENO, &fd) > 0;
   }
 #endif
 
   inline std::uint64_t Now() {
     struct timeval tv;
-    return gettimeofday(&tv, NULL) ? 0x0ULL : static_cast<std::uint64_t>(1000 * tv.tv_sec + tv.tv_usec / 1000);
-  }
-}
-
-void Assert(const bool test, const std::string &msg) {
-  if (!test) {
-    std::cerr << msg << std::endl;
-    std::exit(EXIT_FAILURE);
+    return gettimeofday(&tv, nullptr) ? 0x0ULL : static_cast<std::uint64_t>(1000 * tv.tv_sec + tv.tv_usec / 1000);
   }
 }
 
@@ -450,16 +433,16 @@ int Random(const int x, const int y) {
 }
 
 template <class T>
-void Split(const std::string &s, T &cont, const std::string &delims = " ") {
-  std::size_t cur = s.find_first_of(delims), prev = 0;
+void Split(const std::string &str, T &cont, const std::string &delims = " ") {
+  std::size_t cur = str.find_first_of(delims), prev = 0;
 
   while (cur != std::string::npos) {
-    cont.push_back(s.substr(prev, cur - prev));
+    cont.push_back(str.substr(prev, cur - prev));
     prev = cur + 1;
-    cur  = s.find_first_of(delims, prev);
+    cur  = str.find_first_of(delims, prev);
   }
 
-  cont.push_back(s.substr(prev, cur - prev));
+  cont.push_back(str.substr(prev, cur - prev));
 }
 
 void ReadInput() {
@@ -474,12 +457,12 @@ void ReadInput() {
 
 void SetupBook() {
   if (!(g_book_exist = g_book_file == "-" ? false : g_book.open_book(g_book_file)))
-    std::cerr << "Warning: Bad BookFile !" << std::endl;
+    std::cout << "info string Warning: Opening book disabled" << std::endl;
 }
 
 void SetupNNUE() {
   if (!(g_nnue_exist = g_eval_file == "-" ? false : nnue::nnue_init(g_eval_file.c_str())))
-    std::cerr << "Warning: Bad EvalFile !" << std::endl;
+    std::cout << "info string Warning: NNUE-Evaluation disabled" << std::endl;
 }
 
 // Hashtable
@@ -505,33 +488,33 @@ inline std::uint64_t Hash(const bool wtm) {
 
 // Tokenizer
 
-bool TokenOk(const std::uint32_t n = 0) {
-  return g_tokens_nth + n < g_tokens.size(); // O(1)
+bool TokenOk(const std::uint32_t nth = 0) {
+  return g_tokens_nth + nth < g_tokens.size(); // O(1)
 }
 
-const std::string TokenNth(const std::uint32_t n = 0) {
-  return TokenOk(n) ? g_tokens[g_tokens_nth + n] : "";
+const std::string TokenNth(const std::uint32_t nth = 0) {
+  return TokenOk(nth) ? g_tokens[g_tokens_nth + nth] : "";
 }
 
-void TokenPop(const std::uint32_t n = 1) {
-  g_tokens_nth += n;
+void TokenPop(const std::uint32_t nth = 1) {
+  g_tokens_nth += nth;
 }
 
 // If true then pop n
-bool Token(const std::string &token, const std::uint32_t n = 1) {
+bool Token(const std::string &token, const std::uint32_t nth = 1) {
   if (TokenOk() && token == TokenNth()) {
-    TokenPop(n);
+    TokenPop(nth);
     return true;
   }
   return false;
 }
 
-int TokenNumber(const std::uint32_t n = 0) {
-  return TokenOk(n) ? std::stoi(g_tokens[g_tokens_nth + n]) : 0;
+int TokenNumber(const std::uint32_t nth = 0) {
+  return TokenOk(nth) ? std::stoi(g_tokens[g_tokens_nth + nth]) : 0;
 }
 
-bool TokenPeek(const std::string &s, const std::uint32_t n = 0) {
-  return TokenOk(n) ? s == g_tokens[g_tokens_nth + n] : false;
+bool TokenPeek(const std::string &str, const std::uint32_t nth = 0) {
+  return TokenOk(nth) ? str == g_tokens[g_tokens_nth + nth] : false;
 }
 
 // Board
@@ -684,7 +667,7 @@ void FenGen(const std::string &fen) {
   std::vector<std::string> tokens = {};
 
   Split<std::vector<std::string>>(fen, tokens);
-  Assert(tokens.size() >= 5, "Error #1: Bad fen !");
+  if (tokens.size() <= 4) std::cout << "info string Error: Bad fen" << std::endl;
 
   FenBoard(tokens[0]);
   g_wtm = tokens[1][0] == 'w';
@@ -1147,7 +1130,7 @@ void AddNormalStuffW(const int from, const int to) {
   g_board->pieces[from]  = 0;
   g_board->pieces[to]    = me;
   g_board->white[me - 1] = (g_board->white[me - 1] ^ Bit(from)) | Bit(to);
-  g_board->fifty        += 1;
+  ++g_board->fifty;
 
   CheckNormalCapturesW(me, eat, to);
   ModifyPawnStuffW(from, to);
@@ -1167,7 +1150,7 @@ void AddNormalStuffB(const int from, const int to) {
   g_board->pieces[to]     = me;
   g_board->pieces[from]   = 0;
   g_board->black[-me - 1] = (g_board->black[-me - 1] ^ Bit(from)) | Bit(to);
-  g_board->fifty         += 1;
+  ++g_board->fifty;
 
   CheckNormalCapturesB(me, eat, to);
   ModifyPawnStuffB(from, to);
@@ -1404,13 +1387,12 @@ bool EasyDraw(const bool wtm) {
     return false;
 
   // N/B/n/b -> Drawish ?
-  if (g_board->white[1] | g_board->white[2] | g_board->black[1] | g_board->black[2]) {
-    // Pawns -> No draw
+  if (g_board->white[1] | g_board->white[2] | g_board->black[1] | g_board->black[2])
     return (g_board->white[0] | g_board->black[0]) ?
+      // Pawns ? -> No draw
       false :
       // Max 1 N/B per side -> Draw
       PopCount(g_board->white[1] | g_board->white[2]) <= 1 && PopCount(g_board->black[1] | g_board->black[2]) <= 1;
-  }
 
   // No N/B/R/Q/n/b/r/q -> Pawns ?
   const auto pawns_n = PopCount(g_board->white[0] | g_board->black[0]);
@@ -1426,6 +1408,7 @@ struct ClassicalEval {
   int white_n, black_n, both_n, wk, bk, wpn, wnn, wbn, wrn, wqn,
       bpn, bnn, bbn, brn, bqn, score, mg, eg, scale_factor;
 
+  // explicit -> force curly init
   explicit ClassicalEval(const bool wtm2) :
     white(White()), black(Black()), both(this->white | this->black), wtm(wtm2), white_n(0),
     black_n(0), both_n(0), wk(0), bk(0), wpn(0), wnn(0), wbn(0), wrn(0), wqn(0), bpn(0),
@@ -1645,17 +1628,13 @@ struct ClassicalEval {
   }
 
   void white_is_mating() {
-    if (this->white_n == 3 && this->wnn && this->wbn)
-      this->bonus_knbk_w();
-    else
-      this->bonus_mating_w(), this->check_blind_bishop_w();
+    this->white_n == 3 && this->wnn && this->wbn ? this->bonus_knbk_w() :
+                                                   this->bonus_mating_w(), this->check_blind_bishop_w();
   }
 
   void black_is_mating() {
-    if (this->black_n == 3 && this->bnn && this->bbn)
-      this->bonus_knbk_b();
-    else
-      this->bonus_mating_b(), this->check_blind_bishop_b();
+    this->black_n == 3 && this->bnn && this->bbn ? this->bonus_knbk_b() :
+                                                   this->bonus_mating_b(), this->check_blind_bishop_b();
   }
 
   // Special EG functions. To avoid always doing "Tabula rasa"
@@ -1685,7 +1664,6 @@ struct ClassicalEval {
 struct NnueEval {
   const bool wtm;
 
-  // explicit -> force curly init
   explicit NnueEval(const bool wtm2) : wtm(wtm2) {}
 
   int probe() {
@@ -1694,20 +1672,16 @@ struct NnueEval {
     for (auto both = Both(); both; )
       switch (const auto sq = CtzPop(&both); g_board->pieces[sq]) {
         case +1: case +2: case +3: case +4: case +5:
-          pieces[i]    = 7 - g_board->pieces[sq];
-          squares[i++] = sq;
+          pieces[i] = 7 - g_board->pieces[sq],  squares[i++] = sq;
           break;
         case -1: case -2: case -3: case -4: case -5:
-          pieces[i]    = 13 + g_board->pieces[sq];
-          squares[i++] = sq;
+          pieces[i] = 13 + g_board->pieces[sq], squares[i++] = sq;
           break;
         case +6:
-          pieces[0]  = 1;
-          squares[0] = sq;
+          pieces[0] = 1, squares[0] = sq;
           break;
         case -6:
-          pieces[1]  = 7;
-          squares[1] = sq;
+          pieces[1] = 7, squares[1] = sq;
           break;
       }
 
@@ -1782,7 +1756,7 @@ bool UserStop() {
 inline bool CheckTime() {
   static std::uint64_t ticks = 0x0ULL;
   // Read clock every 512 ticks (white / 2 x both)
-  return ((++ticks & 0x1FFULL)) ? false : (Now() >= g_stop_search_time || UserStop());
+  return (((++ticks) & 0x1FFULL)) ? false : (Now() >= g_stop_search_time || UserStop());
 }
 
 // 1. Check against standpat to see whether we are better -> Done
@@ -1834,7 +1808,7 @@ int QSearchB(const int alpha, int beta, const int depth) {
 }
 
 // Update hashtable sorting algorithm
-void UpdateSort(HashEntry *entry, const enum MoveType type, const std::uint64_t hash, const std::uint8_t index) {
+void UpdateSort(HashEntry *entry, const MoveType type, const std::uint64_t hash, const std::uint8_t index) {
   entry->sort_hash = hash;
   switch (type) {
     case MoveType::kKiller: entry->killer = index + 1; break;
@@ -2230,13 +2204,13 @@ void UciMakeMove() {
       return;
     }
 
-  Assert(false, "Error #2: Bad move !");
+  std::cout << "info string Error: Bad move" << std::endl;
 }
 
 void UciTakeSpecialFen() {
   TokenPop(); // fen
 
-  std::string fen = "";
+  std::string fen{};
   for ( ; TokenOk() && !Token("moves", 0); TokenPop())
     fen += TokenNth() + " ";
 
@@ -2326,12 +2300,12 @@ void UciGo() {
 void UciUci() {
   std::cout << "id name " << kVersion << "\n";
   std::cout << "id author Toni Helminen" << "\n";
-  std::cout << "option name UCI_Chess960 type check default " << (g_chess960 ? "true" : "false") << "\n";
-  std::cout << "option name Hash type spin default " << g_hash_mb << " min 4 max 1048576" << "\n";
-  std::cout << "option name MoveOverhead type spin default " << g_move_overhead << " min 0 max 5000" << "\n";
-  std::cout << "option name EvalFile type string default " << g_eval_file << "\n";
-  std::cout << "option name BookFile type string default " << g_book_file << "\n";
-  std::cout << "uciok" << std::endl; // flush
+  std::cout << "option name UCI_Chess960 type check default false\n";
+  std::cout << "option name Hash type spin default 256 min 4 max 1048576\n";
+  std::cout << "option name MoveOverhead type spin default 100 min 0 max 5000\n";
+  std::cout << "option name EvalFile type string default nn-cb80fb9393af.nnue\n";
+  std::cout << "option name BookFile type string default performance.bin\n";
+  std::cout << "uciok" << std::endl;
 }
 
 bool UciCommands() {
@@ -2345,7 +2319,7 @@ bool UciCommands() {
   else if (Token("uci"))        UciUci();
   else if (Token("quit"))       return false;
 
-  g_tokens_nth = g_tokens.size(); // Ignore the rest
+  g_tokens_nth = static_cast<std::uint32_t>(g_tokens.size()); // Ignore the rest
 
   return true;
 }
