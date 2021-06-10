@@ -56,28 +56,31 @@ namespace mayhem {
 
 // Constants
 
-const std::string kVersion  = "Mayhem 4.8",
-                  kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
+const std::string
+  kVersion  = "Mayhem 5.0",
+  kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
-const std::array<std::string, 15> kBench = { // Easy fens to pressure search
-  "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 ; 1/15 ; Rh8",
-  "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 ; 2/15 ; Nxa7+",
-  "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 ; 3/15 ; Rxh7+",
-  "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0 ; 4/15 ; Qxh3",
-  "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0 ; 5/15 ; g3",
-  "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0 ; 6/15 ; Nb5",
-  "8/6pp/4p3/1p1n4/1NbkN1P1/P4P1P/1PR3K1/r7 w - - 0 ; 7/15 ; Rxc4+",
-  "2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0 ; 8/15 ; Nxd4+",
-  "nrq4r/2k1p3/1p1pPnp1/pRpP1p2/P1P2P2/2P1BB2/1R2Q1P1/6K1 w - - 0 ; 9/15 ; Bxc5",
-  "3r2k1/5p2/6p1/4b3/1P2P3/1R2P2p/P1K1N3/8 b - - 0 ; 10/15 ; Rd1",
-  "1k1r4/pp1r1pp1/4n1p1/2R5/2Pp1qP1/3P2QP/P4PB1/1R4K1 w - - 0 ; 11/15 ; Bxb7",
-  "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0 ; 12/15 ; Rxg7",
-  "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0 ; 13/15 ; Qxc6",
-  "5bk1/1rQ4p/5pp1/2pP4/3n1PP1/7P/1q3BB1/4R1K1 w - - 0 ; 14/15 ; d6",
-  "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 ; 15/15 ; Ne3"
-};
+const std::array<std::string, 15>
+  kBench = { // Easy fens to pressure search
+    "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 ; 1/15 ; Rh8",
+    "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 ; 2/15 ; Nxa7+",
+    "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 ; 3/15 ; Rxh7+",
+    "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0 ; 4/15 ; Qxh3",
+    "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0 ; 5/15 ; g3",
+    "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0 ; 6/15 ; Nb5",
+    "8/6pp/4p3/1p1n4/1NbkN1P1/P4P1P/1PR3K1/r7 w - - 0 ; 7/15 ; Rxc4+",
+    "2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0 ; 8/15 ; Nxd4+",
+    "nrq4r/2k1p3/1p1pPnp1/pRpP1p2/P1P2P2/2P1BB2/1R2Q1P1/6K1 w - - 0 ; 9/15 ; Bxc5",
+    "3r2k1/5p2/6p1/4b3/1P2P3/1R2P2p/P1K1N3/8 b - - 0 ; 10/15 ; Rd1",
+    "1k1r4/pp1r1pp1/4n1p1/2R5/2Pp1qP1/3P2QP/P4PB1/1R4K1 w - - 0 ; 11/15 ; Bxb7",
+    "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0 ; 12/15 ; Rxg7",
+    "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0 ; 13/15 ; Qxc6",
+    "5bk1/1rQ4p/5pp1/2pP4/3n1PP1/7P/1q3BB1/4R1K1 w - - 0 ; 14/15 ; d6",
+    "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 ; 15/15 ; Ne3"
+  };
 
-constexpr int kInf   = 1048576,
+constexpr int
+  kInf               = 1048576,
   kMaxMoves          = 218,
   kMaxDepth          = 60,
   kKingVectors[16]   = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1},
@@ -141,7 +144,8 @@ constexpr int kInf   = 1048576,
        26, 3, 10, 17, 23, 15, 20, 45, 44, 13, -12, 17, 14, 17, 17, 38, 23, 11, -74, -35,
        -18, -18, -11, 15, 4, -17}}};
 
-constexpr std::uint64_t kRookMagic[64] =
+constexpr std::uint64_t
+  kRookMagic[64] =
     {0x548001400080106cULL, 0x900184000110820ULL,  0x428004200a81080ULL,  0x140088082000c40ULL,
      0x1480020800011400ULL, 0x100008804085201ULL,  0x2a40220001048140ULL, 0x50000810000482aULL,
      0x250020100020a004ULL, 0x3101880100900a00ULL, 0x200a040a00082002ULL, 0x1004300044032084ULL,
@@ -469,9 +473,12 @@ void SetupNNUE() {
 // Hashtable
 
 void SetupHashtable() {
-  g_hash_mb      = std::clamp<int>(g_hash_mb, 4, 1048576); // 4 MB -> 1 TB
-  g_hash_entries = static_cast<std::uint32_t>(((1 << 20) * g_hash_mb)) / (sizeof(HashEntry)); // Hash in B / block in B
-  g_hash.reset(new HashEntry[g_hash_entries]); // Claim space
+  // 4 MB -> 1 TB
+  g_hash_mb      = std::clamp<int>(g_hash_mb, 4, 1048576);
+  // Hash in B / block in B
+  g_hash_entries = static_cast<std::uint32_t>(((1 << 20) * g_hash_mb)) / (sizeof(HashEntry));
+  // Claim space
+  g_hash.reset(new HashEntry[g_hash_entries]);
 }
 
 // Hash
@@ -998,7 +1005,6 @@ void ModifyPawnStuffW(const int from, const int to) {
   if (g_board->pieces[to] != +1) return;
 
   g_board->fifty = 0;
-
   if (to == g_board_orig->epsq) {
     g_board->score          = 10; // PxP
     g_board->pieces[to - 8] = 0;
@@ -1014,7 +1020,6 @@ void ModifyPawnStuffB(const int from, const int to) {
   if (g_board->pieces[to] != -1) return;
 
   g_board->fifty = 0;
-
   if (to == g_board_orig->epsq) {
     g_board->score          = 10;
     g_board->pieces[to + 8] = 0;
@@ -2155,7 +2160,7 @@ void SearchRootMoves(const bool is_eg) {
     g_best_score = best();
 
     // Switch to classical only when the game is decided ( 4+ pawns ) !
-    g_classical = g_classical || (is_eg && std::abs(g_best_score) > (4 * 100) && ++good >= 7);
+    g_classical = g_classical || (is_eg && std::abs(g_best_score) > (4 * 100) && ((++good) >= 7));
 
     Speak(g_best_score, Now() - now);
     g_qs_depth = std::min(g_qs_depth + 2, 12);
@@ -2300,7 +2305,7 @@ void UciGo() {
 
 void UciUci() {
   std::cout << "id name " << kVersion << "\n";
-  std::cout << "id author Toni Helminen" << "\n";
+  std::cout << "id author Toni Helminen\n";
   std::cout << "option name UCI_Chess960 type check default false\n";
   std::cout << "option name Hash type spin default 256 min 4 max 1048576\n";
   std::cout << "option name MoveOverhead type spin default 100 min 0 max 5000\n";
@@ -2363,7 +2368,7 @@ std::uint64_t MakeSliderMagicMoves(const int *slider_vectors, const int sq, cons
         break;
     }
 
-  return (possible_moves & (~Bit(sq)));
+  return possible_moves & (~Bit(sq));
 }
 
 void InitBishopMagics() {
