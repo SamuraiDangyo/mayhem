@@ -57,7 +57,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 5.0",
+  kVersion  = "Mayhem 5.1",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::array<std::string, 15>
@@ -274,7 +274,7 @@ struct HashEntry {
   std::int32_t // Score for NNUE only
     score = 0;
   std::uint8_t // Indexes for sorting
-    killer = 0, good = 0, quiet = 0;
+    killer = 0, good = 0, quiet = 0, deep = 0;
 };
 
 // Enums
@@ -462,12 +462,12 @@ void ReadInput() {
 
 void SetupBook() {
   if (!(g_book_exist = g_book_file == "-" ? false : g_book.open_book(g_book_file)))
-    std::cout << "info string Warning: Opening book disabled" << std::endl;
+    std::cout << "info string Opening book disabled" << std::endl;
 }
 
 void SetupNNUE() {
   if (!(g_nnue_exist = g_eval_file == "-" ? false : nnue::nnue_init(g_eval_file.c_str())))
-    std::cout << "info string Warning: NNUE-Evaluation disabled" << std::endl;
+    std::cout << "info string NNUE-Evaluation disabled" << std::endl;
 }
 
 // Hashtable
@@ -643,10 +643,10 @@ void FenAddChess960Castling(const char file) {
     else if (tmp < g_king_w)
       FenAddCastle(g_rook_w + 1, tmp, 0x2);
   } else if (file >= 'a' && file <= 'h') {
-    if (const auto tmp = file - 'a'; tmp > g_king_b)
-      FenAddCastle(g_rook_b + 0, 56 + tmp, 0x4);
+    if (const auto tmp = (file - 'a') + 56; tmp > g_king_b)
+      FenAddCastle(g_rook_b + 0, tmp, 0x4);
     else if (tmp < g_king_b)
-      FenAddCastle(g_rook_b + 1, 56 + tmp, 0x8);
+      FenAddCastle(g_rook_b + 1, tmp, 0x8);
   }
 }
 
@@ -813,10 +813,11 @@ void SortAll() {
 
 void SortByScore(const HashEntry *entry, const std::uint64_t hash) {
   if (entry->sort_hash == hash) {
-    if (entry->killer)    g_moves[entry->killer - 1].score += 10000;
-    else if (entry->good) g_moves[entry->good   - 1].score += 10000;
+    if        (entry->deep) g_moves[entry->deep - 1].score   += 10000;
+    else if (entry->killer) g_moves[entry->killer - 1].score += 10000;
 
-    if (entry->quiet) g_moves[entry->quiet - 1].score += 10000;
+    if       (entry->good) g_moves[entry->good - 1].score  += 5000;
+    else if (entry->quiet) g_moves[entry->quiet - 1].score += 5000;
   }
 
   SortNthMoves(EvaluateMoves());
@@ -1635,12 +1636,12 @@ struct ClassicalEval {
 
   void white_is_mating() {
     this->white_n == 3 && this->wnn && this->wbn ? this->bonus_knbk_w() :
-                                                   this->bonus_mating_w(), this->check_blind_bishop_w();
+                                                   (this->bonus_mating_w(), this->check_blind_bishop_w());
   }
 
   void black_is_mating() {
     this->black_n == 3 && this->bnn && this->bbn ? this->bonus_knbk_b() :
-                                                   this->bonus_mating_b(), this->check_blind_bishop_b();
+                                                   (this->bonus_mating_b(), this->check_blind_bishop_b());
   }
 
   // Special EG functions. To avoid always doing "Tabula rasa"
@@ -1698,7 +1699,7 @@ struct NnueEval {
   }
 
   int evaluate() {
-    const auto hash = Hash(wtm);
+    const auto hash = Hash(this->wtm);
     auto *entry     = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
 
     if (entry->eval_hash == hash)
@@ -1720,8 +1721,8 @@ int EvaluateNNUE(const bool wtm) {
 }
 
 int Evaluate(const bool wtm) {
-  return EasyDraw(wtm) ? 0 :
-                         (g_scale[g_board->fifty] * static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)));
+  return EasyDraw(wtm) ?
+    0 : (g_scale[g_board->fifty] * static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)));
 }
 
 // Search
@@ -1814,8 +1815,12 @@ int QSearchB(const int alpha, int beta, const int depth) {
 }
 
 // Update hashtable sorting algorithm
-void UpdateSort(HashEntry *entry, const MoveType type, const std::uint64_t hash, const std::uint8_t index) {
+void UpdateSort(HashEntry *entry, const MoveType type, const std::uint64_t hash, const std::uint8_t index, const int depth = 0) {
   entry->sort_hash = hash;
+
+  if (depth >= 5)
+    entry->deep = index + 1;
+
   switch (type) {
     case MoveType::kKiller: entry->killer = index + 1; break;
     case MoveType::kGood:   entry->good   = index + 1; break;
@@ -1854,7 +1859,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
     // Improved scope
     if (const auto score = SearchB(alpha, beta, depth - 1, ply + 1); score > alpha) {
       if ((alpha = score) >= beta) {
-        UpdateSort(entry, MoveType::kKiller, hash, moves[i].index);
+        UpdateSort(entry, MoveType::kKiller, hash, moves[i].index, depth);
         return alpha;
       }
       UpdateSort(entry, moves[i].score ? MoveType::kGood : MoveType::kQuiet, hash, moves[i].index);
@@ -1892,7 +1897,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
 
     if (const auto score = SearchW(alpha, beta, depth - 1, ply + 1); score < beta) {
       if (alpha >= (beta = score)) {
-        UpdateSort(entry, MoveType::kKiller, hash, moves[i].index);
+        UpdateSort(entry, MoveType::kKiller, hash, moves[i].index, depth);
         return beta;
       }
       UpdateSort(entry, moves[i].score ? MoveType::kGood : MoveType::kQuiet, hash, moves[i].index);
@@ -1921,7 +1926,7 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
     g_board->epsq     = -1;
 
     g_nullmove_active = true;
-    const auto score  = SearchB(*alpha, beta, depth - (depth / 4 + 3), ply);
+    const auto score  = SearchB(*alpha, beta, depth - int(depth / 4 + 3), ply);
     g_nullmove_active = false;
 
     g_board           = tmp;
@@ -1948,7 +1953,7 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
     g_board->epsq     = -1;
 
     g_nullmove_active = true;
-    const auto score  = SearchW(alpha, *beta, depth - (depth / 4 + 3), ply);
+    const auto score  = SearchW(alpha, *beta, depth - int(depth / 4 + 3), ply);
     g_nullmove_active = false;
 
     g_board           = tmp;
