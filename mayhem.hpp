@@ -57,7 +57,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 5.1",
+  kVersion  = "Mayhem 5.2",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::array<std::string, 15>
@@ -474,7 +474,7 @@ void SetupNNUE() {
 
 void SetupHashtable() {
   // 4 MB -> 1 TB
-  g_hash_mb      = std::clamp<int>(g_hash_mb, 4, 1048576);
+  g_hash_mb      = std::clamp(g_hash_mb, 4, 1048576);
   // Hash in B / block in B
   g_hash_entries = static_cast<std::uint32_t>(((1 << 20) * g_hash_mb)) / (sizeof(HashEntry));
   // Claim space
@@ -551,22 +551,22 @@ std::uint64_t Fill(int from, const int to) {
 }
 
 void BuildCastlingBitboard1() {
-  if (g_board->castle & 0x1) {
+  if ((g_board->castle & 0x1)) { // O-O
     g_castle_w[0]       = Fill(g_king_w, 6);
     g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5     )) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
   }
 
-  if (g_board->castle & 0x2) {
+  if ((g_board->castle & 0x2)) { // O-O-O
     g_castle_w[1]       = Fill(g_king_w, 2);
     g_castle_empty_w[1] = (g_castle_w[1] | Fill(g_rook_w[1], 3     )) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
   }
 
-  if (g_board->castle & 0x4) {
+  if ((g_board->castle & 0x4)) { // O-O
     g_castle_b[0]       = Fill(g_king_b, 56 + 6);
     g_castle_empty_b[0] = (g_castle_b[0] | Fill(g_rook_b[0], 56 + 5)) ^ (Bit(g_king_b) | Bit(g_rook_b[0]));
   }
 
-  if (g_board->castle & 0x8) {
+  if ((g_board->castle & 0x8)) { // O-O-O
     g_castle_b[1]       = Fill(g_king_b, 56 + 2);
     g_castle_empty_b[1] = (g_castle_b[1] | Fill(g_rook_b[1], 56 + 3)) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
   }
@@ -669,7 +669,7 @@ void FenEp(const std::string &ep) {
 
 void FenRule50(const std::string &fifty) {
   if (fifty.length() != 0 && fifty[0] != '-')
-    g_board->fifty = std::clamp<std::uint8_t>(std::stoi(fifty), 0, 100);
+    g_board->fifty = std::clamp(std::stoi(fifty), 0, 100);
 }
 
 void FenGen(const std::string &fen) {
@@ -815,7 +815,7 @@ void SortByScore(const HashEntry *entry, const std::uint64_t hash) {
   if (entry->sort_hash == hash) {
     if (entry->killer) g_moves[entry->killer - 1].score += 10000;
     if (entry->good)   g_moves[entry->good   - 1].score += 7000;
-    if (entry->quiet)  g_moves[entry->quiet - 1].score  += 3000;
+    if (entry->quiet)  g_moves[entry->quiet  - 1].score += 3000;
   }
 
   SortNthMoves(EvaluateMoves());
@@ -1651,7 +1651,7 @@ struct ClassicalEval {
   }
 
   int calculate_score() {
-    const auto n = std::clamp<int>(this->both_n, 2, 32);
+    const auto n = std::clamp(this->both_n, 2, 32);
     const auto s = (n * this->mg + (32 - n) * this->eg) / 32;
     return (this->score + s) / this->scale_factor;
   }
@@ -1778,7 +1778,6 @@ int QSearchW(int alpha, const int beta, const int depth) {
 
   Board moves[64]; // Paranoid ...
   const auto moves_n = MgenTacticalW(moves);
-
   SortAll(); // Very few moves, so sort them all
 
   for (auto i = 0; i < moves_n; ++i) {
@@ -1801,7 +1800,6 @@ int QSearchB(const int alpha, int beta, const int depth) {
 
   Board moves[64];
   const auto moves_n = MgenTacticalB(moves);
-
   SortAll();
 
   for (auto i = 0; i < moves_n; ++i) {
@@ -2133,9 +2131,8 @@ bool ProbeBook() {
   // PolyGlot promos
   auto is_promo = [&move](const int v){ return move & (0x1 << (12 + v)); };
   constexpr std::array<int, 4> v = {0, 1, 2, 3};
-  const auto res = std::find_if(v.begin(), v.end(), is_promo);
 
-  if (res != v.end())
+  if (const auto res = std::find_if(v.begin(), v.end(), is_promo); res != v.end())
     type = 5 + *res;
 
   return FindBookMove(from, to, type);
@@ -2249,7 +2246,7 @@ void UciSetoption() {
       SetupHashtable();
       TokenPop(4);
     } else if (TokenPeek("MoveOverhead", 1)) {
-      g_move_overhead = std::clamp<int>(TokenNumber(3), 0, 5000);
+      g_move_overhead = std::clamp(TokenNumber(3), 0, 5000);
       TokenPop(4);
     } else if (TokenPeek("EvalFile", 1)) {
       g_eval_file = TokenNth(3);
@@ -2281,7 +2278,7 @@ void UciGoMovetime() {
 }
 
 void UciGoDepth() {
-  g_max_depth = std::clamp<int>(TokenNumber(), 1, kMaxDepth);
+  g_max_depth = std::clamp(TokenNumber(), 1, kMaxDepth);
   Think(kInf);
   g_max_depth = kMaxDepth;
   TokenPop();
@@ -2468,7 +2465,7 @@ void InitScale() {
 void InitLMR() {
   for (auto d = 0; d < kMaxDepth; ++d)
     for (auto m = 0; m < kMaxMoves; ++m)
-      g_lmr[d][m] = std::clamp<int>(0.25 * std::log(d) * std::log(m), 1, 5);
+      g_lmr[d][m] = std::clamp(int(0.25 * std::log(d) * std::log(m)), 1, 6);
 }
 
 void Init() {
