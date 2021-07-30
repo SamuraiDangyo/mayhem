@@ -61,7 +61,7 @@ const std::string
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::array<std::string, 15>
-  kBench = { // Easy fens to pressure search
+  kBench = { // Tactical fens to pressure search
     "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 ; 1/15 ; Rh8",
     "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 ; 2/15 ; Nxa7+",
     "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 ; 3/15 ; Rxh7+",
@@ -274,7 +274,7 @@ struct HashEntry {
   std::int32_t // Score for NNUE only
     score = 0;
   std::uint8_t // Indexes for sorting
-    killer = 0, good = 0, quiet = 0, deep = 0;
+    killer = 0, good = 0, quiet = 0;
 };
 
 // Enums
@@ -376,7 +376,7 @@ inline std::uint64_t Bit(const int nbits) {
 }
 
 std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
-  return (1000 * nodes) / (ms + 1);
+  return ms ? (1000 * nodes) / ms : 0;
 }
 
 bool OnBoard(const int x, const int y) {
@@ -467,7 +467,7 @@ void SetupBook() {
 
 void SetupNNUE() {
   if (!(g_nnue_exist = g_eval_file == "-" ? false : nnue::nnue_init(g_eval_file.c_str())))
-    std::cout << "info string NNUE-Evaluation disabled" << std::endl;
+    std::cout << "info string NNUE evaluation disabled" << std::endl;
 }
 
 // Hashtable
@@ -550,12 +550,6 @@ std::uint64_t Fill(int from, const int to) {
   return ret;
 }
 
-void FindKings() {
-  for (auto i = 0; i < 64; ++i)
-    if (     g_board->pieces[i] == +6) g_king_w = i;
-    else if (g_board->pieces[i] == -6) g_king_b = i;
-}
-
 void BuildCastlingBitboard1() {
   if (g_board->castle & 0x1) {
     g_castle_w[0]       = Fill(g_king_w, 6);
@@ -594,6 +588,13 @@ void BuildCastlingBitboards() {
 
 // Fen handling
 
+void PutPiece(const int sq, const int p) {
+  // Find kings too
+  if      (p == +6) g_king_w = sq; // K
+  else if (p == -6) g_king_b = sq; // k
+  g_board->pieces[sq] = p;
+}
+
 int Piece2Num(const char p) {
   switch (p) {
     case 'P': return +1;
@@ -628,7 +629,7 @@ void FenBoard(const std::string &board) {
   for (std::size_t i = 0, len = board.length(); /* O(n) */ i < len && sq >= 0; ++i)
     if (const auto c = board[i]; c == '/') sq -= 16;
     else if (std::isdigit(c))              sq += Empty2Num(c);
-    else                                   g_board->pieces[sq++] = Piece2Num(c);
+    else                                   PutPiece(sq, Piece2Num(c)), ++sq;
 }
 
 void FenAddCastle(int *rooks, const int sq, const int castle) {
@@ -679,7 +680,6 @@ void FenGen(const std::string &fen) {
 
   FenBoard(tokens[0]);
   g_wtm = tokens[1][0] == 'w';
-  FindKings();
   FenKQkq(tokens[2]);
   BuildCastlingBitboards();
   FenEp(tokens[3]);
@@ -813,11 +813,9 @@ void SortAll() {
 
 void SortByScore(const HashEntry *entry, const std::uint64_t hash) {
   if (entry->sort_hash == hash) {
-    if        (entry->deep) g_moves[entry->deep - 1].score   += 10000;
-    else if (entry->killer) g_moves[entry->killer - 1].score += 10000;
-
-    if       (entry->good) g_moves[entry->good - 1].score  += 5000;
-    else if (entry->quiet) g_moves[entry->quiet - 1].score += 5000;
+    if (entry->killer) g_moves[entry->killer - 1].score += 10000;
+    if (entry->good)   g_moves[entry->good   - 1].score += 7000;
+    if (entry->quiet)  g_moves[entry->quiet - 1].score  += 3000;
   }
 
   SortNthMoves(EvaluateMoves());
@@ -1755,6 +1753,7 @@ bool Draw(const bool wtm) {
 bool UserStop() {
   if (!g_analyzing || !InputAvailable())
     return false;
+
   ReadInput();
   return Token("stop");
 }
@@ -1815,11 +1814,8 @@ int QSearchB(const int alpha, int beta, const int depth) {
 }
 
 // Update hashtable sorting algorithm
-void UpdateSort(HashEntry *entry, const MoveType type, const std::uint64_t hash, const std::uint8_t index, const int depth = 0) {
+void UpdateSort(HashEntry *entry, const MoveType type, const std::uint64_t hash, const std::uint8_t index) {
   entry->sort_hash = hash;
-
-  if (depth >= 5)
-    entry->deep = index + 1;
 
   switch (type) {
     case MoveType::kKiller: entry->killer = index + 1; break;
@@ -1859,7 +1855,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
     // Improved scope
     if (const auto score = SearchB(alpha, beta, depth - 1, ply + 1); score > alpha) {
       if ((alpha = score) >= beta) {
-        UpdateSort(entry, MoveType::kKiller, hash, moves[i].index, depth);
+        UpdateSort(entry, MoveType::kKiller, hash, moves[i].index);
         return alpha;
       }
       UpdateSort(entry, moves[i].score ? MoveType::kGood : MoveType::kQuiet, hash, moves[i].index);
@@ -1897,7 +1893,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
 
     if (const auto score = SearchW(alpha, beta, depth - 1, ply + 1); score < beta) {
       if (alpha >= (beta = score)) {
-        UpdateSort(entry, MoveType::kKiller, hash, moves[i].index, depth);
+        UpdateSort(entry, MoveType::kKiller, hash, moves[i].index);
         return beta;
       }
       UpdateSort(entry, moves[i].score ? MoveType::kGood : MoveType::kQuiet, hash, moves[i].index);
@@ -2148,7 +2144,7 @@ bool ProbeBook() {
 bool FastMove(const int ms) {
   if ((g_root_n <= 1) || // Only move
       (ms <= 1) ||       // Hurry up !
-      (g_book_exist && ms > 100 && ProbeBook())) { // At least 100+ms for the book lookup
+      (g_book_exist && ms > 100 && ProbeBook())) { // At least 100ms+ for the book lookup
     Speak(g_last_eval, 0);
     return true;
   }
@@ -2244,24 +2240,26 @@ void UciPosition() {
 }
 
 void UciSetoption() {
-  if (TokenPeek("name") && TokenPeek("UCI_Chess960", 1) && TokenPeek("value", 2)) {
-    g_chess960 = TokenPeek("true", 3);
-    TokenPop(4);
-  } else if (TokenPeek("name") && TokenPeek("Hash", 1) && TokenPeek("value", 2)) {
-    g_hash_mb = TokenNumber(3);
-    SetupHashtable();
-    TokenPop(4);
-  } else if (TokenPeek("name") && TokenPeek("MoveOverhead", 1) && TokenPeek("value", 2)) {
-    g_move_overhead = std::clamp<int>(TokenNumber(3), 0, 5000);
-    TokenPop(4);
-  } else if (TokenPeek("name") && TokenPeek("EvalFile", 1) && TokenPeek("value", 2)) {
-    g_eval_file = TokenNth(3);
-    SetupNNUE();
-    TokenPop(4);
-  } else if (TokenPeek("name") && TokenPeek("BookFile", 1) && TokenPeek("value", 2)) {
-    g_book_file = TokenNth(3);
-    SetupBook();
-    TokenPop(4);
+  if (TokenPeek("name") && TokenPeek("value", 2)) {
+    if (TokenPeek("UCI_Chess960", 1)) {
+      g_chess960 = TokenPeek("true", 3);
+      TokenPop(4);
+    } else if (TokenPeek("Hash", 1)) {
+      g_hash_mb = TokenNumber(3);
+      SetupHashtable();
+      TokenPop(4);
+    } else if (TokenPeek("MoveOverhead", 1)) {
+      g_move_overhead = std::clamp<int>(TokenNumber(3), 0, 5000);
+      TokenPop(4);
+    } else if (TokenPeek("EvalFile", 1)) {
+      g_eval_file = TokenNth(3);
+      SetupNNUE();
+      TokenPop(4);
+    } else if (TokenPeek("BookFile", 1)) {
+      g_book_file = TokenNth(3);
+      SetupBook();
+      TokenPop(4);
+    }
   }
 }
 
