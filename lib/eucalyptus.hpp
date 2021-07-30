@@ -14,7 +14,8 @@ namespace eucalyptus {
   };
 
   bool IsDraw(const int wk, const int wp, const int bk, const int wtm) {
-    return ((wp & 0x7) & 0x4) ? kKpk[wtm * 24 * 64 + (4 * (((wp ^ 7) >> 3) - 1) + ((wp ^ 7) & 0x7)) * 64 + (wk ^ 7)] & (0x1ULL << ((bk ^ 7) & 0x3F))
-                              : kKpk[wtm * 24 * 64 + (4 * (( wp      >> 3) - 1) +  (wp      & 0x7)) * 64 +  wk     ] & (0x1ULL << ( bk      & 0x3F));
+    return ((wp & 0x7) & 0x4) ?
+      kKpk[wtm * 24 * 64 + (4 * (((wp ^ 0x7) >> 3) - 0x1) + ((wp ^ 0x7) & 0x7)) * 64 + (wk ^ 7)] & (0x1ULL << ((bk ^ 0x7) & 0x3F)) :
+      kKpk[wtm * 24 * 64 + (4 * (( wp        >> 3) - 0x1) +  (wp        & 0x7)) * 64 +  wk     ] & (0x1ULL << ( bk        & 0x3F));
   }
 }

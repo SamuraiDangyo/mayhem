@@ -726,58 +726,6 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
 {
   assert(outDims == 32);
 
-#if 0
-  const __m64 kZeros[2] = { 0 };
-  for (unsigned t = 0; t < 4; t++) {
-    __m64 out_0 = ((__m64 *)biases)[4 * t + 0];
-    __m64 out_1 = ((__m64 *)biases)[4 * t + 1];
-    __m64 out_2 = ((__m64 *)biases)[4 * t + 2];
-    __m64 out_3 = ((__m64 *)biases)[4 * t + 3];
-    const __m64 *first, *second;
-    mask2_t v;
-    unsigned idx;
-
-    memcpy(&v, inMask, sizeof(mask2_t));
-    for (unsigned offset = 0; offset < inDims;) {
-      if (!next_idx(&idx, &offset, &v, inMask, inDims))
-        break;
-      first = &((__m64 *)&weights[outDims * idx])[2  * t];
-      uint32_t factor = input[idx];
-      if (next_idx(&idx, &offset, &v, inMask, inDims)) {
-        second = &((__m64 *)&weights[outDims * idx])[2 * t];
-        factor |= input[idx] << 16;
-      } else {
-        second = kZeros;
-      }
-      __m64 mul = _mm_set1_pi32(factor);
-      out_0 = _mm_add_pi32(out_0, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[0],second[0])));
-      out_1 = _mm_add_pi32(out_1, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[0],second[0])));
-      out_2 = _mm_add_pi32(out_2, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[1],second[1])));
-      out_3 = _mm_add_pi32(out_3, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[1],second[1])));
-    }
-
-    __m64 out16_0 = _mm_srai_pi16(_mm_packs_pi32(out_0, out_1), SHIFT);
-    __m64 out16_1 = _mm_srai_pi16(_mm_packs_pi32(out_2, out_3), SHIFT);
-
-    __m64 *outVec = (__m64 *)output;
-    if (pack8_and_calc_mask) {
-      outVec[t] = _mm_packs_pi16(out16_0, out16_1);
-      outMask[t] = _mm_movemask_pi8(_mm_cmpgt_pi8(outVec[t], kZeros[0]));
-    } else {
-#ifdef USE_SSE
-      const __m64 kx07f = _mm_set1_pi16(127);
-      outVec[2 * t] = _mm_min_pi16(_mm_max_pi16(out16_0, kZeros[0]), kx07f);
-      outVec[2 * t + 1] = _mm_min_pi16(_mm_max_pi16(out16_1, kZeros[0]), kx07f);
-#else
-      const __m64 k0x7f80 = _mm_set1_pi16(0x7f80);
-      const __m64 k0x0080 = _mm_set1_pi16(0x0080);
-      const __m64 k0x8000 = _mm_set1_pi16(-0x8000);
-      outVec[2 * t] = _mm_subs_pu16(_mm_add_pi16(_mm_adds_pi16(out16_0, k0x7f80), k0x0080), k0x8000);
-      outVec[2 * t + 1] = _mm_subs_pu16(_mm_add_pi16(_mm_adds_pi16(out16_1, k0x7f80), k0x0080), k0x8000);
-#endif
-    }
-  }
-#else
   const __m64 kZeros[8] = { 0 };
   __m64 out_0 = ((__m64 *)biases)[0];
   __m64 out_1 = ((__m64 *)biases)[1];
@@ -874,8 +822,8 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
     outVec[7] = _mm_subs_pu16(_mm_add_pi16(_mm_adds_pi16(out16_7, k0x7f80), k0x0080), k0x8000);
 #endif
   }
-#endif
 }
+
 #elif defined(USE_NEON)
 INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
     unsigned outDims, const int32_t *biases, const weight_t *weights,
@@ -1021,34 +969,29 @@ INLINE void refresh_accumulator(Position *pos)
 // Convert input features
 INLINE void transform(Position *pos, clipped_t *output, mask_t *outMask)
 {
-#if 0
-  if (!update_accumulator(pos))
-#endif
-    refresh_accumulator(pos);
-
+  (void) outMask; // avoid compiler warning
+  refresh_accumulator(pos);
   int16_t (*accumulation)[2][256] = &pos->accumulator.accumulation;
-  (void)outMask; // avoid compiler warning
 
   const int perspectives[2] = { pos->player, !pos->player };
   for (unsigned p = 0; p < 2; p++) {
     const unsigned offset = kHalfDimensions * p;
 
 #ifdef VECTOR
-    const unsigned numChunks = (16 * kHalfDimensions) / SIMD_WIDTH;
-    vec8_t *out = (vec8_t *)&output[offset];
-    for (unsigned i = 0; i < numChunks / 2; i++) {
-      vec16_t s0 = ((vec16_t *)(*accumulation)[perspectives[p]])[i * 2];
-      vec16_t s1 = ((vec16_t *)(*accumulation)[perspectives[p]])[i * 2 + 1];
-      out[i] = vec_packs(s0, s1);
-      *outMask++ = vec_mask_pos(out[i]);
-    }
+  const unsigned numChunks = (16 * kHalfDimensions) / SIMD_WIDTH;
+  vec8_t *out = (vec8_t *)&output[offset];
+  for (unsigned i = 0; i < numChunks / 2; i++) {
+    vec16_t s0 = ((vec16_t *)(*accumulation)[perspectives[p]])[i * 2];
+    vec16_t s1 = ((vec16_t *)(*accumulation)[perspectives[p]])[i * 2 + 1];
+    out[i] = vec_packs(s0, s1);
+    *outMask++ = vec_mask_pos(out[i]);
+  }
 
 #else
-    for (unsigned i = 0; i < kHalfDimensions; i++) {
-      int16_t sum = (*accumulation)[perspectives[p]][i];
-      output[offset + i] = clamp(sum, 0, 127);
-    }
-
+  for (unsigned i = 0; i < kHalfDimensions; i++) {
+    int16_t sum = (*accumulation)[perspectives[p]][i];
+    output[offset + i] = clamp(sum, 0, 127);
+  }
 #endif
 
   }
