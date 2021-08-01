@@ -303,7 +303,7 @@ std::uint64_t
 
 bool
   g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active = false, g_stop_search = false,
-  g_is_pv = false, g_analyzing = false, g_book_exist = false, g_nnue_exist = false, g_classical = false;
+  g_is_pv = false, g_book_exist = false, g_nnue_exist = false, g_classical = false, g_game_on = true;
 
 std::vector<std::string>
   g_tokens = {};
@@ -509,11 +509,12 @@ void TokenPop(const std::uint32_t nth = 1) {
 }
 
 // If true then pop n
-bool Token(const std::string &token, const std::uint32_t nth = 1) {
-  if (TokenOk() && token == TokenNth()) {
-    TokenPop(nth);
+bool Token(const std::string &token, const std::uint32_t pop_n = 1) {
+  if (TokenOk() && token == g_tokens[g_tokens_nth]) {
+    TokenPop(pop_n);
     return true;
   }
+
   return false;
 }
 
@@ -1749,20 +1750,24 @@ bool Draw(const bool wtm) {
   return false;
 }
 
-// Only analyzing
+// Responding to quit / stop signals
 bool UserStop() {
-  if (!g_analyzing || !InputAvailable())
-    return false;
+  if (!InputAvailable()) return false;
 
   ReadInput();
-  return Token("stop");
+  if (Token("isready")) {
+    std::cout << "readyok" << std::endl;
+    return false;
+  }
+
+  return Token("quit") ? !(g_game_on = false) : Token("stop");
 }
 
 // Time checking
 inline bool CheckTime() {
   static std::uint64_t ticks = 0x0ULL;
   // Read clock every 512 ticks (white / 2 x both)
-  return (((++ticks) & 0x1FFULL)) ? false : (Now() >= g_stop_search_time || UserStop());
+  return (((++ticks) & 0x1FFULL)) ? false : ((Now() >= g_stop_search_time) || UserStop());
 }
 
 // 1. Check against standpat to see whether we are better -> Done
@@ -2265,9 +2270,7 @@ void PrintBestMove() {
 }
 
 void UciGoAnalyze() {
-  g_analyzing = true;
   Think(kInf);
-  g_analyzing = false;
   PrintBestMove();
 }
 
@@ -2327,7 +2330,7 @@ bool UciCommands() {
 
   g_tokens_nth = static_cast<std::uint32_t>(g_tokens.size()); // Ignore the rest
 
-  return true;
+  return g_game_on;
 }
 
 bool Uci() {
