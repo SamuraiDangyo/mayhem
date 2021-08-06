@@ -255,7 +255,7 @@ std::size_t PolyglotBook::find_first(const std::uint64_t key) {
     const std::size_t mid = (low + high) / 2;
     Entry e;
 
-    this->seekg(mid * sizeof(Entry), ios_base::beg);
+    this->seekg(mid * sizeof(Entry), std::ios_base::beg);
     *this >> e;
 
     if (key <= e.key)
