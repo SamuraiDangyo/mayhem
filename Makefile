@@ -7,16 +7,14 @@
 # Definitions
 #
 
-CXX      = clang++
-EXE      = mayhem
-FILES    = lib/polyglotbook.cpp lib/nnue.cpp main.cpp
+CXX       = clang++
+EXE       = mayhem
+FILES     = lib/polyglotbook.cpp lib/nnue.cpp main.cpp
 
-# For Windows add: -DWINDOWS
-
-BFLAGS   = -std=c++17 -O3 -flto -march=native -mpopcnt -DNDEBUG
-WFLAGS   = -Wall -Wextra -Wshadow -pedantic
-NFLAGS   = -DUSE_AVX2 -mavx2
-CXXFLAGS = $(BFLAGS) $(WFLAGS) $(NFLAGS)
+BFLAGS    = -std=c++17 -O3 -flto -march=native -mpopcnt -DNDEBUG
+WFLAGS    = -Wall -Wextra -Wshadow -pedantic
+NFLAGS    = -DUSE_AVX2 -mavx2
+CXXFLAGS += $(BFLAGS) $(WFLAGS) $(NFLAGS)
 
 #
 # Targets

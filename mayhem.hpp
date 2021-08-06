@@ -57,7 +57,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 5.2",
+  kVersion  = "Mayhem 5.3",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::array<std::string, 15>
@@ -1750,7 +1750,7 @@ bool Draw(const bool wtm) {
   return false;
 }
 
-// Responding to quit / stop signals
+// Responding to quit / stop / isready signals
 bool UserStop() {
   if (!InputAvailable()) return false;
 
