@@ -2251,7 +2251,7 @@ void UciSetoption() {
       SetupHashtable();
       TokenPop(4);
     } else if (TokenPeek("MoveOverhead", 1)) {
-      g_move_overhead = std::clamp(TokenNumber(3), 0, 5000);
+      g_move_overhead = std::clamp(TokenNumber(3), 0, 10000);
       TokenPop(4);
     } else if (TokenPeek("EvalFile", 1)) {
       g_eval_file = TokenNth(3);
@@ -2311,7 +2311,7 @@ void UciUci() {
   std::cout << "id author Toni Helminen\n";
   std::cout << "option name UCI_Chess960 type check default false\n";
   std::cout << "option name Hash type spin default 256 min 4 max 1048576\n";
-  std::cout << "option name MoveOverhead type spin default 100 min 0 max 5000\n";
+  std::cout << "option name MoveOverhead type spin default 100 min 0 max 10000\n";
   std::cout << "option name EvalFile type string default nn-cb80fb9393af.nnue\n";
   std::cout << "option name BookFile type string default performance.bin\n";
   std::cout << "uciok" << std::endl;
