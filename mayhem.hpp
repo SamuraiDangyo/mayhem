@@ -284,7 +284,7 @@ enum class MoveType { kKiller, kGood, kQuiet };
 // Variables
 
 int
-  g_hash_mb = 256, g_move_overhead = 100, g_rook_w[2] = {}, g_rook_b[2] = {}, g_root_n = 0,
+  g_hash_mb = 256, g_move_overhead = 200, g_rook_w[2] = {}, g_rook_b[2] = {}, g_root_n = 0,
   g_king_w = 0, g_king_b = 0, g_moves_n = 0, g_max_depth = kMaxDepth, g_qs_depth = 0,
   g_depth = 0, g_best_score = 0, g_last_eval = 0, g_lmr[kMaxDepth][kMaxMoves] = {};
 
@@ -694,8 +694,11 @@ void FenReset() {
   g_board->epsq = -1;
   g_king_w = g_king_b = 0;
 
-  for (const auto i : {0, 1}) g_castle_w[i] = g_castle_empty_w[i] = g_castle_b[i] = g_castle_empty_b[i] = 0x0ULL;
-  for (const auto i : {0, 1}) g_rook_w[i] = g_rook_b[i] = 0;
+  for (const auto i : {0, 1}) {
+    g_castle_w[i] = g_castle_empty_w[i] = g_castle_b[i] = g_castle_empty_b[i] = 0x0ULL;
+    g_rook_w[i] = g_rook_b[i] = 0;
+  }
+
   for (auto i = 0; i < 6; ++i) g_board->white[i] = g_board->black[i] = 0x0ULL;
 }
 
@@ -1382,8 +1385,9 @@ void MgenRoot() {
 
 // Probe Eucalyptus KPK bitbases
 inline bool ProbeKPK(const bool wtm) {
-  return g_board->white[0] ? eucalyptus::IsDraw(     Ctz(g_board->white[5]),      Ctz(g_board->white[0]),      Ctz(g_board->black[5]),  wtm) :
-                             eucalyptus::IsDraw(63 - Ctz(g_board->black[5]), 63 - Ctz(g_board->black[0]), 63 - Ctz(g_board->white[5]), !wtm);
+  return g_board->white[0] ?
+    eucalyptus::IsDraw(     Ctz(g_board->white[5]),      Ctz(g_board->white[0]),      Ctz(g_board->black[5]),  wtm) :
+    eucalyptus::IsDraw(63 - Ctz(g_board->black[5]), 63 - Ctz(g_board->black[0]), 63 - Ctz(g_board->white[5]), !wtm);
 }
 
 // Detect trivial draws really fast
@@ -1557,14 +1561,16 @@ struct ClassicalEval {
 
   void bonus_knbk_w() {
     this->score += (2 * this->closer_bonus(this->wk, this->bk)) +
-                   ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? 10 * std::max(this->closer_bonus(0, this->bk), this->closer_bonus(63, this->bk)) :
-                                                                  10 * std::max(this->closer_bonus(7, this->bk), this->closer_bonus(56, this->bk)));
+                   ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ?
+                     10 * std::max(this->closer_bonus(0, this->bk), this->closer_bonus(63, this->bk)) :
+                     10 * std::max(this->closer_bonus(7, this->bk), this->closer_bonus(56, this->bk)));
   }
 
   void bonus_knbk_b() {
     this->score -= (2 * this->closer_bonus(this->wk, this->bk)) +
-                   ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? 10 * std::max(this->closer_bonus(0, this->wk), this->closer_bonus(63, this->wk)) :
-                                                                  10 * std::max(this->closer_bonus(7, this->wk), this->closer_bonus(56, this->wk)));
+                   ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ?
+                     10 * std::max(this->closer_bonus(0, this->wk), this->closer_bonus(63, this->wk)) :
+                     10 * std::max(this->closer_bonus(7, this->wk), this->closer_bonus(56, this->wk)));
   }
 
   void bonus_tempo() {
@@ -2136,7 +2142,6 @@ bool ProbeBook() {
   // PolyGlot promos
   auto is_promo = [&move](const int v){ return move & (0x1 << (12 + v)); };
   constexpr std::array<int, 4> v = {0, 1, 2, 3};
-
   if (const auto res = std::find_if(v.begin(), v.end(), is_promo); res != v.end())
     type = 5 + *res;
 
@@ -2296,8 +2301,8 @@ void UciGo() {
     if (     Token("infinite"))  {UciGoAnalyze(); return;}
     else if (Token("wtime"))     {wtime = std::max(0, TokenNumber() - g_move_overhead);}
     else if (Token("btime"))     {btime = std::max(0, TokenNumber() - g_move_overhead);}
-    else if (Token("winc"))      {winc  = std::max(0, TokenNumber() - g_move_overhead / 2);}
-    else if (Token("binc"))      {binc  = std::max(0, TokenNumber() - g_move_overhead / 2);}
+    else if (Token("winc"))      {winc  = std::max(0, TokenNumber());}
+    else if (Token("binc"))      {binc  = std::max(0, TokenNumber());}
     else if (Token("movestogo")) {mtg   = std::max(1, TokenNumber());}
     else if (Token("movetime"))  {UciGoMovetime(); return;}
     else if (Token("depth"))     {UciGoDepth(); return;}
@@ -2311,7 +2316,7 @@ void UciUci() {
   std::cout << "id author Toni Helminen\n";
   std::cout << "option name UCI_Chess960 type check default false\n";
   std::cout << "option name Hash type spin default 256 min 4 max 1048576\n";
-  std::cout << "option name MoveOverhead type spin default 100 min 0 max 10000\n";
+  std::cout << "option name MoveOverhead type spin default 200 min 0 max 10000\n";
   std::cout << "option name EvalFile type string default nn-cb80fb9393af.nnue\n";
   std::cout << "option name BookFile type string default performance.bin\n";
   std::cout << "uciok" << std::endl;
