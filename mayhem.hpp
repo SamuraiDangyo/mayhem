@@ -2266,7 +2266,7 @@ void PrintBestMove() {
   std::cout << "bestmove " << (g_root_n <= 0 ? "0000" : MoveName(g_root)) << std::endl;
 }
 
-void UciGoAnalyze() {
+void UciGoInfinite() {
   Think(kInf);
   PrintBestMove();
 }
@@ -2297,7 +2297,7 @@ void UciGo() {
     else if (Token("binc"))      {binc  = std::max(0, TokenNumber());}
     else if (Token("movestogo")) {mtg   = std::max(1, TokenNumber());}
     else if (Token("movetime"))  {UciGoMovetime(); return;}
-    else if (Token("infinite"))  {UciGoAnalyze();  return;}
+    else if (Token("infinite"))  {UciGoInfinite(); return;}
     else if (Token("depth"))     {UciGoDepth();    return;}
 
   g_wtm ? Think(std::min(wtime, wtime / mtg + winc)) :
