@@ -57,7 +57,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 5.3",
+  kVersion  = "Mayhem 5.4",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::array<std::string, 15>
@@ -83,8 +83,6 @@ constexpr int
   kInf               = 1048576,
   kMaxMoves          = 218,
   kMaxDepth          = 60,
-  kKingVectors[16]   = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1},
-  kKnightVectors[16] = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2},
   kBishopVectors[8]  = {+1, +1, -1, -1, +1, -1, -1, +1},
   kRookVectors[8]    = {+1,  0,  0, +1,  0, -1, -1,  0},
   kMvv[6][6]         = {{10, 15, 15, 20, 25, 99}, {9, 14, 14, 19, 24, 99},
@@ -284,7 +282,7 @@ enum class MoveType { kKiller, kGood, kQuiet };
 // Variables
 
 int
-  g_hash_mb = 256, g_move_overhead = 200, g_rook_w[2] = {}, g_rook_b[2] = {}, g_root_n = 0,
+  g_hash_mb = 256, g_move_overhead = 100, g_rook_w[2] = {}, g_rook_b[2] = {}, g_root_n = 0,
   g_king_w = 0, g_king_b = 0, g_moves_n = 0, g_max_depth = kMaxDepth, g_qs_depth = 0,
   g_depth = 0, g_best_score = 0, g_last_eval = 0, g_lmr[kMaxDepth][kMaxMoves] = {};
 
@@ -786,17 +784,11 @@ const std::string MoveName(const Board *move) {
 
 // Sorting
 
-inline void Swap(Board *a, Board *b) {
-  const auto tmp = *a;
-  *a = *b;
-  *b = tmp;
-}
-
 void SortNthMoves(const int nth) {
   for (auto i = 0; i < nth; ++i)
     for (auto j = i + 1; j < g_moves_n; ++j)
       if (g_moves[j].score > g_moves[i].score)
-        Swap(g_moves + j, g_moves + i);
+        std::swap(g_moves[j], g_moves[i]);
 }
 
 int EvaluateMoves() {
@@ -2111,7 +2103,7 @@ void Activation(const Material &m) {
 void ThinkReset(const int ms) {
   g_stop_search = g_classical = g_nullmove_active = g_is_pv = false;
   g_qs_depth = g_best_score = g_nodes = g_depth = 0;
-  g_stop_search_time = Now() + static_cast<std::uint64_t>(std::max(0, ms));
+  g_stop_search_time = Now() + static_cast<std::uint64_t>(ms);
 }
 
 // Play the book move from root list
@@ -2150,7 +2142,7 @@ bool ProbeBook() {
 
 bool FastMove(const int ms) {
   if ((g_root_n <= 1) || // Only move
-      (ms <= 1) ||       // Hurry up !
+      (ms <= 1) || // Hurry up !
       (g_book_exist && ms > 100 && ProbeBook())) { // At least 100ms+ for the book lookup
     Speak(g_last_eval, 0);
     return true;
@@ -2280,7 +2272,7 @@ void UciGoAnalyze() {
 }
 
 void UciGoMovetime() {
-  Think(TokenNumber());
+  Think(std::max(0, TokenNumber()));
   TokenPop();
   PrintBestMove();
 }
@@ -2294,20 +2286,23 @@ void UciGoDepth() {
 }
 
 // Make sure we never lose on time
+// Small overhead buffer to prevent time losses
 void UciGo() {
   int wtime = 0, btime = 0, winc = 0, binc = 0, mtg = 26;
 
   for ( ; TokenOk(); TokenPop())
-    if (     Token("infinite"))  {UciGoAnalyze(); return;}
-    else if (Token("wtime"))     {wtime = std::max(0, TokenNumber() - g_move_overhead);}
+    if (     Token("wtime"))     {wtime = std::max(0, TokenNumber() - g_move_overhead);}
     else if (Token("btime"))     {btime = std::max(0, TokenNumber() - g_move_overhead);}
     else if (Token("winc"))      {winc  = std::max(0, TokenNumber());}
     else if (Token("binc"))      {binc  = std::max(0, TokenNumber());}
     else if (Token("movestogo")) {mtg   = std::max(1, TokenNumber());}
     else if (Token("movetime"))  {UciGoMovetime(); return;}
-    else if (Token("depth"))     {UciGoDepth(); return;}
+    else if (Token("infinite"))  {UciGoAnalyze();  return;}
+    else if (Token("depth"))     {UciGoDepth();    return;}
 
-  Think(g_wtm ? wtime / mtg + winc : btime / mtg + binc);
+  g_wtm ? Think(std::min(wtime, wtime / mtg + winc)) :
+          Think(std::min(btime, btime / mtg + binc));
+
   PrintBestMove();
 }
 
@@ -2316,7 +2311,7 @@ void UciUci() {
   std::cout << "id author Toni Helminen\n";
   std::cout << "option name UCI_Chess960 type check default false\n";
   std::cout << "option name Hash type spin default 256 min 4 max 1048576\n";
-  std::cout << "option name MoveOverhead type spin default 200 min 0 max 10000\n";
+  std::cout << "option name MoveOverhead type spin default 100 min 0 max 10000\n";
   std::cout << "option name EvalFile type string default nn-cb80fb9393af.nnue\n";
   std::cout << "option name BookFile type string default performance.bin\n";
   std::cout << "uciok" << std::endl;
@@ -2332,8 +2327,6 @@ bool UciCommands() {
   else if (Token("setoption"))  UciSetoption();
   else if (Token("uci"))        UciUci();
   else if (Token("quit"))       return false;
-
-  g_tokens_nth = static_cast<std::uint32_t>(g_tokens.size()); // Ignore the rest
 
   return g_game_on;
 }
@@ -2440,11 +2433,14 @@ std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int
 }
 
 void InitJumpMoves() {
-  constexpr int pawn_check_vectors[2 * 2] = {-1, +1, +1, +1}, pawn_1_vectors[1 * 2] = {0, +1};
+  constexpr int king_vectors[16]          = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1};
+  constexpr int knight_vectors[16]        = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2};
+  constexpr int pawn_check_vectors[2 * 2] = {-1, +1, +1, +1};
+  constexpr int pawn_1_vectors[1 * 2]     = {0, +1};
 
   for (auto i = 0; i < 64; ++i) {
-    g_king_moves[i]     = MakeJumpMoves(i, 8, +1, kKingVectors);
-    g_knight_moves[i]   = MakeJumpMoves(i, 8, +1, kKnightVectors);
+    g_king_moves[i]     = MakeJumpMoves(i, 8, +1, king_vectors);
+    g_knight_moves[i]   = MakeJumpMoves(i, 8, +1, knight_vectors);
     g_pawn_checks_w[i]  = MakeJumpMoves(i, 2, +1, pawn_check_vectors);
     g_pawn_checks_b[i]  = MakeJumpMoves(i, 2, -1, pawn_check_vectors);
     g_pawn_1_moves_w[i] = MakeJumpMoves(i, 1, +1, pawn_1_vectors);
