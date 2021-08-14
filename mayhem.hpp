@@ -467,11 +467,10 @@ void SetupNNUE(const std::string eval_file = "nn-cb80fb9393af.nnue") {
 
 // Hashtable
 
-void SetupHashtable(int hash_mb = 256) {
-  // 4 MB -> 1 TB
-  hash_mb        = std::clamp(hash_mb, 4, 1048576);
+// 4 MB -> 1 TB
+void SetupHashtable(const int hash_mb = 256) {
   // Hash in B / block in B
-  g_hash_entries = static_cast<std::uint32_t>(((1 << 20) * hash_mb)) / (sizeof(HashEntry));
+  g_hash_entries = static_cast<std::uint32_t>(((1 << 20) * std::clamp(hash_mb, 4, 1048576))) / (sizeof(HashEntry));
   // Claim space
   g_hash.reset(new HashEntry[g_hash_entries]);
 }
