@@ -88,9 +88,9 @@ constexpr int
   kMvv[6][6]         = {{10, 15, 15, 20, 25, 99}, {9, 14, 14, 19, 24, 99},
                         {9,  14, 14, 19, 24, 99}, {8, 13, 13, 18, 23, 99},
                         {7,  12, 12, 17, 22, 99}, {6, 11, 11, 16, 21, 99}},
-  kTempo             = 25,
-  kBishopPair        = 20,
-  kChecks            = 17,
+  kTempoBonus        = 25,
+  kBishopPairBonus   = 20,
+  kChecksBonus       = 17,
   kPesto[6][2][64]   = // Material baked in
     {{{82, 82, 82, 82, 82, 82, 82, 82, 47, 81, 62, 59, 67, 106, 120, 60, 56, 78, 78,
        72, 85, 85, 115, 70, 55, 80, 77, 94, 99, 88, 92, 57, 68, 95, 88, 103, 105, 94,
@@ -282,9 +282,9 @@ enum class MoveType { kKiller, kGood, kQuiet };
 // Variables
 
 int
-  g_hash_mb = 256, g_move_overhead = 100, g_rook_w[2] = {}, g_rook_b[2] = {}, g_root_n = 0,
-  g_king_w = 0, g_king_b = 0, g_moves_n = 0, g_max_depth = kMaxDepth, g_qs_depth = 0,
-  g_depth = 0, g_best_score = 0, g_last_eval = 0, g_lmr[kMaxDepth][kMaxMoves] = {};
+  g_move_overhead = 100, g_rook_w[2] = {}, g_rook_b[2] = {}, g_root_n = 0, g_king_w = 0,
+  g_king_b = 0, g_moves_n = 0, g_max_depth = kMaxDepth, g_qs_depth = 0, g_depth = 0,
+  g_best_score = 0, g_last_eval = 0, g_lmr[kMaxDepth][kMaxMoves] = {};
 
 std::uint32_t
   g_hash_entries = 0, g_tokens_nth = 0;
@@ -317,9 +317,6 @@ std::unique_ptr<HashEntry[]>
 
 float
   g_scale[128] = {};
-
-std::string
-  g_eval_file = "nn-cb80fb9393af.nnue", g_book_file = "performance.bin";
 
 // Prototypes
 
@@ -458,23 +455,23 @@ void ReadInput() {
 
 // Lib
 
-void SetupBook() {
-  if (!(g_book_exist = g_book_file == "-" ? false : g_book.open_book(g_book_file)))
+void SetupBook(const std::string book_file = "performance.bin") {
+  if (!(g_book_exist = book_file == "-" ? false : g_book.open_book(book_file)))
     std::cout << "info string Opening book disabled" << std::endl;
 }
 
-void SetupNNUE() {
-  if (!(g_nnue_exist = g_eval_file == "-" ? false : nnue::nnue_init(g_eval_file.c_str())))
+void SetupNNUE(const std::string eval_file = "nn-cb80fb9393af.nnue") {
+  if (!(g_nnue_exist = eval_file == "-" ? false : nnue::nnue_init(eval_file.c_str())))
     std::cout << "info string NNUE evaluation disabled" << std::endl;
 }
 
 // Hashtable
 
-void SetupHashtable() {
+void SetupHashtable(int hash_mb = 256) {
   // 4 MB -> 1 TB
-  g_hash_mb      = std::clamp(g_hash_mb, 4, 1048576);
+  hash_mb        = std::clamp(hash_mb, 4, 1048576);
   // Hash in B / block in B
-  g_hash_entries = static_cast<std::uint32_t>(((1 << 20) * g_hash_mb)) / (sizeof(HashEntry));
+  g_hash_entries = static_cast<std::uint32_t>(((1 << 20) * hash_mb)) / (sizeof(HashEntry));
   // Claim space
   g_hash.reset(new HashEntry[g_hash_entries]);
 }
@@ -1566,7 +1563,7 @@ struct ClassicalEval {
   }
 
   void bonus_tempo() {
-    this->score += this->wtm ? +kTempo : -kTempo;
+    this->score += this->wtm ? +kTempoBonus : -kTempoBonus;
   }
 
   // Force black king in the corner and get closer
@@ -1579,13 +1576,13 @@ struct ClassicalEval {
   }
 
   void bonus_checks() {
-    if (     ChecksW()) this->score += kChecks;
-    else if (ChecksB()) this->score -= kChecks;
+    if (     ChecksW()) this->score += kChecksBonus;
+    else if (ChecksB()) this->score -= kChecksBonus;
   }
 
   void bonus_bishop_pair() {
-    if (this->wbn >= 2) this->score += kBishopPair;
-    if (this->bbn >= 2) this->score -= kBishopPair;
+    if (this->wbn >= 2) this->score += kBishopPairBonus;
+    if (this->bbn >= 2) this->score -= kBishopPairBonus;
   }
 
   void bonus_special_4men() {
@@ -1691,8 +1688,8 @@ struct NnueEval {
 
     pieces[i] = squares[i] = 0;
 
-    return this->wtm ? +(nnue::nnue_evaluate(0, pieces, squares) + kTempo) :
-                       -(nnue::nnue_evaluate(1, pieces, squares) + kTempo);
+    return this->wtm ? +(nnue::nnue_evaluate(0, pieces, squares) + kTempoBonus) :
+                       -(nnue::nnue_evaluate(1, pieces, squares) + kTempoBonus);
   }
 
   int evaluate() {
@@ -2244,19 +2241,16 @@ void UciSetoption() {
       g_chess960 = TokenPeek("true", 3);
       TokenPop(4);
     } else if (TokenPeek("Hash", 1)) {
-      g_hash_mb = TokenNumber(3);
-      SetupHashtable();
+      SetupHashtable(TokenNumber(3));
       TokenPop(4);
     } else if (TokenPeek("MoveOverhead", 1)) {
       g_move_overhead = std::clamp(TokenNumber(3), 0, 10000);
       TokenPop(4);
     } else if (TokenPeek("EvalFile", 1)) {
-      g_eval_file = TokenNth(3);
-      SetupNNUE();
+      SetupNNUE(TokenNth(3));
       TokenPop(4);
     } else if (TokenPeek("BookFile", 1)) {
-      g_book_file = TokenNth(3);
-      SetupBook();
+      SetupBook(TokenNth(3));
       TokenPop(4);
     }
   }
@@ -2399,12 +2393,13 @@ std::uint64_t MakeSliderMoves(const int sq, const int *slider_vectors) {
   for (auto i = 0; i < 4; ++i) {
     const auto dx = slider_vectors[2 * i], dy = slider_vectors[2 * i + 1];
     std::uint64_t tmp = 0x0ULL;
-    for (auto j = 1; j < 8; ++j) {
-      const auto x = x_pos + j * dx, y = y_pos + j * dy;
-      if (!OnBoard(x, y))
+
+    for (auto j = 1; j < 8; ++j)
+      if (const auto x = x_pos + j * dx, y = y_pos + j * dy; OnBoard(x, y))
+        tmp |= Bit(8 * y + x);
+      else
         break;
-      tmp |= Bit(8 * y + x);
-    }
+
     moves |= tmp;
   }
 
@@ -2423,11 +2418,9 @@ std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int
   std::uint64_t moves = 0x0ULL;
   const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
-  for (auto i = 0; i < len; ++i) {
-    const auto x = x_pos + jump_vectors[2 * i], y = y_pos + dy * jump_vectors[2 * i + 1];
-    if (OnBoard(x, y))
+  for (auto i = 0; i < len; ++i)
+    if (const auto x = x_pos + jump_vectors[2 * i], y = y_pos + dy * jump_vectors[2 * i + 1]; OnBoard(x, y))
       moves |= Bit(8 * y + x);
-  }
 
   return moves;
 }
