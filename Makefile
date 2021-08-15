@@ -11,7 +11,7 @@ CXX       = clang++
 EXE       = mayhem
 FILES     = lib/polyglotbook.cpp lib/nnue.cpp main.cpp
 
-BFLAGS    = -std=c++17 -O3 -flto -march=native -mpopcnt -DNDEBUG
+BFLAGS    = -std=c++17 -O3 -flto -march=native -DNDEBUG
 WFLAGS    = -Wall -Wextra -Wshadow -pedantic
 NFLAGS    = -DUSE_AVX2 -mavx2
 CXXFLAGS += $(BFLAGS) $(WFLAGS) $(NFLAGS)
