@@ -504,22 +504,19 @@ void TokenPop(const std::uint32_t nth = 1) {
   g_tokens_nth += nth;
 }
 
+bool TokenPeek(const std::string &token, const std::uint32_t nth = 0) {
+  return TokenOk(nth) && token == g_tokens[g_tokens_nth + nth];
+}
+
 // If true then pop n
 bool Token(const std::string &token, const std::uint32_t pop_n = 1) {
-  if (TokenOk() && token == g_tokens[g_tokens_nth]) {
-    TokenPop(pop_n);
-    return true;
-  }
-
-  return false;
+  if (!TokenPeek(token)) return false;
+  TokenPop(pop_n);
+  return true;
 }
 
 int TokenNumber(const std::uint32_t nth = 0) {
   return TokenOk(nth) ? std::stoi(g_tokens[g_tokens_nth + nth]) : 0;
-}
-
-bool TokenPeek(const std::string &str, const std::uint32_t nth = 0) {
-  return TokenOk(nth) ? str == g_tokens[g_tokens_nth + nth] : false;
 }
 
 // Board
@@ -1763,7 +1760,7 @@ bool UserStop() {
 inline bool CheckTime() {
   static std::uint64_t ticks = 0x0ULL;
   // Read clock every 512 ticks (white / 2 x both)
-  return (((++ticks) & 0x1FFULL)) ? false : ((Now() >= g_stop_search_time) || UserStop());
+  return (((ticks++) & 0x1FFULL)) ? false : ((Now() >= g_stop_search_time) || UserStop());
 }
 
 // 1. Check against standpat to see whether we are better -> Done
@@ -2215,7 +2212,7 @@ void UciTakeSpecialFen() {
   TokenPop(); // fen
 
   std::string fen{};
-  for ( ; TokenOk() && !Token("moves", 0); TokenPop())
+  for ( ; TokenOk() && !TokenPeek("moves"); TokenPop())
     fen += TokenNth() + " ";
 
   Fen(fen);
