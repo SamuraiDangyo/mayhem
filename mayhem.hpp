@@ -456,12 +456,12 @@ void ReadInput() {
 
 // Lib
 
-void SetupBook(const std::string book_file = "performance.bin") {
+void SetupBook(const std::string &book_file) {
   if (!(g_book_exist = book_file == "-" ? false : g_book.open_book(book_file)))
     std::cout << "info string Opening book disabled" << std::endl;
 }
 
-void SetupNNUE(const std::string eval_file = "nn-cb80fb9393af.nnue") {
+void SetupNNUE(const std::string &eval_file) {
   if (!(g_nnue_exist = eval_file == "-" ? false : nnue::nnue_init(eval_file.c_str())))
     std::cout << "info string NNUE evaluation disabled" << std::endl;
 }
@@ -469,7 +469,7 @@ void SetupNNUE(const std::string eval_file = "nn-cb80fb9393af.nnue") {
 // Hashtable
 
 // 4 MB -> 1 TB
-void SetupHashtable(const int hash_mb = 256) {
+void SetupHashtable(const int hash_mb) {
   // Hash in B / block in B
   g_hash_entries = static_cast<std::uint32_t>(((1 << 20) *
                      std::clamp(hash_mb, 4, 1048576))) / (sizeof(HashEntry));
@@ -1411,11 +1411,11 @@ struct ClassicalEval {
     black_n(0), both_n(0), wk(0), bk(0), wpn(0), wnn(0), wbn(0), wrn(0), wqn(0), bpn(0),
     bnn(0), bbn(0), brn(0), bqn(0), score(0), mg(0), eg(0), scale_factor(1) {}
 
-  int pow2(const int x) const {
+  static int pow2(const int x) {
     return x * x;
   }
 
-  int flip_y(const int sq) const {
+  static int flip_y(const int sq) {
     return sq ^ 56;
   }
 
@@ -1665,7 +1665,7 @@ struct NnueEval {
 
   explicit NnueEval(const bool wtm2) : wtm(wtm2) {}
 
-  int probe() {
+  int probe() const {
     int pieces[33], squares[33], i = 2;
 
     for (auto both = Both(); both; )
@@ -2471,9 +2471,9 @@ void Init() {
   InitJumpMoves();
   InitScale();
   InitLMR();
-  SetupHashtable();
-  SetupNNUE();
-  SetupBook();
+  SetupHashtable(256);
+  SetupNNUE("nn-cb80fb9393af.nnue");
+  SetupBook("performance.bin");
   Fen(kStartPos);
 }
 
