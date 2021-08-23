@@ -60,7 +60,7 @@ const std::string
   kVersion  = "Mayhem 6.0",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
-const std::array<const std::string, 15>
+const std::array<std::string, 15>
   kBench = { // Tactical fens to pressure search
     "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 ; 1/15 ; Rh8",
     "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 ; 2/15 ; Nxa7+",
@@ -468,9 +468,9 @@ void SetupNNUE(const std::string &eval_file) {
 
 // Hashtable
 
-// 4 MB -> 1 TB
 void SetupHashtable(const int hash_mb) {
   // Hash in B / block in B
+  // 4 MB -> 1 TB
   g_hash_entries = static_cast<std::uint32_t>(((1 << 20) *
                      std::clamp(hash_mb, 4, 1048576))) / (sizeof(HashEntry));
   // Claim space
@@ -1671,7 +1671,7 @@ struct NnueEval {
     for (auto both = Both(); both; )
       switch (const auto sq = CtzPop(&both); g_board->pieces[sq]) {
         case +1: case +2: case +3: case +4: case +5:
-          pieces[i] = 7 - g_board->pieces[sq],  squares[i++] = sq;
+          pieces[i] = 7  - g_board->pieces[sq], squares[i++] = sq;
           break;
         case -1: case -2: case -3: case -4: case -5:
           pieces[i] = 13 + g_board->pieces[sq], squares[i++] = sq;
@@ -1698,7 +1698,7 @@ struct NnueEval {
       return entry->score;
 
     entry->eval_hash = hash;
-    return entry->score = this->probe();
+    return (entry->score = this->probe());
   }
 };
 
@@ -1831,8 +1831,8 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   if (!moves_n)
     return checks ? -kInf : 0; // Checkmate or stalemate
 
-  if (moves_n == 1 || (depth == 1 && checks))
-    ++depth; // Extend interesting path
+  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8)))
+    ++depth; // Extend interesting path (SRE / CE / PPE)
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
@@ -1870,7 +1870,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   if (!moves_n)
     return checks ? +kInf : 0;
 
-  if (moves_n == 1 || (depth == 1 && checks))
+  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8)))
     ++depth;
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
