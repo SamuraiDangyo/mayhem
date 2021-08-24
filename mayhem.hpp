@@ -60,7 +60,7 @@ const std::string
   kVersion  = "Mayhem 6.0",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
-const std::array<std::string, 15>
+const std::array<const std::string, 15>
   kBench = { // Tactical fens to pressure search
     "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 ; 1/15 ; Rh8",
     "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 ; 2/15 ; Nxa7+",
@@ -370,6 +370,14 @@ inline std::uint64_t Bit(const int nbits) {
   return 0x1ULL << nbits;
 }
 
+int Pow2(const int x) {
+  return x * x;
+}
+
+int FlipY(const int sq) {
+  return sq ^ 56;
+}
+
 std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
   return ms ? (1000 * nodes) / ms : 0;
 }
@@ -384,26 +392,26 @@ inline bool IsUnderpromo(const Board *b) {
 
 extern "C" {
 #ifdef WINDOWS
-  bool InputAvailable() {
-    return _kbhit();
-  }
+bool InputAvailable() {
+  return _kbhit();
+}
 #else
-  bool InputAvailable() {
-    fd_set fd;
-    struct timeval tv;
-    FD_ZERO(&fd);
-    FD_SET(STDIN_FILENO, &fd);
-    tv.tv_sec = tv.tv_usec = 0;
-    select(STDIN_FILENO + 1, &fd, nullptr, nullptr, &tv);
-    return FD_ISSET(STDIN_FILENO, &fd) > 0;
-  }
+bool InputAvailable() {
+  fd_set fd;
+  struct timeval tv;
+  FD_ZERO(&fd);
+  FD_SET(STDIN_FILENO, &fd);
+  tv.tv_sec = tv.tv_usec = 0;
+  select(STDIN_FILENO + 1, &fd, nullptr, nullptr, &tv);
+  return FD_ISSET(STDIN_FILENO, &fd) > 0;
+}
 #endif
 
-  inline std::uint64_t Now() {
-    struct timeval tv;
-    return gettimeofday(&tv, nullptr) ?
-      0x0ULL : static_cast<std::uint64_t>(1000 * tv.tv_sec + tv.tv_usec / 1000);
-  }
+inline std::uint64_t Now() {
+  struct timeval tv;
+  return gettimeofday(&tv, nullptr) ?
+    0x0ULL : static_cast<std::uint64_t>(1000 * tv.tv_sec + tv.tv_usec / 1000);
+}
 }
 
 std::uint64_t Random64() {
@@ -1398,6 +1406,28 @@ bool EasyDraw(const bool wtm) {
   return pawns_n == 1 ? ProbeKPK(wtm) : (pawns_n == 0);
 }
 
+// Trapped bishop penalty in FRC
+// Bishop on a1/... blocked by own pawn
+int FixFRC() {
+  auto s = 0;
+  if ((g_board->white[2] & Bit(0))  && (g_board->white[0] & Bit(9)))  s += -400;
+  if ((g_board->white[2] & Bit(7))  && (g_board->white[0] & Bit(14))) s += -400;
+  if ((g_board->black[2] & Bit(56)) && (g_board->black[0] & Bit(49))) s += +400;
+  if ((g_board->black[2] & Bit(63)) && (g_board->black[0] & Bit(54))) s += +400;
+  return s;
+}
+
+// More bonus for closeness
+int CloseBonus(const int sq1, const int sq2) {
+  return Pow2(7 - std::abs(Xcoord(sq1) - Xcoord(sq2))) +
+         Pow2(7 - std::abs(Ycoord(sq1) - Ycoord(sq2)));
+}
+
+int CloseAnyCornerBonus(const int sq) {
+  return std::max({CloseBonus(sq, 0),  CloseBonus(sq, 7),
+                   CloseBonus(sq, 56), CloseBonus(sq, 63)});
+}
+
 // Classical evaluation. To finish the game or no NNUE
 struct ClassicalEval {
   const std::uint64_t white, black, both;
@@ -1411,24 +1441,6 @@ struct ClassicalEval {
     black_n(0), both_n(0), wk(0), bk(0), wpn(0), wnn(0), wbn(0), wrn(0), wqn(0), bpn(0),
     bnn(0), bbn(0), brn(0), bqn(0), score(0), mg(0), eg(0), scale_factor(1) {}
 
-  static int pow2(const int x) {
-    return x * x;
-  }
-
-  static int flip_y(const int sq) {
-    return sq ^ 56;
-  }
-
-  int closer_bonus(const int sq1, const int sq2) const {
-    return this->pow2(7 - std::abs(Xcoord(sq1) - Xcoord(sq2))) +
-           this->pow2(7 - std::abs(Ycoord(sq1) - Ycoord(sq2)));
-  }
-
-  int any_corner_bonus(const int sq) const {
-    return std::max({this->closer_bonus(sq, 0),  this->closer_bonus(sq, 7),
-                     this->closer_bonus(sq, 56), this->closer_bonus(sq, 63)});
-  }
-
   void mgeg(const int mg2, const int eg2) {
     this->mg += mg2;
     this->eg += eg2;
@@ -1439,7 +1451,7 @@ struct ClassicalEval {
   }
 
   inline void pesto_b(const int p, const int sq) {
-    this->mgeg(-kPesto[p][0][this->flip_y(sq)], -kPesto[p][1][this->flip_y(sq)]);
+    this->mgeg(-kPesto[p][0][FlipY(sq)], -kPesto[p][1][FlipY(sq)]);
   }
 
   inline void mobility_w(const int k, const std::uint64_t m) {
@@ -1547,17 +1559,17 @@ struct ClassicalEval {
   }
 
   void bonus_knbk_w() {
-    this->score += (2 * this->closer_bonus(this->wk, this->bk)) +
+    this->score += (2 * CloseBonus(this->wk, this->bk)) +
                    ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ?
-                     10 * std::max(this->closer_bonus(0, this->bk), this->closer_bonus(63, this->bk)) :
-                     10 * std::max(this->closer_bonus(7, this->bk), this->closer_bonus(56, this->bk)));
+                     10 * std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
+                     10 * std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk)));
   }
 
   void bonus_knbk_b() {
-    this->score -= (2 * this->closer_bonus(this->wk, this->bk)) +
+    this->score -= (2 * CloseBonus(this->wk, this->bk)) +
                    ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ?
-                     10 * std::max(this->closer_bonus(0, this->wk), this->closer_bonus(63, this->wk)) :
-                     10 * std::max(this->closer_bonus(7, this->wk), this->closer_bonus(56, this->wk)));
+                     10 * std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
+                     10 * std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk)));
   }
 
   void bonus_tempo() {
@@ -1566,11 +1578,11 @@ struct ClassicalEval {
 
   // Force black king in the corner and get closer
   void bonus_mating_w() {
-    this->score += 6 * this->any_corner_bonus(this->bk) + 4 * this->closer_bonus(this->wk, this->bk);
+    this->score += 6 * CloseAnyCornerBonus(this->bk) + 4 * CloseBonus(this->wk, this->bk);
   }
 
   void bonus_mating_b() {
-    this->score -= 6 * this->any_corner_bonus(this->wk) + 4 * this->closer_bonus(this->bk, this->wk);
+    this->score -= 6 * CloseAnyCornerBonus(this->wk) + 4 * CloseBonus(this->bk, this->wk);
   }
 
   void bonus_checks() {
@@ -1656,7 +1668,7 @@ struct ClassicalEval {
     this->bonus_checks();
     this->bonus_bishop_pair();
     this->bonus_special();
-    return this->calculate_score();
+    return this->calculate_score() + (FixFRC() / 4);
   }
 };
 
@@ -1698,7 +1710,7 @@ struct NnueEval {
       return entry->score;
 
     entry->eval_hash = hash;
-    return (entry->score = this->probe());
+    return (entry->score = this->probe() + FixFRC());
   }
 };
 
@@ -2475,6 +2487,11 @@ void Init() {
   SetupNNUE("nn-cb80fb9393af.nnue");
   SetupBook("performance.bin");
   Fen(kStartPos);
+
+  //Fen("bnr1kqrb/pppp1ppp/2n1p3/8/8/1P4PQ/P1PPPP1P/BNRNK1RB b GCgc - 0 3");
+  //Fen("bnrnkqrb/pppp1ppp/4p3/8/8/6PQ/PPPPPP1P/BNRNK1RB b GCgc - 1 2");
+  //Think(10000);
+  //exit(1);
 }
 
 // For improving search speed
