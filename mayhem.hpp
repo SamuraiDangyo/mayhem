@@ -370,10 +370,6 @@ inline std::uint64_t Bit(const int nbits) {
   return 0x1ULL << nbits;
 }
 
-int Pow2(const int x) {
-  return x * x;
-}
-
 int FlipY(const int sq) {
   return sq ^ 56;
 }
@@ -1376,7 +1372,7 @@ void MgenRoot() {
   g_root_n = g_wtm ? MgenW(g_root) : MgenB(g_root);
 }
 
-// Evaluate
+// Evaluation
 
 // Probe Eucalyptus KPK bitbases
 inline bool ProbeKPK(const bool wtm) {
@@ -1415,6 +1411,10 @@ int FixFRC() {
   if ((g_board->black[2] & Bit(56)) && (g_board->black[0] & Bit(49))) s += +400;
   if ((g_board->black[2] & Bit(63)) && (g_board->black[0] & Bit(54))) s += +400;
   return s;
+}
+
+int Pow2(const int x) {
+  return x * x;
 }
 
 // More bonus for closeness
@@ -1710,7 +1710,7 @@ struct NnueEval {
       return entry->score;
 
     entry->eval_hash = hash;
-    return (entry->score = this->probe() + FixFRC());
+    return (entry->score = (this->probe() + FixFRC()));
   }
 };
 
@@ -2487,11 +2487,6 @@ void Init() {
   SetupNNUE("nn-cb80fb9393af.nnue");
   SetupBook("performance.bin");
   Fen(kStartPos);
-
-  //Fen("bnr1kqrb/pppp1ppp/2n1p3/8/8/1P4PQ/P1PPPP1P/BNRNK1RB b GCgc - 0 3");
-  //Fen("bnrnkqrb/pppp1ppp/4p3/8/8/6PQ/PPPPPP1P/BNRNK1RB b GCgc - 1 2");
-  //Think(10000);
-  //exit(1);
 }
 
 // For improving search speed
