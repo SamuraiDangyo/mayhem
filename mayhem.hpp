@@ -266,7 +266,7 @@ struct Board {
     castle,     // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
     fifty;      // Rule 50 counter
 
-  bool operator>(const Board &b) { return this->score > b.score; } // sort ...
+  //bool operator>(const Board &b) { return this->score > b.score; } // sort ...
 };
 
 struct HashEntry {
@@ -384,6 +384,13 @@ bool OnBoard(const int x, const int y) {
 
 inline bool IsUnderpromo(const Board *b) {
   return b->type >= 5 && b->type <= 7;
+}
+
+void Ok(const bool test, const std::string &msg) {
+  if (!test) {
+    std::cout << "info string " << msg << std::endl;
+    std::exit(EXIT_FAILURE);
+  }
 }
 
 extern "C" {
@@ -676,7 +683,7 @@ void FenGen(const std::string &fen) {
   std::vector<std::string> tokens = {};
 
   Split<std::vector<std::string>>(fen, tokens);
-  if (tokens.size() <= 4) std::cout << "info string Bad fen" << std::endl;
+  Ok(tokens.size() >= 5, "Bad fen #1");
 
   FenBoard(tokens[0]);
   g_wtm = tokens[1][0] == 'w';
@@ -701,10 +708,18 @@ void FenReset() {
   for (auto i = 0; i < 6; ++i) g_board->white[i] = g_board->black[i] = 0x0ULL;
 }
 
+bool FenIsGood() { // Not perfect. Avoid obvious crashes
+  return (PopCount(Both()) <= 32) && // 32 pieces max
+         (PopCount(g_board->white[5]) == 1 && PopCount(g_board->black[5]) == 1) && // 1 king / side
+         (!(g_wtm ? ChecksW() : ChecksB())); // No illegal checks
+}
+
 void Fen(const std::string &fen) {
+  Ok(fen.length() >= 25, "Bad fen #2");
   FenReset();
   FenGen(fen);
   BuildBitboards();
+  Ok(FenIsGood(), "Bad fen #3");
 }
 
 // Checks
@@ -789,7 +804,7 @@ template<bool noisy> // Tiny speedup (avoid checks/=q etc)
 void SortNthMoves(const int nth) {
   for (auto i = 0; i < nth; ++i) {
     for (auto j = i + 1; j < g_moves_n; ++j)
-      if (g_moves[j] > g_moves[i])
+      if (g_moves[j].score > g_moves[i].score)
         std::swap(g_moves[j], g_moves[i]);
     if constexpr (noisy) if (!g_moves[i].score) return;
   }
@@ -1745,7 +1760,7 @@ struct NnueEval {
       return entry->score;
 
     entry->eval_hash = hash;
-    return entry->score = (this->probe() + FixFRC());
+    return (entry->score = (this->probe() + FixFRC()));
   }
 };
 
@@ -2252,7 +2267,7 @@ void UciMakeMove() {
       return;
     }
 
-  std::cout << "info string Bad move" << std::endl;
+  Ok(false, "Bad move");
 }
 
 void UciTakeSpecialFen() {
@@ -2358,7 +2373,8 @@ void UciUci() {
 
 // "hash" is for correctness
 // "bench" is for speed
-// Don't run anything after these commands
+// Hashes : NNUE: 8060971 | HCE: 9021149
+// Don't run anything after these commands !
 template <bool bench>
 void UciBench() {
   const auto now      = Now();
@@ -2388,7 +2404,7 @@ bool UciCommands() {
   else if (Token("isready"))    std::cout << "readyok" << std::endl;
   else if (Token("setoption"))  UciSetoption();
   else if (Token("uci"))        UciUci();
-  else if (Token("hash"))       UciBench<false>(); // NNUE: 8060971 / HCE: 9021149
+  else if (Token("hash"))       UciBench<false>();
   else if (Token("bench"))      UciBench<true>();
   else if (Token("quit"))       return false;
 
