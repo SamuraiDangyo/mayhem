@@ -265,8 +265,6 @@ struct Board {
     type,       // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
     castle,     // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
     fifty;      // Rule 50 counter
-
-  //bool operator>(const Board &b) { return this->score > b.score; } // sort ...
 };
 
 struct HashEntry {
