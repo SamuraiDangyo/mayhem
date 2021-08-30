@@ -1,6 +1,6 @@
 /*
 NNUE lib
-Copyright (C) 2020 Originally from Dr. Shawul ?
+Copyright (C) 2020-2021 Originally from Dr. Shawul ?
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
