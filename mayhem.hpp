@@ -57,7 +57,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 6.0",
+  kVersion  = "Mayhem 5.7",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::array<const std::string, 15>
@@ -468,12 +468,12 @@ void ReadInput() {
 // Lib
 
 void SetupBook(const std::string &book_file) {
-  if (!(g_book_exist = book_file == "-" ? false : g_book.open_book(book_file)))
+  if (!(g_book_exist = book_file.length() <= 1 ? false : g_book.open_book(book_file)))
     std::cout << "info string Opening book disabled" << std::endl;
 }
 
 void SetupNNUE(const std::string &eval_file) {
-  if (!(g_nnue_exist = eval_file == "-" ? false : nnue::nnue_init(eval_file.c_str())))
+  if (!(g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str())))
     std::cout << "info string NNUE evaluation disabled" << std::endl;
 }
 
@@ -2360,25 +2360,25 @@ void UciGo() {
 
 void UciUci() {
   std::cout << "id name " << kVersion << "\n";
-  std::cout << "id author Toni Helminen\n";
-  std::cout << "option name UCI_Chess960 type check default false\n";
-  std::cout << "option name Hash type spin default 256 min 4 max 1048576\n";
-  std::cout << "option name MoveOverhead type spin default 100 min 0 max 10000\n";
-  std::cout << "option name EvalFile type string default nn-cb80fb9393af.nnue\n";
-  std::cout << "option name BookFile type string default performance.bin\n";
+  std::cout << "id author Toni Helminen" << "\n";
+  std::cout << "option name UCI_Chess960 type check default false" << "\n";
+  std::cout << "option name Hash type spin default 256 min 4 max 1048576" << "\n";
+  std::cout << "option name MoveOverhead type spin default 100 min 0 max 10000" << "\n";
+  std::cout << "option name EvalFile type string default nn-cb80fb9393af.nnue" << "\n";
+  std::cout << "option name BookFile type string default performance.bin" << "\n";
   std::cout << "uciok" << std::endl;
 }
 
 // "hash" is for correctness
-// "bench" is for speed
-// Hashes : NNUE: 8060971 | HCE: 9021149
+// "bench" is for speed of the program
 // Don't run anything after these commands !
 template <bool bench>
 void UciBench() {
   const auto now      = Now();
   std::uint64_t nodes = 0x0ULL;
-  SetupHashtable(256);
   g_max_depth         = bench ? kMaxDepth : 10;
+
+  SetupHashtable(256);
 
   for (const auto &fen : kBench) {
     std::cout << "[ " << fen << " ]" << std::endl;
@@ -2388,9 +2388,10 @@ void UciBench() {
     std::cout << std::endl;
   }
 
-  std::cout << std::string(10, '=') << "\n\n";
-  bench ? std::cout << "NPS: "  << Nps(nodes, Now() - now) << std::endl :
-          std::cout << "Hash: " << nodes << std::endl;
+  std::cout << std::string(10, bench ? '=' : '*') << "\n\n";
+  std::cout << "Nodes: " << nodes << "\n";
+  std::cout << "NPS:   " << Nps(nodes, Now() - now) << "\n";
+  std::cout << "Time:  " << (Now() - now) << std::endl;
 }
 
 bool UciCommands() {
@@ -2402,7 +2403,7 @@ bool UciCommands() {
   else if (Token("isready"))    std::cout << "readyok" << std::endl;
   else if (Token("setoption"))  UciSetoption();
   else if (Token("uci"))        UciUci();
-  else if (Token("hash"))       UciBench<false>();
+  else if (Token("hash"))       UciBench<false>(); // 8060971
   else if (Token("bench"))      UciBench<true>();
   else if (Token("quit"))       return false;
 
