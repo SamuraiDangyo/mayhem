@@ -1,4 +1,3 @@
-#
 # Mayhem. Linux UCI Chess960 engine. Written in C++17 language
 # Copyright (C) 2020-2021 Toni Helminen
 #
@@ -14,7 +13,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#
 
 #
 # Definitions
