@@ -57,7 +57,7 @@ namespace mayhem {
 // Constants
 
 const std::string
-  kVersion  = "Mayhem 5.7",
+  kVersion  = "Mayhem 5.8",
   kStartPos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0";
 
 const std::array<const std::string, 15>
@@ -376,7 +376,7 @@ std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
   return ms ? (1000 * nodes) / ms : 0;
 }
 
-bool OnBoard(const int x, const int y) {
+bool OnBoard(const int x, const int y) { // Slow, but only for init
   return x >= 0 && x <= 7 && y >= 0 && y <= 7;
 }
 
@@ -435,13 +435,8 @@ std::uint64_t Random8x64() {
 
 int Random(const int max) {
   static std::uint64_t seed = 0x202c7ULL + static_cast<std::uint64_t>(std::time(nullptr));
-  const std::uint64_t ret = (seed ^ Random64()) & 0xFFFFFFFFULL;
   seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3);
-  return (ret & 0xFFFULL) % static_cast<std::uint64_t>(max);
-}
-
-int Random(const int x, const int y) {
-  return x + Random(y - x + 1);
+  return seed % static_cast<std::uint64_t>(std::max(1, max));
 }
 
 template <class T>
@@ -465,13 +460,17 @@ void ReadInput() {
   Split<std::vector<std::string>>(line, g_tokens);
 }
 
-// Lib
+// PolyGlot Book lib
 
+// Use "x" to disable book
 void SetupBook(const std::string &book_file) {
   if (!(g_book_exist = book_file.length() <= 1 ? false : g_book.open_book(book_file)))
     std::cout << "info string Opening book disabled" << std::endl;
 }
 
+// NNUE lib
+
+// Use "x" to disable NNUE
 void SetupNNUE(const std::string &eval_file) {
   if (!(g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str())))
     std::cout << "info string NNUE evaluation disabled" << std::endl;
@@ -1731,16 +1730,20 @@ struct NnueEval {
     for (auto both = Both(); both; )
       switch (const auto sq = CtzPop(&both); g_board->pieces[sq]) {
         case +1: case +2: case +3: case +4: case +5:
-          pieces[i] = 7  - g_board->pieces[sq]; squares[i++] = sq;
+          pieces[i]    = 7  - g_board->pieces[sq];
+          squares[i++] = sq;
           break;
         case -1: case -2: case -3: case -4: case -5:
-          pieces[i] = 13 + g_board->pieces[sq]; squares[i++] = sq;
+          pieces[i]    = 13 + g_board->pieces[sq];
+          squares[i++] = sq;
           break;
         case +6:
-          pieces[0] = 1; squares[0] = sq;
+          pieces[0]  = 1;
+          squares[0] = sq;
           break;
         case -6:
-          pieces[1] = 7; squares[1] = sq;
+          pieces[1]  = 7;
+          squares[1] = sq;
           break;
       }
 
@@ -1763,13 +1766,11 @@ struct NnueEval {
 };
 
 int EvaluateClassical(const bool wtm) {
-  ClassicalEval e(wtm);
-  return e.evaluate();
+  return ClassicalEval(wtm).evaluate();
 }
 
 int EvaluateNNUE(const bool wtm) {
-  NnueEval e(wtm);
-  return e.evaluate() / 4;
+  return NnueEval(wtm).evaluate() / 4;
 }
 
 int Evaluate(const bool wtm) {
