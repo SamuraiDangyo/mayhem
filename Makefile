@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#
 # Definitions
-#
 
 CXX       = clang++
 EXE       = mayhem
@@ -27,9 +25,7 @@ WFLAGS    = -Wall -Wextra -Wshadow -pedantic -DNDEBUG
 NFLAGS    = -DUSE_AVX2 -mavx2
 CXXFLAGS += $(BFLAGS) $(WFLAGS) $(NFLAGS)
 
-#
 # Targets
-#
 
 all:
 	$(CXX) $(CXXFLAGS) -o $(EXE) $(FILES)
