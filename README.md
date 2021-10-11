@@ -12,7 +12,7 @@ Strength ( Blitz ): Classical mode _~2300 Elo_ / NNUE mode _~3000 Elo_.
 
 Simple `make` should build a good binary.
 See `Makefile` for more information.
-`hash/bench` commands should be used to verify/test speed of the program.
+`myid/bench` commands should be used to verify/test speed of the program.
 
 If needed adjust _MoveOverhead / Hash_ values accordingly.
 Credit for _polyglotbook.cpp and nnue.cpp_.

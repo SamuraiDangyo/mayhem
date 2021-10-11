@@ -56,7 +56,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION      "Mayhem 5.8"
+#define VERSION      "Mayhem 5.9"
 #define STARTPOS     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0"
 #define MAX_MOVES    256
 #define MAX_DEPTH    64
@@ -65,7 +65,7 @@ namespace mayhem {
 #define INF          1048576
 #define MAX_POS      101
 #define HASH_MB      256
-#define NNUE_FILE    "nn-cb80fb9393af.nnue"
+#define EVAL_FILE    "nn-cb80fb9393af.nnue"
 #define BOOK_FILE    "performance.bin"
 
 // Constants
@@ -89,11 +89,11 @@ const std::array<const std::string, 15> kBench = {
   "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 ; 15/15 ; Ne3"
 };
 
-constexpr int kBishopVectors[8] = {+1, +1, -1, -1, +1, -1, -1, +1};
-constexpr int kRookVectors[8]   = {+1,  0,  0, +1,  0, -1, -1,  0};
-constexpr int kMvv[6][6]        = {{10, 15, 15, 20, 25, 99}, {9, 14, 14, 19, 24, 99},
-                                   {9,  14, 14, 19, 24, 99}, {8, 13, 13, 18, 23, 99},
-                                   {7,  12, 12, 17, 22, 99}, {6, 11, 11, 16, 21, 99}};
+constexpr int kMvv[6][6] = {
+  {10, 15, 15, 20, 25, 99}, {9, 14, 14, 19, 24, 99},
+  {9,  14, 14, 19, 24, 99}, {8, 13, 13, 18, 23, 99},
+  {7,  12, 12, 17, 22, 99}, {6, 11, 11, 16, 21, 99}
+};
 
 // Material baked in
 // MG / EG -> P / N / B / R / Q / K
@@ -167,7 +167,7 @@ constexpr std::uint64_t kRookMagic[3][64] = {
     0x40100229080420aULL,  0x9801084000201103ULL, 0x8408622090484202ULL, 0x4022001048a0e2ULL,
     0x280120020049902ULL,  0x1200412602009402ULL, 0x914900048020884ULL,  0x104824281002402ULL
   },
-  { // kRookMask
+  { // Mask
     0x101010101017eULL,    0x202020202027cULL,    0x404040404047aULL,    0x8080808080876ULL,
     0x1010101010106eULL,   0x2020202020205eULL,   0x4040404040403eULL,   0x8080808080807eULL,
     0x1010101017e00ULL,    0x2020202027c00ULL,    0x4040404047a00ULL,    0x8080808087600ULL,
@@ -185,7 +185,7 @@ constexpr std::uint64_t kRookMagic[3][64] = {
     0x7e01010101010100ULL, 0x7c02020202020200ULL, 0x7a04040404040400ULL, 0x7608080808080800ULL,
     0x6e10101010101000ULL, 0x5e20202020202000ULL, 0x3e40404040404000ULL, 0x7e80808080808000ULL
   },
-  { // kRookMoveMagic
+  { // Moves
     0x101010101017eULL,    0x202020202027cULL,    0x404040404047aULL,    0x8080808080876ULL,
     0x1010101010106eULL,   0x2020202020205eULL,   0x4040404040403eULL,   0x8080808080807eULL,
     0x1010101017e00ULL,    0x2020202027c00ULL,    0x4040404047a00ULL,    0x8080808087600ULL,
@@ -224,7 +224,7 @@ constexpr std::uint64_t kBishopMagic[3][64] = {
     0x8d1a0210b0c000ULL,   0x164c500ca0410cULL,   0xc6040804283004ULL,   0x14808001a040400ULL,
     0x180450800222a011ULL, 0x600014600490202ULL,  0x21040100d903ULL,     0x10404821000420ULL
   },
-  { // kBishopMask
+  { // Mask
     0x40201008040200ULL,   0x402010080400ULL,     0x4020100a00ULL,       0x40221400ULL,
     0x2442800ULL,          0x204085000ULL,        0x20408102000ULL,      0x2040810204000ULL,
     0x20100804020000ULL,   0x40201008040000ULL,   0x4020100a0000ULL,     0x4022140000ULL,
@@ -242,7 +242,7 @@ constexpr std::uint64_t kBishopMagic[3][64] = {
     0x2040810204000ULL,    0x4081020400000ULL,    0xa102040000000ULL,    0x14224000000000ULL,
     0x28440200000000ULL,   0x50080402000000ULL,   0x20100804020000ULL,   0x40201008040200ULL
   },
-  { // kBishopMoveMagics
+  { // Moves
     0x40201008040200ULL,   0x402010080400ULL,     0x4020100a00ULL,       0x40221400ULL,
     0x2442800ULL,          0x204085000ULL,        0x20408102000ULL,      0x2040810204000ULL,
     0x20100804020000ULL,   0x40201008040000ULL,   0x4020100a0000ULL,     0x4022140000ULL,
@@ -307,21 +307,25 @@ std::uint64_t g_black = 0x0ULL, g_white = 0x0ULL, g_both = 0x0ULL, g_empty = 0x0
   g_stop_search_time = 0x0ULL, g_r50_positions[MAX_POS] = {}, g_nodes = 0x0ULL, g_good = 0x0ULL;
 
 int g_move_overhead = 100, g_rook_w[2] = {}, g_rook_b[2] = {}, g_root_n = 0, g_king_w = 0,
-    g_king_b = 0, g_moves_n = 0, g_max_depth = MAX_DEPTH, g_qs_depth = 0, g_depth = 0,
-    g_best_score = 0, g_last_eval = 0, g_lmr[MAX_DEPTH][MAX_MOVES] = {};
+  g_king_b = 0, g_moves_n = 0, g_max_depth = MAX_DEPTH, g_q_depth = 0, g_depth = 0,
+  g_best_score = 0, g_last_eval = 0, g_lmr[MAX_DEPTH][MAX_MOVES] = {};
 
 bool g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active = false,
-     g_stop_search = false, g_is_pv = false, g_book_exist = false, g_nnue_exist = false,
-     g_classical = false, g_game_on = true, g_frc_problems = false;
+  g_stop_search = false, g_is_pv = false, g_book_exist = false, g_nnue_exist = false,
+  g_classical = false, g_game_on = true, g_frc_problems = false;
 
 Board g_board_tmp = {}, *g_board = &g_board_tmp, *g_moves = nullptr, *g_board_orig = nullptr,
-      g_boards[MAX_DEPTH + MAX_Q_DEPTH + 4][MAX_MOVES] = {};
+  g_boards[MAX_DEPTH + MAX_Q_DEPTH + 4][MAX_MOVES] = {};
 
-std::uint32_t                g_hash_entries = 0, g_tokens_nth = 0;
-std::vector<std::string>     g_tokens = {};
-polyglotbook::PolyglotBook   g_book;
+std::uint32_t g_hash_entries = 0, g_tokens_nth = 0;
+
+std::vector<std::string> g_tokens = {};
+
+polyglotbook::PolyglotBook g_book;
+
 std::unique_ptr<HashEntry[]> g_hash;
-float                        g_scale[MAX_POS] = {};
+
+float g_scale[MAX_POS] = {};
 
 // Prototypes
 
@@ -337,11 +341,13 @@ std::uint64_t BishopMagicMoves(const int, const std::uint64_t);
 // Utils
 
 inline std::uint64_t White() {
-  return g_board->white[0] | g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4] | g_board->white[5];
+  return g_board->white[0] | g_board->white[1] | g_board->white[2] |
+         g_board->white[3] | g_board->white[4] | g_board->white[5];
 }
 
 inline std::uint64_t Black() {
-  return g_board->black[0] | g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4] | g_board->black[5];
+  return g_board->black[0] | g_board->black[1] | g_board->black[2] |
+         g_board->black[3] | g_board->black[4] | g_board->black[5];
 }
 
 inline std::uint64_t Both() {
@@ -419,7 +425,8 @@ bool InputAvailable() {
 inline std::uint64_t Now() {
   struct timeval tv;
   return gettimeofday(&tv, nullptr) ?
-    0x0ULL : static_cast<std::uint64_t>(1000 * tv.tv_sec + tv.tv_usec / 1000);
+    0x0ULL :
+    static_cast<std::uint64_t>(1000 * tv.tv_sec + tv.tv_usec / 1000);
 }
 
 }
@@ -499,7 +506,9 @@ void SetupHashtable(int hash_mb) {
 // Hash
 
 inline std::uint64_t Hash(const bool wtm) {
-  auto hash = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[int(wtm)] ^ g_zobrist_castle[g_board->castle];
+  auto hash = g_zobrist_ep[g_board->epsq + 1] ^
+              g_zobrist_wtm[int(wtm)] ^
+              g_zobrist_castle[g_board->castle];
 
   for (auto both = Both(); both; ) {
     const auto sq = CtzPop(&both);
@@ -529,7 +538,9 @@ bool TokenPeek(const std::string &token, const std::uint32_t nth = 0) {
 
 // If true then pop n
 bool Token(const std::string &token, const std::uint32_t pop_n = 1) {
-  if (!TokenPeek(token)) return false;
+  if (!TokenPeek(token))
+    return false;
+
   TokenPop(pop_n);
   return true;
 }
@@ -863,7 +874,8 @@ void EvalRootMoves() {
 }
 
 void SortRoot(const int index) {
-  if (!index) return;
+  if (!index)
+    return;
 
   const auto tmp = g_boards[0][index];
 
@@ -1290,7 +1302,8 @@ void MgenPawnsOnlyCapturesW() {
   for (auto p = g_board->white[0]; p; ) {
     const auto sq = CtzPop(&p);
     AddMovesW(sq, Ycoord(sq) == 6 ?
-        g_pawn_1_moves_w[sq] & (~g_both) : g_pawn_checks_w[sq] & g_pawn_sq);
+        g_pawn_1_moves_w[sq] & (~g_both) :
+        g_pawn_checks_w[sq] & g_pawn_sq);
   }
 }
 
@@ -1298,7 +1311,8 @@ void MgenPawnsOnlyCapturesB() {
   for (auto p = g_board->black[0]; p; ) {
     const auto sq = CtzPop(&p);
     AddMovesB(sq, Ycoord(sq) == 1 ?
-        g_pawn_1_moves_b[sq] & (~g_both) : g_pawn_checks_b[sq] & g_pawn_sq);
+        g_pawn_1_moves_b[sq] & (~g_both) :
+        g_pawn_checks_b[sq] & g_pawn_sq);
   }
 }
 
@@ -1496,8 +1510,8 @@ int FixFRC() {
 
   if ((g_board->white[2] & Bit(0))  && (g_board->white[0] & Bit(9)))  s += -FRC_PENALTY;
   if ((g_board->white[2] & Bit(7))  && (g_board->white[0] & Bit(14))) s += -FRC_PENALTY;
-  if ((g_board->black[2] & Bit(56)) && (g_board->black[0] & Bit(49))) s += +FRC_PENALTY;
-  if ((g_board->black[2] & Bit(63)) && (g_board->black[0] & Bit(54))) s += +FRC_PENALTY;
+  if ((g_board->black[2] & Bit(56)) && (g_board->black[0] & Bit(49))) s -= -FRC_PENALTY;
+  if ((g_board->black[2] & Bit(63)) && (g_board->black[0] & Bit(54))) s -= -FRC_PENALTY;
 
   return s;
 }
@@ -1513,6 +1527,7 @@ int CloseAnyCornerBonus(const int sq) {
                    CloseBonus(sq, 56), CloseBonus(sq, 63)});
 }
 
+// Mirror horizontal
 int FlipY(const int sq) {
   return sq ^ 56;
 }
@@ -1828,7 +1843,8 @@ int EvaluateNNUE(const bool wtm) {
 
 int Evaluate(const bool wtm) {
   return EasyDraw(wtm) ?
-    0 : (g_scale[g_board->fifty] * static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)));
+    0 :
+    (g_scale[g_board->fifty] * static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)));
 }
 
 // Search
@@ -2083,7 +2099,7 @@ int SearchW(int alpha, const int beta, const int depth, const int ply) {
     return 0;
 
   if (depth <= 0 || ply >= MAX_DEPTH)
-    return QSearchW(alpha, beta, g_qs_depth, ply);
+    return QSearchW(alpha, beta, g_q_depth, ply);
 
   const auto fifty = g_board->fifty;
   const auto tmp   = g_r50_positions[fifty];
@@ -2105,7 +2121,7 @@ int SearchB(const int alpha, int beta, const int depth, const int ply) {
     return 0;
 
   if (depth <= 0 || ply >= MAX_DEPTH)
-    return QSearchB(alpha, beta, g_qs_depth, ply);
+    return QSearchB(alpha, beta, g_q_depth, ply);
 
   const auto fifty = g_board->fifty;
   const auto tmp   = g_r50_positions[fifty];
@@ -2209,16 +2225,14 @@ struct Material {
   }
 };
 
-void Activation(const Material &m) {
+bool HCEActivation(const Material &m) {
   // No NNUE or Easy or Rook ending -> Classical eval
-  g_classical = g_classical || (!g_nnue_exist) || m.is_easy() || m.is_rook_ending();
+  return (!g_nnue_exist) || m.is_easy() || m.is_rook_ending();
 }
 
-void ThinkReset(const int ms) {
-  g_stop_search = g_classical = g_nullmove_active = g_is_pv = false;
-  g_qs_depth = g_best_score = g_nodes = g_depth = 0;
-  g_stop_search_time = Now() + static_cast<std::uint64_t>(ms);
-  g_frc_problems = AnyFRCProblems();
+void ThinkReset() {
+  g_stop_search = g_nullmove_active = g_is_pv = false;
+  g_q_depth = g_best_score = g_nodes = g_depth = 0;
 }
 
 // Play the book move from root list
@@ -2279,7 +2293,7 @@ void SearchRootMoves(const bool is_eg) {
     g_classical = g_classical || (is_eg && std::abs(g_best_score) > (4 * 100) && ((++good) >= 7));
 
     Speak(g_best_score, Now() - now);
-    g_qs_depth = std::min(g_qs_depth + 2, MAX_Q_DEPTH);
+    g_q_depth = std::min(g_q_depth + 2, MAX_Q_DEPTH);
   }
 
   Speak((g_last_eval = g_best_score), Now() - now);
@@ -2289,11 +2303,15 @@ void Think(const int ms) {
   auto *tmp = g_board;
   const Material m;
 
-  ThinkReset(ms);
-  Activation(m);
-  g_root_n = MgenRoot();
+  ThinkReset();
 
-  if (FastMove(ms)) return;
+  g_stop_search_time = Now() + static_cast<std::uint64_t>(ms);
+  g_classical        = HCEActivation(m);
+  g_frc_problems     = AnyFRCProblems();
+  g_root_n           = MgenRoot();
+
+  if (FastMove(ms))
+    return;
 
   EvalRootMoves();
   SortNthMoves<true>(g_root_n);
@@ -2426,7 +2444,7 @@ void UciUci() {
   std::cout << "option name UCI_Chess960 type check default false" << "\n";
   std::cout << "option name MoveOverhead type spin default 100 min 0 max 10000" << "\n";
   std::cout << "option name Hash type spin default " << HASH_MB << " min 4 max 1048576" << "\n";
-  std::cout << "option name EvalFile type string default " << NNUE_FILE << "\n";
+  std::cout << "option name EvalFile type string default " << EVAL_FILE << "\n";
   std::cout << "option name BookFile type string default " << BOOK_FILE << "\n";
   std::cout << "uciok" << std::endl;
 }
@@ -2514,6 +2532,8 @@ std::uint64_t MakeSliderMagicMoves(const int *slider_vectors, const int sq, cons
 }
 
 void InitBishopMagics() {
+  constexpr int kBishopVectors[8] = {+1, +1, -1, -1, +1, -1, -1, +1};
+
   for (auto i = 0; i < 64; ++i) {
     const auto magics = kBishopMagic[2][i] & (~Bit(i));
     for (auto j = 0; j < 512; ++j) {
@@ -2524,6 +2544,8 @@ void InitBishopMagics() {
 }
 
 void InitRookMagics() {
+  constexpr int kRookVectors[8]   = {+1,  0,  0, +1,  0, -1, -1,  0};
+
   for (auto i = 0; i < 64; ++i) {
     const auto magics = kRookMagic[2][i] & (~Bit(i));
     for (auto j = 0; j < 4096; ++j) {
@@ -2554,6 +2576,9 @@ std::uint64_t MakeSliderMoves(const int sq, const int *slider_vectors) {
 }
 
 void InitSliderMoves() {
+  constexpr int kBishopVectors[8] = {+1, +1, -1, -1, +1, -1, -1, +1};
+  constexpr int kRookVectors[8]   = {+1,  0,  0, +1,  0, -1, -1,  0};
+
   for (auto i = 0; i < 64; ++i) {
     g_rook_moves[i]   = MakeSliderMoves(i, kRookVectors);
     g_bishop_moves[i] = MakeSliderMoves(i, kBishopVectors);
@@ -2625,7 +2650,7 @@ void Init() {
   InitScale();
   InitLMR();
   SetupHashtable(HASH_MB);
-  SetupNNUE(NNUE_FILE);
+  SetupNNUE(EVAL_FILE);
   SetupBook(BOOK_FILE);
   Fen(STARTPOS);
 }
