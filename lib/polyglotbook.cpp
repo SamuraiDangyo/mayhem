@@ -159,9 +159,9 @@ bool PolyglotBook::open_book(const std::string &file) {
 
 }
 
-bool PolyglotBook::on_board(const int x, const int y) {
+bool PolyglotBook::on_board(const int x) {
 
-  return x >= 0 && x <= 7 && y >= 0 && y <= 7;
+  return x >= 0 && x <= 7;
 
 }
 
@@ -174,11 +174,11 @@ bool PolyglotBook::is_ep_legal() {
   const auto y = this->polyboard.epsq / 8;
 
   return this->polyboard.wtm ?
-      (this->on_board(x - 1, y) && this->polyboard.pieces[8 * y + x - 1] == -1) ||
-      (this->on_board(x + 1, y) && this->polyboard.pieces[8 * y + x + 1] == -1)
-      :
-      (this->on_board(x - 1, y) && this->polyboard.pieces[8 * y + x - 1] == +1) ||
-      (this->on_board(x + 1, y) && this->polyboard.pieces[8 * y + x + 1] == +1);
+      (this->on_board(x - 1) && this->polyboard.pieces[8 * y + x - 1] == -1) ||
+      (this->on_board(x + 1) && this->polyboard.pieces[8 * y + x + 1] == -1)
+        :
+      (this->on_board(x - 1) && this->polyboard.pieces[8 * y + x - 1] == +1) ||
+      (this->on_board(x + 1) && this->polyboard.pieces[8 * y + x + 1] == +1);
 
 }
 
@@ -219,10 +219,9 @@ int PolyglotBook::probe(const bool pick_best) {
       // Choose book move according to its score. If a move has a very high
       // score it has a higher probability of being choosen than a move with
       // a lower score. Note that first entry is always chosen.
-      if (   (!pick_best && sum && (std::rand() % sum) < e.count)
-          || ( pick_best && e.count == best)) {
+      if (  (!pick_best && sum && (std::rand() % sum) < e.count) ||
+            ( pick_best && e.count == best))
           move = e.move;
-      }
   }
 
   return move;

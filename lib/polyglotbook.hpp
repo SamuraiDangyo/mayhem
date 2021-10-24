@@ -70,7 +70,7 @@ private:
   std::uint64_t polyglot_key();
   bool open(const std::string&);
   std::size_t find_first(const std::uint64_t);
-  bool on_board(const int, const int);
+  bool on_board(const int);
   bool is_ep_legal();
 
 };
