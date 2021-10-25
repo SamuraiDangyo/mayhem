@@ -16,9 +16,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// "Total Mayhem and destruction. Be warned"
 #include "mayhem.hpp"
 
-// "The louder the dogs bark the less a lion feels threatened."
 int main() {
   mayhem::PrintVersion();
   mayhem::Init();

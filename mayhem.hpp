@@ -56,18 +56,18 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION           "Mayhem 5.9"
-#define STARTPOS          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0"
-#define MAX_MOVES         256     // Max chess moves
-#define MAX_DEPTH         64      // Max search depth (stack frame problems ...)
-#define MAX_Q_DEPTH       12      // Max Qsearch depth
-#define BOOK_MS           100     // At least 100ms+ for the book lookup
-#define INF               1048576
-#define MAX_POS           101     // Rule 50 + 1 ply for arrays
-#define HASH_DEF          256     // MB
-#define MOVEOVERHEAD_DEF  100     // ms
-#define EVAL_FILE_DEF     "nn-cb80fb9393af.nnue" // "x" to disable NNUE
-#define BOOK_FILE_DEF     "performance.bin"      // "x" to disable book
+#define VERSION       "Mayhem 5.9"
+#define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0"
+#define MAX_MOVES     256     // Max chess moves
+#define MAX_DEPTH     64      // Max search depth (stack frame problems ...)
+#define MAX_Q_DEPTH   12      // Max Qsearch depth
+#define BOOK_MS       100     // At least 100ms+ for the book lookup
+#define INF           1048576 // System max number
+#define MAX_POS       101     // Rule 50 + 1 ply for arrays
+#define HASH          256     // MB
+#define MOVEOVERHEAD  100     // ms
+#define EVAL_FILE     "nn-cb80fb9393af.nnue" // "x" to disable NNUE
+#define BOOK_FILE     "performance.bin"      // "x" to disable book
 
 // Constants
 
@@ -488,7 +488,7 @@ void SetNNUE(const std::string &eval_file, const bool print = false) {
 // Hashtable
 
 void SetHashtable(int hash_mb) {
-  hash_mb = std::clamp(hash_mb, 4, 8192);
+  hash_mb = std::clamp(hash_mb, 4, 524288);
   // Hash in B / block in B
   g_hash_entries = static_cast<std::uint32_t>((1 << 20) * hash_mb) / (sizeof(HashEntry));
   // Claim space
@@ -1835,7 +1835,8 @@ void Speak(const int score, const std::uint64_t ms) {
   std::cout << " time " << ms;
   std::cout << " nps " << Nps(g_nodes, ms);
   std::cout << " score cp " << ((g_wtm ? +1 : -1) * (std::abs(score) == INF ? score / 100 : score));
-  std::cout << " pv " << MoveName(g_boards[0]) << std::endl; // flush
+  std::cout << " pv " << MoveName(g_boards[0]);
+  std::cout << std::endl; // flush
 }
 
 // g_r50_positions.pop() must contain hash !
@@ -2368,10 +2369,10 @@ void UciSetoption() {
       g_move_overhead = std::clamp(TokenNumber(3), 0, 10000);
       TokenPop(4);
     } else if (TokenPeek("EvalFile", 1)) {
-      SetNNUE(TokenNth(3));
+      SetNNUE(TokenNth(3), true);
       TokenPop(4);
     } else if (TokenPeek("BookFile", 1)) {
-      SetBook(TokenNth(3));
+      SetBook(TokenNth(3), true);
       TokenPop(4);
     }
   }
@@ -2426,11 +2427,13 @@ void UciUci() {
   std::cout << "id author Toni Helminen" << "\n";
   std::cout << "option name UCI_Chess960 type check default false" << "\n";
   std::cout << "option name MoveOverhead type spin default " <<
-               MOVEOVERHEAD_DEF << " min 0 max 10000" << "\n";
-  std::cout << "option name Hash type spin default " << HASH_DEF <<
-               " min 4 max 8192" << "\n";
-  std::cout << "option name EvalFile type string default " << EVAL_FILE_DEF << "\n";
-  std::cout << "option name BookFile type string default " << BOOK_FILE_DEF << "\n";
+                MOVEOVERHEAD << " min 0 max 10000" << "\n";
+  std::cout << "option name Hash type spin default " <<
+                HASH << " min 4 max 524288" << "\n";
+  std::cout << "option name EvalFile type string default " <<
+                EVAL_FILE << "\n";
+  std::cout << "option name BookFile type string default " <<
+                BOOK_FILE << "\n";
   std::cout << "uciok" << std::endl;
 }
 
@@ -2530,7 +2533,7 @@ void InitBishopMagics() {
 }
 
 void InitRookMagics() {
-  constexpr int rook_vectors[8]   = {+1,  0,  0, +1,  0, -1, -1,  0};
+  constexpr int rook_vectors[8] = {+1,  0,  0, +1,  0, -1, -1,  0};
 
   for (auto i = 0; i < 64; ++i) {
     const auto magics = kRookMagic[2][i] & (~Bit(i));
@@ -2637,9 +2640,9 @@ void Init() {
   InitJumpMoves();
   InitScale();
   InitLMR();
-  SetHashtable(HASH_DEF);
-  SetNNUE(EVAL_FILE_DEF);
-  SetBook(BOOK_FILE_DEF);
+  SetHashtable(HASH);
+  SetNNUE(EVAL_FILE);
+  SetBook(BOOK_FILE);
   Fen(STARTPOS);
 }
 
