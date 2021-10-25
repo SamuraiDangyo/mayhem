@@ -64,7 +64,7 @@ namespace mayhem {
 #define BOOK_MS       100     // At least 100ms+ for the book lookup
 #define INF           1048576 // System max number
 #define MAX_POS       101     // Rule 50 + 1 ply for arrays
-#define NOISE         10      // Make Mayhem non-deterministic (unpredictable)
+#define NOISE         4       // Make Mayhem non-deterministic (unpredictable)
 #define HASH          256     // MB
 #define MOVEOVERHEAD  100     // ms
 #define EVAL_FILE     "nn-cb80fb9393af.nnue" // "x" to disable NNUE
