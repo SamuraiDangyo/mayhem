@@ -426,7 +426,7 @@ inline std::uint64_t Now() {
     static_cast<std::uint64_t>(1000 * tv.tv_sec + tv.tv_usec / 1000);
 }
 
-}
+} // extern "C"
 
 std::uint64_t Random64() {
   static std::uint64_t a = 0X12311227ULL, b = 0X1931311ULL, c = 0X13138141ULL;
@@ -475,19 +475,20 @@ void ReadInput() {
 
 void SetBook(const std::string &book_file, const bool print = false) {
   g_book_exist = book_file.length() <= 1 ? false : g_book.open_book(book_file);
-  print && (std::cout << "info string Opening book " << (g_book_exist ? "enabled" : "disabled") << std::endl);
+  print && (std::cout << "info string Book " << (g_book_exist ? "enabled" : "disabled") << std::endl);
 }
 
 // NNUE lib
 
 void SetNNUE(const std::string &eval_file, const bool print = false) {
   g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str());
-  print && (std::cout << "info string NNUE evaluation " << (g_nnue_exist ? "enabled" : "disabled") << std::endl);
+  print && (std::cout << "info string NNUE " << (g_nnue_exist ? "enabled" : "disabled") << std::endl);
 }
 
 // Hashtable
 
 void SetHashtable(int hash_mb) {
+  // Limits 4MB -> 524GB
   hash_mb = std::clamp(hash_mb, 4, 524288);
   // Hash in B / block in B
   g_hash_entries = static_cast<std::uint32_t>((1 << 20) * hash_mb) / (sizeof(HashEntry));
@@ -670,8 +671,8 @@ void FenAddChess960Castling(const char file) {
 void FenKQkq(const std::string &KQkq) {
   for (std::size_t i = 0, len = KQkq.length(); i < len; ++i)
     switch (const auto f = KQkq[i]) {
-      case 'K': FenAddCastle(g_rook_w + 0, 7, 0x1);      break;
-      case 'Q': FenAddCastle(g_rook_w + 1, 0, 0x2);      break;
+      case 'K': FenAddCastle(g_rook_w + 0, 7,      0x1); break;
+      case 'Q': FenAddCastle(g_rook_w + 1, 0,      0x2); break;
       case 'k': FenAddCastle(g_rook_b + 0, 56 + 7, 0x4); break;
       case 'q': FenAddCastle(g_rook_b + 1, 56 + 0, 0x8); break;
       default:  FenAddChess960Castling(f);               break;
@@ -1523,7 +1524,7 @@ struct ClassicalEval {
   explicit ClassicalEval(const bool wtm2) :
     white(White()), black(Black()), both(this->white | this->black), wtm(wtm2), white_n(0),
     black_n(0), both_n(0), wk(0), bk(0), wpn(0), wnn(0), wbn(0), wrn(0), wqn(0), bpn(0),
-    bnn(0), bbn(0), brn(0), bqn(0), score(0), mg(0), eg(0), scale_factor(1) {}
+    bnn(0), bbn(0), brn(0), bqn(0), score(0), mg(0), eg(0), scale_factor(1) { }
 
   void mgeg(const int mg2, const int eg2) {
     this->mg += mg2;
