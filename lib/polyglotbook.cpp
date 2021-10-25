@@ -167,7 +167,8 @@ bool PolyglotBook::on_board(const int x) {
 
 bool PolyglotBook::is_ep_legal() {
 
-  if (this->polyboard.epsq == -1)
+  // -1 means no en passant possible
+  if (this->polyboard.epsq < 0 || this->polyboard.epsq > 63)
     return false;
 
   const auto x = this->polyboard.epsq % 8;
