@@ -64,6 +64,7 @@ namespace mayhem {
 #define BOOK_MS       100     // At least 100ms+ for the book lookup
 #define INF           1048576 // System max number
 #define MAX_POS       101     // Rule 50 + 1 ply for arrays
+#define NOISE         10      // Make Mayhem non-deterministic (unpredictable)
 #define HASH          256     // MB
 #define MOVEOVERHEAD  100     // ms
 #define EVAL_FILE     "nn-cb80fb9393af.nnue" // "x" to disable NNUE
@@ -313,7 +314,7 @@ int g_move_overhead = 100, g_rook_w[2] = {}, g_rook_b[2] = {}, g_root_n = 0, g_k
 
 bool g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active = false,
   g_stop_search = false, g_is_pv = false, g_book_exist = false, g_nnue_exist = false,
-  g_classical = false, g_game_on = true, g_frc_problems = false;
+  g_classical = false, g_game_on = true, g_frc_problems = false, g_noise = true;
 
 Board g_board_tmp = {}, *g_board = &g_board_tmp, *g_moves = nullptr, *g_board_orig = nullptr,
   g_boards[MAX_DEPTH + MAX_Q_DEPTH + 4][MAX_MOVES] = {};
@@ -488,7 +489,7 @@ void SetNNUE(const std::string &eval_file, const bool print = false) {
 // Hashtable
 
 void SetHashtable(int hash_mb) {
-  // Limits 4MB -> 524GB
+  // Limits 4MB -> 512GB
   hash_mb = std::clamp(hash_mb, 4, 524288);
   // Hash in B / block in B
   g_hash_entries = static_cast<std::uint32_t>((1 << 20) * hash_mb) / (sizeof(HashEntry));
@@ -831,6 +832,7 @@ int EvaluateMoves() {
   return tactics;
 }
 
+// Best moves put first for maximum cutoffs
 void SortByScore(const HashEntry *entry, const std::uint64_t hash) {
   if (entry->sort_hash == hash) {
     if (entry->killer) g_moves[entry->killer - 1].score += 10000;
@@ -849,6 +851,7 @@ void EvalRootMoves() {
     g_board->score += (g_board->type == 8 ? 1000 : 0) + // =q
                       (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) + // OO|OOO
                       (IsUnderpromo(g_board) ? -5000 : 0) + // =rbn
+                      (g_noise ? (Random(NOISE + 1) - (NOISE / 2)) : 0) + // Make some noise !!!
                       (g_wtm ? +1 : -1) * Evaluate(g_wtm); // Full eval
   }
 
@@ -1215,14 +1218,16 @@ void AddNormalStuffB(const int from, const int to) {
 
 void AddW(const int from, const int to) {
   g_board->pieces[from] == +1 && Ycoord(from) == 6 ?
-    AddPromotionStuffW(from, to) : AddNormalStuffW(from, to);
+    AddPromotionStuffW(from, to) :
+    AddNormalStuffW(from, to);
 
   g_board = g_board_orig;
 }
 
 void AddB(const int from, const int to) {
   g_board->pieces[from] == -1 && Ycoord(from) == 1 ?
-    AddPromotionStuffB(from, to) : AddNormalStuffB(from, to);
+    AddPromotionStuffB(from, to) :
+    AddNormalStuffB(from, to);
 
   g_board = g_board_orig;
 }
@@ -2237,7 +2242,7 @@ bool FindBookMove(const int from, const int to, const int type) {
 // Probe PolyGlot book
 bool ProbeBook() {
   const auto move = g_book.setup(g_board->pieces, Both(), g_board->castle, g_board->epsq, g_wtm)
-                          .probe(Random(1) == 1); // 50% chance to pick the best
+                          .probe(Random(2) == 1); // 50% chance to pick the best
 
   if (!move)
     return false;
@@ -2363,6 +2368,9 @@ void UciSetoption() {
     if (TokenPeek("UCI_Chess960", 1)) {
       g_chess960 = TokenPeek("true", 3);
       TokenPop(4);
+    } else if (TokenPeek("Noise", 1)) {
+      g_noise = TokenPeek("true", 3);
+      TokenPop(4);
     } else if (TokenPeek("Hash", 1)) {
       SetHashtable(TokenNumber(3));
       TokenPop(4);
@@ -2427,6 +2435,7 @@ void UciUci() {
   std::cout << "id name " << VERSION << "\n";
   std::cout << "id author Toni Helminen" << "\n";
   std::cout << "option name UCI_Chess960 type check default false" << "\n";
+  std::cout << "option name Noise type check default true" << "\n";
   std::cout << "option name MoveOverhead type spin default " <<
                 MOVEOVERHEAD << " min 0 max 10000" << "\n";
   std::cout << "option name Hash type spin default " <<
@@ -2438,7 +2447,7 @@ void UciUci() {
   std::cout << "uciok" << std::endl;
 }
 
-// "myid"  is for correctness of the program
+// "myid" is for correctness of the program
 // "bench" is for speed of the program
 // Don't run anything after these commands !
 template <bool bench>
@@ -2447,7 +2456,8 @@ void UciBench() {
   std::uint64_t nodes = 0x0ULL;
   g_max_depth         = bench ? MAX_DEPTH : 10;
 
-  SetHashtable(256); // 256 MB
+  SetHashtable(256); // 256MB
+  g_noise = false;   // Deterministic for "myid" / "bench"
 
   for (const auto &fen : kBench) {
     std::cout << "[ " << fen << " ]" << std::endl;
