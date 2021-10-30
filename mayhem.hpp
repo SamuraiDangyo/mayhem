@@ -64,7 +64,6 @@ namespace mayhem {
 #define BOOK_MS       100     // At least 100ms+ for the book lookup
 #define INF           1048576 // System max number
 #define MAX_POS       101     // Rule 50 + 1 ply for arrays
-#define NOISE         4       // Make Mayhem non-deterministic (unpredictable)
 #define HASH          256     // MB
 #define MOVEOVERHEAD  100     // ms
 #define EVAL_FILE     "nn-cb80fb9393af.nnue" // "x" to disable NNUE
@@ -310,11 +309,11 @@ std::uint64_t g_black = 0x0ULL, g_white = 0x0ULL, g_both = 0x0ULL, g_empty = 0x0
 
 int g_move_overhead = 100, g_rook_w[2] = {}, g_rook_b[2] = {}, g_root_n = 0, g_king_w = 0,
   g_king_b = 0, g_moves_n = 0, g_max_depth = MAX_DEPTH, g_q_depth = 0, g_depth = 0,
-  g_best_score = 0, g_last_eval = 0, g_lmr[MAX_DEPTH][MAX_MOVES] = {};
+  g_best_score = 0, g_last_eval = 0, g_lmr[MAX_DEPTH][MAX_MOVES] = {}, g_noise = 4;
 
 bool g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active = false,
   g_stop_search = false, g_is_pv = false, g_book_exist = false, g_nnue_exist = false,
-  g_classical = false, g_game_on = true, g_frc_problems = false, g_noise = true;
+  g_classical = false, g_game_on = true, g_frc_problems = false;
 
 Board g_board_tmp = {}, *g_board = &g_board_tmp, *g_moves = nullptr, *g_board_orig = nullptr,
   g_boards[MAX_DEPTH + MAX_Q_DEPTH + 4][MAX_MOVES] = {};
@@ -551,8 +550,11 @@ void BuildBitboards() {
     else if (g_board->pieces[i] < 0) g_board->black[-g_board->pieces[i] - 1] |= Bit(i);
 }
 
-std::uint64_t Fill(int from, const int to) {
-  if (from < 0 || to < 0 || from > 63 || to > 63)
+template<int to>
+std::uint64_t Fill(int from) {
+  static_assert(to >= 0 && to <= 63, "Bad to square");
+
+  if (from < 0 || from > 63)
     return 0x0ULL;
 
   auto ret = Bit(from);
@@ -569,24 +571,24 @@ std::uint64_t Fill(int from, const int to) {
 }
 
 void BuildCastlingBitboard1() {
-  if ((g_board->castle & 0x1)) { // O-O
-    g_castle_w[0]       = Fill(g_king_w, 6);
-    g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5     )) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
+  if ((g_board->castle & 0x1)) { // White: O-O
+    g_castle_w[0]       = Fill<6>(g_king_w);
+    g_castle_empty_w[0] = (g_castle_w[0] | Fill<5>(g_rook_w[0])) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
   }
 
-  if ((g_board->castle & 0x2)) { // O-O-O
-    g_castle_w[1]       = Fill(g_king_w, 2);
-    g_castle_empty_w[1] = (g_castle_w[1] | Fill(g_rook_w[1], 3     )) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
+  if ((g_board->castle & 0x2)) { // White: O-O-O
+    g_castle_w[1]       = Fill<2>(g_king_w);
+    g_castle_empty_w[1] = (g_castle_w[1] | Fill<3>(g_rook_w[1])) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
   }
 
-  if ((g_board->castle & 0x4)) { // O-O
-    g_castle_b[0]       = Fill(g_king_b, 56 + 6);
-    g_castle_empty_b[0] = (g_castle_b[0] | Fill(g_rook_b[0], 56 + 5)) ^ (Bit(g_king_b) | Bit(g_rook_b[0]));
+  if ((g_board->castle & 0x4)) { // Black: O-O
+    g_castle_b[0]       = Fill<56 + 6>(g_king_b);
+    g_castle_empty_b[0] = (g_castle_b[0] | Fill<56 + 5>(g_rook_b[0])) ^ (Bit(g_king_b) | Bit(g_rook_b[0]));
   }
 
-  if ((g_board->castle & 0x8)) { // O-O-O
-    g_castle_b[1]       = Fill(g_king_b, 56 + 2);
-    g_castle_empty_b[1] = (g_castle_b[1] | Fill(g_rook_b[1], 56 + 3)) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
+  if ((g_board->castle & 0x8)) { // Black: O-O-O
+    g_castle_b[1]       = Fill<56 + 2>(g_king_b);
+    g_castle_empty_b[1] = (g_castle_b[1] | Fill<56 + 3>(g_rook_b[1])) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
   }
 }
 
@@ -694,7 +696,7 @@ void FenGen(const std::string &fen) {
   std::vector<std::string> tokens = {};
 
   Split<std::vector<std::string>>(fen, tokens);
-  Ok(fen.length() >= 25 && tokens.size() >= 5, "Bad fen");
+  Ok(fen.length() >= 25 && tokens.size() >= 5, "Bad fen #1");
 
   FenBoard(tokens[0]);
   g_wtm = tokens[1][0] == 'w';
@@ -721,10 +723,17 @@ void FenReset() {
     g_board->white[i] = g_board->black[i] = 0x0ULL;
 }
 
+// Not perfect. Just avoid obvious crashes
+bool BoardIsGood() {
+  return (PopCount(g_board->white[5]) == 1 && PopCount(g_board->black[5]) == 1) && // 1 king / side
+         (!(g_wtm ? ChecksW() : ChecksB())); // No illegal checks
+}
+
 void Fen(const std::string &fen) {
   FenReset();
   FenGen(fen);
   BuildBitboards();
+  Ok(BoardIsGood(), "Bad fen #2");
 }
 
 // Checks
@@ -851,7 +860,7 @@ void EvalRootMoves() {
     g_board->score += (g_board->type == 8 ? 1000 : 0) + // =q
                       (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) + // OO|OOO
                       (IsUnderpromo(g_board) ? -5000 : 0) + // =rbn
-                      (g_noise ? (Random(NOISE + 1) - (NOISE / 2)) : 0) + // Make some noise !!!
+                      (g_noise ? (Random(g_noise + 1) - (g_noise / 2)) : 0) + // Make some noise !!!
                       (g_wtm ? +1 : -1) * Evaluate(g_wtm); // Full eval
   }
 
@@ -1493,7 +1502,6 @@ int FixFRC() {
     return 0;
 
   auto s = 0;
-
   if ((g_board->white[2] & Bit(0))  && (g_board->white[0] & Bit(9)))  s += -FRC_PENALTY;
   if ((g_board->white[2] & Bit(7))  && (g_board->white[0] & Bit(14))) s += -FRC_PENALTY;
   if ((g_board->black[2] & Bit(56)) && (g_board->black[0] & Bit(49))) s -= -FRC_PENALTY;
@@ -1883,7 +1891,9 @@ inline bool CheckTime() {
   static std::uint64_t ticks = 0x0ULL;
 // Read clock every 512 ticks (white / 2 x both)
 #define READ_CLOCK (0x1FFULL)
-  return (((ticks++) & READ_CLOCK)) ? false : ((Now() >= g_stop_search_time) || UserStop());
+  return (((ticks++) & READ_CLOCK)) ?
+    false :
+    ((Now() >= g_stop_search_time) || UserStop());
 }
 
 // 1. Check against standpat to see whether we are better -> Done
@@ -2135,10 +2145,8 @@ int BestW() {
     g_is_pv = i <= 1 && !g_boards[0][i].score; // 1 + 2 moves too good and not tactical -> pv
 
     if (g_depth >= 1 && i >= 1) { // Null window search for bad moves
-      if ((score = SearchB(alpha, alpha + 1, g_depth, 1)) > alpha) {
-        g_board = g_boards[0] + i;
-        score = SearchB(alpha, INF, g_depth, 1);
-      }
+      if ((score = SearchB(alpha, alpha + 1, g_depth, 1)) > alpha)
+        g_board = g_boards[0] + i, score = SearchB(alpha, INF, g_depth, 1);
     } else {
       score = SearchB(alpha, INF, g_depth, 1);
     }
@@ -2167,10 +2175,8 @@ int BestB() {
     g_is_pv = i <= 1 && !g_boards[0][i].score;
 
     if (g_depth >= 1 && i >= 1) {
-      if ((score = SearchW(beta - 1, beta, g_depth, 1)) < beta) {
-        g_board = g_boards[0] + i;
-        score = SearchW(-INF, beta, g_depth, 1);
-      }
+      if ((score = SearchW(beta - 1, beta, g_depth, 1)) < beta)
+        g_board = g_boards[0] + i, score = SearchW(-INF, beta, g_depth, 1);
     } else {
       score = SearchW(-INF, beta, g_depth, 1);
     }
@@ -2348,7 +2354,9 @@ void UciTakeSpecialFen() {
 }
 
 void UciFen() {
-  Token("startpos") ? Fen(STARTPOS) : UciTakeSpecialFen();
+  Token("startpos") ?
+    Fen(STARTPOS) :
+    UciTakeSpecialFen();
 }
 
 void UciMoves() {
@@ -2358,7 +2366,6 @@ void UciMoves() {
 
 void UciPosition() {
   UciFen();
-
   if (Token("moves"))
     UciMoves();
 }
@@ -2367,9 +2374,6 @@ void UciSetoption() {
   if (TokenPeek("name") && TokenPeek("value", 2)) {
     if (TokenPeek("UCI_Chess960", 1)) {
       g_chess960 = TokenPeek("true", 3);
-      TokenPop(4);
-    } else if (TokenPeek("Noise", 1)) {
-      g_noise = TokenPeek("true", 3);
       TokenPop(4);
     } else if (TokenPeek("Hash", 1)) {
       SetHashtable(TokenNumber(3));
@@ -2388,7 +2392,9 @@ void UciSetoption() {
 }
 
 void PrintBestMove() {
-  std::cout << "bestmove " << (g_root_n <= 0 ? "0000" : MoveName(g_boards[0])) << std::endl;
+  std::cout << "bestmove ";
+  std::cout << (g_root_n <= 0 ? "0000" : MoveName(g_boards[0]));
+  std::cout << std::endl;
 }
 
 void UciGoInfinite() {
@@ -2435,7 +2441,6 @@ void UciUci() {
   std::cout << "id name " << VERSION << "\n";
   std::cout << "id author Toni Helminen" << "\n";
   std::cout << "option name UCI_Chess960 type check default false" << "\n";
-  std::cout << "option name Noise type check default true" << "\n";
   std::cout << "option name MoveOverhead type spin default " <<
                 MOVEOVERHEAD << " min 0 max 10000" << "\n";
   std::cout << "option name Hash type spin default " <<
@@ -2456,8 +2461,8 @@ void UciBench() {
   std::uint64_t nodes = 0x0ULL;
   g_max_depth         = bench ? MAX_DEPTH : 10;
 
-  SetHashtable(256); // 256MB
-  g_noise = false;   // Deterministic for "myid" / "bench"
+  SetHashtable(256);         // 256MB
+  (!bench) && (g_noise = 0); // Deterministic for "myid"
 
   for (const auto &fen : kBench) {
     std::cout << "[ " << fen << " ]" << std::endl;
