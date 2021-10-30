@@ -725,7 +725,8 @@ void FenReset() {
 
 // Not perfect. Just avoid obvious crashes
 bool BoardIsGood() {
-  return (PopCount(g_board->white[5]) == 1 && PopCount(g_board->black[5]) == 1) && // 1 king / side
+  return (PopCount(g_board->white[5]) == 1 &&
+            PopCount(g_board->black[5]) == 1) && // 1 king / side
          (!(g_wtm ? ChecksW() : ChecksB())); // No illegal checks
 }
 
@@ -1171,6 +1172,7 @@ inline void CheckNormalCapturesB(const int me, const int eat, const int to) {
   }
 }
 
+// If not under checks -> handle castling -> add move
 inline void AddMoveIfOkW() {
   if (!ChecksB()) {
     HandleCastlingRights();
@@ -1256,7 +1258,8 @@ void MgenSetupW() {
   g_black   = Black();
   g_both    = g_white | g_black;
   g_empty   = ~g_both;
-  g_pawn_sq = g_black | (g_board->epsq > 0 ? Bit(g_board->epsq) & 0x0000FF0000000000ULL : 0x0ULL);
+  g_pawn_sq = g_black | (g_board->epsq > 0 ? Bit(g_board->epsq) &
+                           0x0000FF0000000000ULL : 0x0ULL);
 }
 
 void MgenSetupB() {
@@ -1264,7 +1267,8 @@ void MgenSetupB() {
   g_black   = Black();
   g_both    = g_white | g_black;
   g_empty   = ~g_both;
-  g_pawn_sq = g_white | (g_board->epsq > 0 ? Bit(g_board->epsq) & 0x0000000000FF0000ULL : 0x0ULL);
+  g_pawn_sq = g_white | (g_board->epsq > 0 ? Bit(g_board->epsq) &
+                           0x0000000000FF0000ULL : 0x0ULL);
 }
 
 void MgenPawnsW() {
@@ -1461,8 +1465,10 @@ int MgenRoot() {
 // Probe Eucalyptus KPK bitbases
 inline bool ProbeKPK(const bool wtm) {
   return g_board->white[0] ?
-    eucalyptus::IsDraw(     Ctz(g_board->white[5]),      Ctz(g_board->white[0]),      Ctz(g_board->black[5]),  wtm) :
-    eucalyptus::IsDraw(63 - Ctz(g_board->black[5]), 63 - Ctz(g_board->black[0]), 63 - Ctz(g_board->white[5]), !wtm);
+    eucalyptus::IsDraw(     Ctz(g_board->white[5]),
+        Ctz(g_board->white[0]),      Ctz(g_board->black[5]),  wtm) :
+    eucalyptus::IsDraw(63 - Ctz(g_board->black[5]),
+        63 - Ctz(g_board->black[0]), 63 - Ctz(g_board->white[5]), !wtm);
 }
 
 // Detect trivial draws really fast
@@ -1477,7 +1483,8 @@ bool EasyDraw(const bool wtm) {
       // Pawns ? -> No draw
       false :
       // Max 1 N/B per side -> Draw
-      PopCount(g_board->white[1] | g_board->white[2]) <= 1 && PopCount(g_board->black[1] | g_board->black[2]) <= 1;
+      PopCount(g_board->white[1] | g_board->white[2]) <= 1 &&
+      PopCount(g_board->black[1] | g_board->black[2]) <= 1;
 
   // No N/B/R/Q/n/b/r/q -> Pawns ?
   const auto pawns_n = PopCount(g_board->white[0] | g_board->black[0]);
@@ -1506,7 +1513,6 @@ int FixFRC() {
   if ((g_board->white[2] & Bit(7))  && (g_board->white[0] & Bit(14))) s += -FRC_PENALTY;
   if ((g_board->black[2] & Bit(56)) && (g_board->black[0] & Bit(49))) s -= -FRC_PENALTY;
   if ((g_board->black[2] & Bit(63)) && (g_board->black[0] & Bit(54))) s -= -FRC_PENALTY;
-
   return s;
 }
 
@@ -1984,7 +1990,8 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
         UpdateSort(entry, MoveType::kKiller, hash, g_boards[ply][i].index);
         return alpha;
       }
-      UpdateSort(entry, g_boards[ply][i].score ? MoveType::kGood : MoveType::kQuiet, hash, g_boards[ply][i].index);
+      UpdateSort(entry, g_boards[ply][i].score ? MoveType::kGood :
+                                                 MoveType::kQuiet, hash, g_boards[ply][i].index);
     }
   }
 
@@ -2021,7 +2028,8 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
         UpdateSort(entry, MoveType::kKiller, hash, g_boards[ply][i].index);
         return beta;
       }
-      UpdateSort(entry, g_boards[ply][i].score ? MoveType::kGood : MoveType::kQuiet, hash, g_boards[ply][i].index);
+      UpdateSort(entry, g_boards[ply][i].score ? MoveType::kGood :
+                                                 MoveType::kQuiet, hash, g_boards[ply][i].index);
     }
   }
 
@@ -2543,7 +2551,8 @@ void InitBishopMagics() {
     const auto magics = kBishopMagic[2][i] & (~Bit(i));
     for (auto j = 0; j < 512; ++j) {
       const auto allmoves = PermutateBb(magics, j);
-      g_bishop_magic_moves[i][BishopMagicIndex(i, allmoves)] = MakeSliderMagicMoves(bishop_vectors, i, allmoves);
+      g_bishop_magic_moves[i][BishopMagicIndex(i, allmoves)] =
+        MakeSliderMagicMoves(bishop_vectors, i, allmoves);
     }
   }
 }
@@ -2555,7 +2564,8 @@ void InitRookMagics() {
     const auto magics = kRookMagic[2][i] & (~Bit(i));
     for (auto j = 0; j < 4096; ++j) {
       const auto allmoves = PermutateBb(magics, j);
-      g_rook_magic_moves[i][RookMagicIndex(i, allmoves)] = MakeSliderMagicMoves(rook_vectors, i, allmoves);
+      g_rook_magic_moves[i][RookMagicIndex(i, allmoves)] =
+        MakeSliderMagicMoves(rook_vectors, i, allmoves);
     }
   }
 }
@@ -2596,15 +2606,16 @@ std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int
   const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
   for (auto i = 0; i < len; ++i)
-    if (const auto x = x_pos + jump_vectors[2 * i], y = y_pos + dy * jump_vectors[2 * i + 1]; OnBoard(x, y))
+    if (const auto x = x_pos + jump_vectors[2 * i],
+        y = y_pos + dy * jump_vectors[2 * i + 1]; OnBoard(x, y))
       moves |= Bit(8 * y + x);
 
   return moves;
 }
 
 void InitJumpMoves() {
-  constexpr int king_vectors[16]          = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1};
-  constexpr int knight_vectors[16]        = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2};
+  constexpr int king_vectors[16]   = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1};
+  constexpr int knight_vectors[16] = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2};
   constexpr int pawn_check_vectors[2 * 2] = {-1, +1, +1, +1};
   constexpr int pawn_1_vectors[1 * 2]     = {0, +1};
 
@@ -2626,7 +2637,9 @@ void InitJumpMoves() {
 }
 
 void InitZobrist() {
-  for (auto i = 0; i < 13; ++i) for (auto j = 0; j < 64; ++j) g_zobrist_board[i][j] = Random8x64();
+  for (auto i = 0; i < 13; ++i)
+    for (auto j = 0; j < 64; ++j)
+      g_zobrist_board[i][j] = Random8x64();
   for (auto i = 0; i < 64; ++i) g_zobrist_ep[i]     = Random8x64();
   for (auto i = 0; i < 16; ++i) g_zobrist_castle[i] = Random8x64();
   for (auto i = 0; i <  2; ++i) g_zobrist_wtm[i]    = Random8x64();
