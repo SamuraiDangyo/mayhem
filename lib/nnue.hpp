@@ -99,12 +99,7 @@ enum colors {
 enum chessmen {
     blank,king,queen,rook,bishop,knight,pawn
 };
-const int pic_tab[14] = {
-    blank,king,queen,rook,bishop,knight,pawn,
-    king,queen,rook,bishop,knight,pawn,blank
-};
 
-#define PIECE(x)         (pic_tab[x])
 #define COMBINE(c,x)     ((x) + (c) * 6)
 
 /*nnue data*/

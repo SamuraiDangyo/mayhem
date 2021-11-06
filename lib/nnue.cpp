@@ -158,7 +158,7 @@ void unmap_file(const void *data, map_t map)
 
 #ifndef _WIN32
 
-  munmap((void *)data, map);
+  munmap(const_cast<void *>(data), map);
 
 #else
 
@@ -535,7 +535,7 @@ INLINE void affine_txfm(int8_t *input, void *output, unsigned inDims,
 }
 #elif defined(USE_AVX2)
 INLINE void affine_txfm(int8_t *input, void *output, unsigned inDims,
-    unsigned outDims, const int32_t *biases, const weight_t *weights,
+    unsigned outDims, int32_t *biases, weight_t *weights,
     mask_t *inMask, mask_t *outMask, const bool pack8_and_calc_mask)
 {
   assert(outDims == 32);
@@ -659,7 +659,7 @@ INLINE void affine_txfm(int8_t *input, void *output, unsigned inDims,
 }
 #elif defined(USE_SSE2)
 INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
-    unsigned outDims, const int32_t *biases, const weight_t *weights,
+    unsigned outDims, int32_t *biases, weight_t *weights,
     mask_t *inMask, mask_t *outMask, const bool pack8_and_calc_mask)
 {
   assert(outDims == 32);
