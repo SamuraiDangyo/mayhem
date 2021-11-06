@@ -56,7 +56,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 5.9"
+#define VERSION       "Mayhem 6.0"
 #define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0"
 #define MAX_MOVES     256     // Max chess moves
 #define MAX_DEPTH     64      // Max search depth (stack frame problems ...)
@@ -278,7 +278,8 @@ struct Board {
     index,      // Sorting index
     from,       // From square
     to,         // To square
-    type,       // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
+    type,       // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb,
+                //            5: =n, 6: =b, 7: =r, 8: =q)
     castle,     // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
     fifty;      // Rule 50 counter
 };
@@ -453,13 +454,11 @@ int Random(const int max) {
 template <class T>
 void Split(const std::string &str, T &cont, const std::string &delims = " ") {
   std::size_t cur = str.find_first_of(delims), prev = 0;
-
   while (cur != std::string::npos) {
     cont.push_back(str.substr(prev, cur - prev));
     prev = cur + 1;
     cur  = str.find_first_of(delims, prev);
   }
-
   cont.push_back(str.substr(prev, cur - prev));
 }
 
@@ -475,14 +474,16 @@ void ReadInput() {
 
 void SetBook(const std::string &book_file, const bool print = false) {
   g_book_exist = book_file.length() <= 1 ? false : g_book.open_book(book_file);
-  print && (std::cout << "info string Book " << (g_book_exist ? "enabled" : "disabled") << std::endl);
+  print &&
+    (std::cout << "info string Book " << (g_book_exist ? "enabled" : "disabled") << std::endl);
 }
 
 // NNUE lib
 
 void SetNNUE(const std::string &eval_file, const bool print = false) {
   g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str());
-  print && (std::cout << "info string NNUE " << (g_nnue_exist ? "enabled" : "disabled") << std::endl);
+  print &&
+    (std::cout << "info string NNUE " << (g_nnue_exist ? "enabled" : "disabled") << std::endl);
 }
 
 // Hashtable
@@ -571,24 +572,32 @@ std::uint64_t Fill(int from) {
 }
 
 void BuildCastlingBitboard1() {
-  if ((g_board->castle & 0x1)) { // White: O-O
+  // White: O-O
+  if ((g_board->castle & 0x1)) {
     g_castle_w[0]       = Fill<6>(g_king_w);
-    g_castle_empty_w[0] = (g_castle_w[0] | Fill<5>(g_rook_w[0])) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
+    g_castle_empty_w[0] = (g_castle_w[0] | Fill<5>(g_rook_w[0])) ^
+                            (Bit(g_king_w) | Bit(g_rook_w[0]));
   }
 
-  if ((g_board->castle & 0x2)) { // White: O-O-O
+  // White: O-O-O
+  if ((g_board->castle & 0x2)) {
     g_castle_w[1]       = Fill<2>(g_king_w);
-    g_castle_empty_w[1] = (g_castle_w[1] | Fill<3>(g_rook_w[1])) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
+    g_castle_empty_w[1] = (g_castle_w[1] | Fill<3>(g_rook_w[1])) ^
+                            (Bit(g_king_w) | Bit(g_rook_w[1]));
   }
 
-  if ((g_board->castle & 0x4)) { // Black: O-O
+  // Black: O-O
+  if ((g_board->castle & 0x4)) {
     g_castle_b[0]       = Fill<56 + 6>(g_king_b);
-    g_castle_empty_b[0] = (g_castle_b[0] | Fill<56 + 5>(g_rook_b[0])) ^ (Bit(g_king_b) | Bit(g_rook_b[0]));
+    g_castle_empty_b[0] = (g_castle_b[0] | Fill<56 + 5>(g_rook_b[0])) ^
+                            (Bit(g_king_b) | Bit(g_rook_b[0]));
   }
 
-  if ((g_board->castle & 0x8)) { // Black: O-O-O
+  // Black: O-O-O
+  if ((g_board->castle & 0x8)) {
     g_castle_b[1]       = Fill<56 + 2>(g_king_b);
-    g_castle_empty_b[1] = (g_castle_b[1] | Fill<56 + 3>(g_rook_b[1])) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
+    g_castle_empty_b[1] = (g_castle_b[1] | Fill<56 + 3>(g_rook_b[1])) ^
+                            (Bit(g_king_b) | Bit(g_rook_b[1]));
   }
 }
 
@@ -725,9 +734,11 @@ void FenReset() {
 
 // Not perfect. Just avoid obvious crashes
 bool BoardIsGood() {
+         // 1 king / side
   return (PopCount(g_board->white[5]) == 1 &&
-            PopCount(g_board->black[5]) == 1) && // 1 king / side
-         (!(g_wtm ? ChecksW() : ChecksB())); // No illegal checks
+            PopCount(g_board->black[5]) == 1) &&
+         // No illegal checks
+         (!(g_wtm ? ChecksW() : ChecksB()));
 }
 
 void Fen(const std::string &fen) {
@@ -858,11 +869,16 @@ void EvalRootMoves() {
 
   for (auto i = 0; i < g_root_n; ++i) {
     g_board         = g_boards[0] + i;
-    g_board->score += (g_board->type == 8 ? 1000 : 0) + // =q
-                      (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) + // OO|OOO
-                      (IsUnderpromo(g_board) ? -5000 : 0) + // =rbn
-                      (g_noise ? (Random(g_noise + 1) - (g_noise / 2)) : 0) + // Make some noise !!!
-                      (g_wtm ? +1 : -1) * Evaluate(g_wtm); // Full eval
+                      // =q
+    g_board->score += (g_board->type == 8 ? 1000 : 0) +
+                      // OO|OOO
+                      (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) +
+                      // =rbn
+                      (IsUnderpromo(g_board) ? -5000 : 0) +
+                      // Make some noise !!!
+                      (g_noise ? (Random(g_noise + 1) - (g_noise / 2)) : 0) +
+                      // Full eval
+                      (g_wtm ? +1 : -1) * Evaluate(g_wtm);
   }
 
   g_board = tmp;
@@ -1615,13 +1631,15 @@ struct ClassicalEval {
   void queen_w(const int sq) {
     ++this->wqn;
     this->pesto_w(4, sq);
-    this->mobility_w(2, (BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) & (~this->white));
+    this->mobility_w(2, (BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) &
+                          (~this->white));
   }
 
   void queen_b(const int sq) {
     ++this->bqn;
     this->pesto_b(4, sq);
-    this->mobility_b(2, (BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) & (~this->black));
+    this->mobility_b(2, (BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) &
+                          (~this->black));
   }
 
   void king_w(const int sq) {
@@ -1719,10 +1737,12 @@ struct ClassicalEval {
 
   void bonus_special_5men() {
     // KRRvKR / KR(NB)vK(NB)
-    if (     (this->wrn == 2 && this->brn) || (this->wrn && (this->wbn || this->wnn) && (this->bbn || this->bnn)))
+    if (     (this->wrn == 2 && this->brn) ||
+        (this->wrn && (this->wbn || this->wnn) && (this->bbn || this->bnn)))
       this->bonus_mating_w();
     // KRvKRR / K(NB)vKR(NB)
-    else if ((this->brn == 2 && this->wrn) || (this->brn && (this->bbn || this->bnn) && (this->wbn || this->wnn)))
+    else if ((this->brn == 2 && this->wrn) ||
+        (this->brn && (this->bbn || this->bnn) && (this->wbn || this->wnn)))
       this->bonus_mating_b();
   }
 
@@ -1844,7 +1864,8 @@ int EvaluateNNUE(const bool wtm) {
 int Evaluate(const bool wtm) {
   return EasyDraw(wtm) ?
     0 :
-    (g_scale[g_board->fifty] * static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)));
+    (g_scale[g_board->fifty] *
+      static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)));
 }
 
 // Search
@@ -1947,7 +1968,10 @@ int QSearchB(const int alpha, int beta, const int depth, const int ply) {
 }
 
 // Update hashtable sorting algorithm
-void UpdateSort(HashEntry *entry, const MoveType type, const std::uint64_t hash, const std::uint8_t index) {
+void UpdateSort(HashEntry *entry,
+                const MoveType type,
+                const std::uint64_t hash,
+                const std::uint8_t index) {
   entry->sort_hash = hash;
 
   switch (type) {
@@ -1990,8 +2014,8 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
         UpdateSort(entry, MoveType::kKiller, hash, g_boards[ply][i].index);
         return alpha;
       }
-      UpdateSort(entry, g_boards[ply][i].score ? MoveType::kGood :
-                                                 MoveType::kQuiet, hash, g_boards[ply][i].index);
+      UpdateSort(entry, g_boards[ply][i].score ? MoveType::kGood : MoveType::kQuiet,
+                 hash, g_boards[ply][i].index);
     }
   }
 
@@ -2028,8 +2052,8 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
         UpdateSort(entry, MoveType::kKiller, hash, g_boards[ply][i].index);
         return beta;
       }
-      UpdateSort(entry, g_boards[ply][i].score ? MoveType::kGood :
-                                                 MoveType::kQuiet, hash, g_boards[ply][i].index);
+      UpdateSort(entry, g_boards[ply][i].score ? MoveType::kGood : MoveType::kQuiet,
+                 hash, g_boards[ply][i].index);
     }
   }
 
@@ -2526,7 +2550,9 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
   return permutations & moves;
 }
 
-std::uint64_t MakeSliderMagicMoves(const int *slider_vectors, const int sq, const std::uint64_t moves) {
+std::uint64_t MakeSliderMagicMoves(const int *slider_vectors,
+                                   const int sq,
+                                   const std::uint64_t moves) {
   std::uint64_t possible_moves = 0x0ULL;
   const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
@@ -2570,7 +2596,8 @@ void InitRookMagics() {
   }
 }
 
-std::uint64_t MakeSliderMoves(const int sq, const int *slider_vectors) {
+std::uint64_t MakeSliderMoves(const int sq,
+                              const int *slider_vectors) {
   std::uint64_t moves = 0x0ULL;
   const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
@@ -2601,7 +2628,10 @@ void InitSliderMoves() {
   }
 }
 
-std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int *jump_vectors) {
+std::uint64_t MakeJumpMoves(const int sq,
+                            const int len,
+                            const int dy,
+                            const int *jump_vectors) {
   std::uint64_t moves = 0x0ULL;
   const auto x_pos = Xcoord(sq), y_pos = Ycoord(sq);
 
