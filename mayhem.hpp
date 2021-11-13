@@ -1871,7 +1871,9 @@ int EvaluateNNUE(const bool wtm) {
 // 100  (Full Strength)
 // 1-99 (Levels)
 int LevelNoise() { // 0 -> 5 pawns
-  return g_level == 100 ? 0 : 5 * (2 * Random(100 - g_level + 1) - (100 - g_level));
+  return g_level == 100 ?
+    0 :
+    5 * (2 * Random(100 - g_level + 1) - (100 - g_level));
 }
 
 int Evaluate(const bool wtm) {
