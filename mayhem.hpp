@@ -2325,11 +2325,11 @@ bool ProbeBook() {
 }
 
 bool RandomMove() {
-  if (g_level == 0)
-    if (const auto i{Random(g_root_n)}; i >= 1) {
+  if (g_level == 0) {
+    if (const auto i{Random(g_root_n)}; i >= 1)
       std::swap(g_boards[0][0], g_boards[0][i]);
-      return true;
-    }
+    return true;
+  }
   return false;
 }
 
