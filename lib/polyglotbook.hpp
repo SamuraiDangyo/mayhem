@@ -1,11 +1,8 @@
 /*
-  Copyright (C) 2020-2021 Toni Helminen (Mayhem author / Modifications)
-*/
-
-/*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2014 Marco Costalba, Joona Kiiski, Tord Romstad
+  Copyright (C) 2020-2021 Toni Helminen (Mayhem author / Modifications)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,7 +35,11 @@ public:
   PolyglotBook();
  ~PolyglotBook();
   int probe(const bool);
-  PolyglotBook& setup(std::int8_t*, const std::uint64_t, const std::uint8_t, const std::int8_t, const bool);
+  PolyglotBook& setup(std::int8_t*,
+                      const std::uint64_t,
+                      const std::uint8_t,
+                      const std::int8_t,
+                      const bool);
   bool open_book(const std::string&);
 
 private:
@@ -84,7 +85,7 @@ constexpr union {
     std::uint64_t enpassant[8]; // [file]
     std::uint64_t turn;
   } PG;
-} kZobrist = {{
+} kZobrist {{
   0x9D39247E33776D41ULL, 0x2AF7398005AAA5C7ULL, 0x44DB015024623547ULL,
   0x9C15F73E62A76AE2ULL, 0x75834465489C0C89ULL, 0x3290AC3A203001BFULL,
   0x0FBBAD1F61042279ULL, 0xE83A908FF2FB60CAULL, 0x0D7E765D58755C10ULL,
@@ -348,4 +349,4 @@ constexpr union {
   0xF8D626AAAF278509ULL
 }};
 
-}
+} // namespace polyglotbook

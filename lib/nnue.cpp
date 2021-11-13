@@ -1,6 +1,6 @@
 /*
 NNUE lib
-Copyright (C) 2020-2021 Originally from Dr. Shawul ?
+Copyright (C) 2020-2021 Daniel Shawul
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -490,7 +490,7 @@ INLINE int neon_movemask(uint8x16_t v)
 
 #if defined(USE_AVX512)
 INLINE void affine_txfm(int8_t *input, void *output, unsigned inDims,
-    unsigned outDims, const int32_t *biases, const weight_t *weights,
+    unsigned outDims, int32_t *biases, weight_t *weights,
     mask_t *inMask, mask_t *outMask, const bool pack8_and_calc_mask)
 {
   assert(outDims == 32);
@@ -585,7 +585,7 @@ INLINE void affine_txfm(int8_t *input, void *output, unsigned inDims,
 }
 #elif AVOID_USE_SSSE3
 INLINE void affine_txfm(int8_t *input, void *output, unsigned inDims,
-    unsigned outDims, const int32_t *biases, const weight_t *weights,
+    unsigned outDims, int32_t *biases, weight_t *weights,
     mask_t *inMask, mask_t *outMask, const bool pack8_and_calc_mask)
 {
   assert(outDims == 32);
@@ -721,7 +721,7 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
 }
 #elif defined(USE_MMX)
 INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
-    unsigned outDims, const int32_t *biases, const weight_t *weights,
+    unsigned outDims, int32_t *biases, weight_t *weights,
     mask_t *inMask, mask_t *outMask, const bool pack8_and_calc_mask)
 {
   assert(outDims == 32);
@@ -826,7 +826,7 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
 
 #elif defined(USE_NEON)
 INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
-    unsigned outDims, const int32_t *biases, const weight_t *weights,
+    unsigned outDims, int32_t *biases, weight_t *weights,
     mask_t *inMask, mask_t *outMask, const bool pack8_and_calc_mask)
 {
   assert(outDims == 32);
