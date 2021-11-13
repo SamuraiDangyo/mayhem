@@ -2327,7 +2327,7 @@ bool ProbeBook() {
 bool RandomMove() {
   if (g_level == 0)
     if (const auto i{Random(g_root_n)}; i >= 1) {
-      std::swap(g_boards[0][0], g_boards[0][Random(i)]);
+      std::swap(g_boards[0][0], g_boards[0][i]);
       return true;
     }
   return false;
@@ -2335,8 +2335,8 @@ bool RandomMove() {
 
 bool FastMove(const int ms) {
   if ((g_root_n <= 1) || // Only move
-      (RandomMove()) || // Random mover
       (ms <= 1) || // Hurry up !
+      (RandomMove()) || // Random mover
       (g_book_exist && ms > BOOK_MS && ProbeBook())) {
     Speak(g_last_eval, 0);
     return true;
