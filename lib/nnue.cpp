@@ -888,7 +888,7 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
 }
 #else /* generic fallback */
 INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
-    unsigned outDims, int32_t *biases, const weight_t *weights,
+    unsigned outDims, int32_t *biases, weight_t *weights,
     mask_t *inMask, mask_t *outMask, const bool pack8_and_calc_mask)
 {
   (void)inMask; (void)outMask; (void)pack8_and_calc_mask;
