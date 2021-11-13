@@ -426,7 +426,7 @@ bool InputAvailable() {
 inline std::uint64_t Now() {
   return std::chrono::duration_cast<std::chrono::milliseconds>(
            std::chrono::system_clock::now().time_since_epoch())
-         .count();
+           .count();
 }
 
 std::uint64_t Random64() {
@@ -2339,7 +2339,7 @@ bool FastMove(const int ms) {
   if ((g_root_n <= 1) || // Only move
       (ms <= 1) || // Hurry up !
       (RandomMove()) || // Random mover
-      (g_book_exist && ms > BOOK_MS && ProbeBook())) {
+      (g_book_exist && ms > BOOK_MS && ProbeBook())) { // Try book
     Speak(g_last_eval, 0);
     return true;
   }
