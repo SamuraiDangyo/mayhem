@@ -311,7 +311,7 @@ std::uint64_t g_black{0x0ULL}, g_white{0x0ULL}, g_both{0x0ULL}, g_empty{0x0ULL},
 int g_move_overhead{MOVEOVERHEAD}, g_rook_w[2]{}, g_rook_b[2]{}, g_root_n{0},
   g_king_w{0}, g_king_b{0}, g_moves_n{0}, g_max_depth{MAX_DEPTH}, g_q_depth{0},
   g_depth{0}, g_best_score{0}, g_last_eval{0}, g_lmr[MAX_DEPTH][MAX_MOVES]{},
-  g_noise{4}, g_nnue_pieces[64]{}, g_nnue_squares[64]{}, g_level{100};
+  g_noise{2}, g_nnue_pieces[64]{}, g_nnue_squares[64]{}, g_level{100};
 
 bool g_chess960{false}, g_wtm{false}, g_underpromos{true}, g_nullmove_active{false},
   g_stop_search{false}, g_is_pv{false}, g_book_exist{false}, g_nnue_exist{false},
@@ -445,10 +445,11 @@ std::uint64_t Random8x64() {
   return ret;
 }
 
-int Random(const int max) {
+int Random(const int min, const int max) {
   static std::uint64_t seed{0x202c7ULL + static_cast<std::uint64_t>(std::time(nullptr))};
-  return (seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3)) %
-    static_cast<std::uint64_t>(std::max(1, max));
+  return min +
+    (seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3)) %
+      static_cast<std::uint64_t>(std::max(1, max - min + 1));
 }
 
 template <class T>
@@ -876,7 +877,7 @@ void EvalRootMoves() {
                       // =rbn
                       (IsUnderpromo(g_board) ? -5000 : 0) +
                       // Make some noise !!!
-                      (g_noise ? (Random(g_noise + 1) - (g_noise / 2)) : 0) +
+                      (g_noise ? Random(-g_noise, +g_noise) : 0) +
                       // Full eval
                       (g_wtm ? +1 : -1) * Evaluate(g_wtm);
   }
@@ -1874,9 +1875,7 @@ int EvaluateNNUE(const bool wtm) {
 // 100  (Full Strength)
 // 1-99 (Levels)
 int LevelNoise() { // 0 -> 5 pawns
-  return g_level == 100 ?
-    0 :
-    5 * (2 * Random(100 - g_level + 1) - (100 - g_level));
+  return g_level == 100 ?  0 : 5 * Random(-g_level, +g_level);
 }
 
 int Evaluate(const bool wtm) {
@@ -2334,7 +2333,7 @@ bool ProbeBook() {
 
 bool RandomMove() {
   if (g_level == 0) {
-    SwapMoveInRoot(Random(g_root_n));
+    SwapMoveInRoot(Random(0, g_root_n - 1));
     return true;
   }
   return false;
@@ -2556,7 +2555,7 @@ void UciBench() {
     std::cout << std::endl;
   }
 
-  std::cout << std::string(32, '=') << "\n\n";
+  std::cout << std::string(16, '=') << "\n\n";
   std::cout << "Mode:  " << (bench ? "bench" : "myid") <<
                (g_nnue_exist ? " (NNUE)" : " (HCE)") << "\n";
   std::cout << "Nodes: " << nodes << "\n";
