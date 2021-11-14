@@ -885,14 +885,17 @@ void EvalRootMoves() {
 }
 
 void SortRoot(const int index) {
-  if (!index)
-    return;
+  if (index) {
+    const auto tmp{g_boards[0][index]};
+    for (auto i{index}; i > 0; --i)
+      g_boards[0][i] = g_boards[0][i - 1];
+    g_boards[0][0] = tmp;
+  }
+}
 
-  const auto tmp{g_boards[0][index]};
-  for (auto i{index}; i > 0; --i)
-    g_boards[0][i] = g_boards[0][i - 1];
-
-  g_boards[0][0] = tmp;
+void SwapMoveInRoot(const int index) {
+  if (index)
+    std::swap(g_boards[0][0], g_boards[0][index]);
 }
 
 // Move generator
@@ -1877,11 +1880,11 @@ int LevelNoise() { // 0 -> 5 pawns
 }
 
 int Evaluate(const bool wtm) {
-  return LevelNoise() +
-        (EasyDraw(wtm) ?
-          0 :
-          (g_scale[g_board->fifty] *
-            static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm))));
+  return (EasyDraw(wtm) ?
+      0 :
+      (g_scale[g_board->fifty] *
+        static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)))) +
+    LevelNoise();
 }
 
 // Search
@@ -2281,13 +2284,13 @@ bool FindBookMove(const int from, const int to, const int type) {
   if (type) {
     for (auto i{0}; i < g_root_n; ++i)
       if (g_boards[0][i].type == type) {
-        SortRoot(i);
+        SwapMoveInRoot(i);
         return true;
       }
   } else {
     for (auto i{0}; i < g_root_n; ++i)
       if (g_boards[0][i].from == from && g_boards[0][i].to == to) {
-        SortRoot(i);
+        SwapMoveInRoot(i);
         return true;
       }
   }
