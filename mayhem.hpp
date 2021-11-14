@@ -54,7 +54,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 6.1"
+#define VERSION       "Mayhem 6.2"
 #define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0"
 #define MAX_MOVES     256     // Max chess moves
 #define MAX_DEPTH     64      // Max search depth (stack frame problems ...)
@@ -452,7 +452,7 @@ int Random(const int max) {
 }
 
 template <class T>
-void Split(const std::string &str, T &cont, const std::string &delims = " ") {
+void SplitString(const std::string &str, T &cont, const std::string &delims = " ") {
   std::size_t cur{str.find_first_of(delims)}, prev{0};
   while (cur != std::string::npos) {
     cont.push_back(str.substr(prev, cur - prev));
@@ -467,7 +467,7 @@ void ReadInput() {
   std::getline(std::cin, line);
   g_tokens_nth = 0;
   g_tokens.clear();
-  Split<std::vector<std::string>>(line, g_tokens);
+  SplitString<std::vector<std::string>>(line, g_tokens);
 }
 
 // PolyGlot Book lib
@@ -706,7 +706,7 @@ void FenRule50(const std::string &fifty) {
 void FenGen(const std::string &fen) {
   std::vector<std::string> tokens{};
 
-  Split<std::vector<std::string>>(fen, tokens);
+  SplitString<std::vector<std::string>>(fen, tokens);
   Ok(fen.length() >= 10 && tokens.size() >= 5, "Bad fen #1");
 
   FenBoard(tokens[0]);
@@ -2270,8 +2270,10 @@ struct Material {
 };
 
 bool HCEActivation(const Material &m) {
-  // No NNUE or Easy or Rook ending -> Classical eval
-  return (!g_nnue_exist) || m.is_easy() || m.is_rook_ending();
+  return (!g_nnue_exist)    || // No NNUE
+         m.is_easy()        || // Easy
+         m.is_rook_ending() || // Rook ending
+         m.both_n >= 33;       // Disable NNUE with 32+ pieces
 }
 
 // Play the book move from root list
@@ -2387,8 +2389,6 @@ void Think(const int ms) {
   // Underpromos are almost useless for gameplay
   // Disable if you need "full" analysis
   g_underpromos = false;
-  // Disable NNUE with 32+ pieces
-  (m.both_n > 32) && (g_classical = true);
   SearchRootMoves(m.is_endgame());
   g_underpromos = true;
   g_board       = tmp;
@@ -2532,8 +2532,8 @@ void UciUci() {
 
 // "myid" is for correctness of the program
 // "bench" is for speed of the program
-// "myid" (NNUE): 6800614
-// "myid" (HCE):  7622297
+// myid (NNUE): 6800614
+// myid (HCE):  7622297
 // Don't run anything after these commands !!!
 template <bool bench>
 void UciBench() {
@@ -2553,7 +2553,9 @@ void UciBench() {
     std::cout << std::endl;
   }
 
-  std::cout << std::string(16, bench ? '=' : '*') << "\n\n";
+  std::cout << std::string(32, '=') << "\n\n";
+  std::cout << "Mode:  " << (bench ? "bench" : "myid") <<
+               (g_nnue_exist ? " (NNUE)" : " (HCE)") << "\n";
   std::cout << "Nodes: " << nodes << "\n";
   std::cout << "NPS:   " << Nps(nodes, Now() - now) << "\n";
   std::cout << "Time:  " << (Now() - now);
