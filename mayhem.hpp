@@ -332,8 +332,8 @@ float g_scale[MAX_POS]{};
 
 // Prototypes
 
-int SearchB(const int, int, const int, const int);
 int SearchW(int, const int, const int, const int);
+int SearchB(const int, int, const int, const int);
 int QSearchB(const int, int, const int, const int);
 int Evaluate(const bool);
 bool ChecksW();
@@ -1880,7 +1880,8 @@ int LevelNoise() { // 0 -> 5 pawns
 }
 
 int Evaluate(const bool wtm) {
-  return (EasyDraw(wtm) ?
+  return
+    (EasyDraw(wtm) ?
       0 :
       (g_scale[g_board->fifty] *
         static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)))) +
@@ -2333,8 +2334,7 @@ bool ProbeBook() {
 
 bool RandomMove() {
   if (g_level == 0) {
-    if (const auto i{Random(g_root_n)}; i >= 1)
-      std::swap(g_boards[0][0], g_boards[0][i]);
+    SwapMoveInRoot(Random(g_root_n));
     return true;
   }
   return false;
