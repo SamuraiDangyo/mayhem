@@ -2316,7 +2316,7 @@ int BookSolveType(const int from, const int to, const int move) {
 bool ProbeBook() {
   if (const auto move{g_book.setup(g_board->pieces, Both(),
                       g_board->castle, g_board->epsq, g_wtm)
-                      .probe(BOOK_BEST)}) {
+                            .probe(BOOK_BEST)}) {
     const int from{8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7)};
     const int to{  8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7)};
     return FindBookMove(from, to, BookSolveType(from, to, move));
