@@ -622,8 +622,8 @@ void BuildCastlingBitboards() {
 
 void PutPiece(const int sq, const int p) {
   // Find kings too
-  if      (p == +6) g_king_w = sq; // 'K'
-  else if (p == -6) g_king_b = sq; // 'k'
+  if      (p == +6) g_king_w = sq; // K
+  else if (p == -6) g_king_b = sq; // k
   g_board->pieces[sq] = p;
 }
 
@@ -640,7 +640,7 @@ int Piece2Num(const char p) {
     case 'b': return -3;
     case 'r': return -4;
     case 'q': return -5;
-    default:  return -6; // 'k'
+    default:  return -6; // k
   }
 }
 
@@ -829,7 +829,7 @@ const std::string MoveName(const Board *move) {
 
 // Sorting
 
-template<bool noisy> // Tiny speedup (avoid checks/=q etc)
+template<bool noisy> // Tiny speedup (avoid checks or =q etc)
 void SortNthMoves(const int nth) {
   for (auto i{0}; i < nth; ++i) {
     for (auto j{i + 1}; j < g_moves_n; ++j)
@@ -894,7 +894,7 @@ void SortRoot(const int index) {
   }
 }
 
-void SwapMoveInRoot(const int index) {
+void SwapMoveInRootList(const int index) {
   if (index)
     std::swap(g_boards[0][0], g_boards[0][index]);
 }
@@ -1049,14 +1049,14 @@ void MgenCastlingMovesB() {
 
 void CheckCastlingRightsW() {
   if (g_board->pieces[g_king_w]    != +6) {g_board->castle &= 0x4 | 0x8; return;}
-  if (g_board->pieces[g_rook_w[0]] != +4)  g_board->castle &= 0x2 | 0x4 | 0x8;
-  if (g_board->pieces[g_rook_w[1]] != +4)  g_board->castle &= 0x1 | 0x4 | 0x8;
+  if (g_board->pieces[g_rook_w[0]] != +4) {g_board->castle &= 0x2 | 0x4 | 0x8;}
+  if (g_board->pieces[g_rook_w[1]] != +4) {g_board->castle &= 0x1 | 0x4 | 0x8;}
 }
 
 void CheckCastlingRightsB() {
   if (g_board->pieces[g_king_b]    != -6) {g_board->castle &= 0x1 | 0x2; return;}
-  if (g_board->pieces[g_rook_b[0]] != -4)  g_board->castle &= 0x1 | 0x2 | 0x8;
-  if (g_board->pieces[g_rook_b[1]] != -4)  g_board->castle &= 0x1 | 0x2 | 0x4;
+  if (g_board->pieces[g_rook_b[0]] != -4) {g_board->castle &= 0x1 | 0x2 | 0x8;}
+  if (g_board->pieces[g_rook_b[1]] != -4) {g_board->castle &= 0x1 | 0x2 | 0x4;}
 }
 
 void HandleCastlingRights() {
@@ -1565,8 +1565,7 @@ struct ClassicalEval {
   explicit ClassicalEval(const bool wtm2) :
     white{White()}, black{Black()}, both{this->white | this->black}, wtm{wtm2}, white_n{0},
     black_n{0}, both_n{0}, wk{0}, bk{0}, wpn{0}, wnn{0}, wbn{0}, wrn{0}, wqn{0}, bpn{0},
-    bnn{0}, bbn{0}, brn{0}, bqn{0}, score{0}, mg{0}, eg{0}, scale_factor{1}
-  { }
+    bnn{0}, bbn{0}, brn{0}, bqn{0}, score{0}, mg{0}, eg{0}, scale_factor{1} { }
 
   void mgeg(const int mg2, const int eg2) {
     this->mg += mg2;
@@ -1827,19 +1826,19 @@ struct NnueEval {
 
     for (auto both{Both()}; both; )
       switch (const auto sq{CtzPop(&both)}; g_board->pieces[sq]) {
-        case +1: case +2: case +3: case +4: case +5:
+        case +1: case +2: case +3: case +4: case +5: // PNBRK
           g_nnue_pieces[i]    = 7  - g_board->pieces[sq];
           g_nnue_squares[i++] = sq;
           break;
-        case -1: case -2: case -3: case -4: case -5:
+        case -1: case -2: case -3: case -4: case -5: // pnbrq
           g_nnue_pieces[i]    = 13 + g_board->pieces[sq];
           g_nnue_squares[i++] = sq;
           break;
-        case +6:
+        case +6: // K
           g_nnue_pieces[0]  = 1;
           g_nnue_squares[0] = sq;
           break;
-        case -6:
+        case -6: // k
           g_nnue_pieces[1]  = 7;
           g_nnue_squares[1] = sq;
           break;
@@ -1875,16 +1874,15 @@ int EvaluateNNUE(const bool wtm) {
 // 100  (Full Strength)
 // 1-99 (Levels)
 int LevelNoise() { // 0 -> 5 pawns
-  return g_level == 100 ?  0 : 5 * Random(-g_level, +g_level);
+  return g_level == 100 ? 0 : 5 * Random(-g_level, +g_level);
 }
 
 int Evaluate(const bool wtm) {
-  return
+  return LevelNoise() +
     (EasyDraw(wtm) ?
       0 :
-      (g_scale[g_board->fifty] *
-        static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)))) +
-    LevelNoise();
+      (g_scale[g_board->fifty] * static_cast<float>(
+        g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm))));
 }
 
 // Search
@@ -1987,10 +1985,8 @@ int QSearchB(const int alpha, int beta, const int depth, const int ply) {
 }
 
 // Update hashtable sorting algorithm
-void UpdateSort(HashEntry *entry,
-                const MoveType type,
-                const std::uint64_t hash,
-                const std::uint8_t index) {
+void UpdateSort(HashEntry *entry, const MoveType type,
+    const std::uint64_t hash, const std::uint8_t index) {
   entry->sort_hash = hash;
   switch (type) {
     case MoveType::kKiller: entry->killer = index + 1; break;
@@ -2084,8 +2080,8 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
   if ((!g_nullmove_active) &&
       // Not pv ?
       (!g_is_pv) &&
-      // Enough depth ?
-      (depth >= 2) &&
+      // Enough depth (2 blunders too much, 3 sweet spot ... ) ?
+      (depth >= 3) &&
       // Non pawn material or at least 2 pawns ( Zugzwang ... ) ?
       ((g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4]) ||
          (PopCount(g_board->white[0]) >= 2)) &&
@@ -2116,7 +2112,7 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
 bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
   if ((!g_nullmove_active) &&
       (!g_is_pv) &&
-      (depth >= 2) &&
+      (depth >= 3) &&
       ((g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4]) ||
          (PopCount(g_board->black[0]) >= 2)) &&
       (!ChecksW()) &&
@@ -2253,8 +2249,7 @@ struct Material {
   Material() :
     white_n{PopCount(White())},
     black_n{PopCount(Black())},
-    both_n{this->white_n + this->black_n}
-  { }
+    both_n{this->white_n + this->black_n} { }
 
   // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
   bool is_rook_ending() const {
@@ -2284,13 +2279,13 @@ bool FindBookMove(const int from, const int to, const int type) {
   if (type) {
     for (auto i{0}; i < g_root_n; ++i)
       if (g_boards[0][i].type == type) {
-        SwapMoveInRoot(i);
+        SwapMoveInRootList(i);
         return true;
       }
   } else {
     for (auto i{0}; i < g_root_n; ++i)
       if (g_boards[0][i].from == from && g_boards[0][i].to == to) {
-        SwapMoveInRoot(i);
+        SwapMoveInRootList(i);
         return true;
       }
   }
@@ -2319,21 +2314,20 @@ int BookSolveType(const int from, const int to, const int move) {
 
 // Probe PolyGlot book
 bool ProbeBook() {
-  const auto move{g_book.setup(g_board->pieces, Both(), g_board->castle, g_board->epsq, g_wtm)
-                        .probe(BOOK_BEST)};
+  if (const auto move{g_book.setup(g_board->pieces, Both(),
+                      g_board->castle, g_board->epsq, g_wtm)
+                      .probe(BOOK_BEST)}) {
+    const int from{8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7)};
+    const int to{  8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7)};
+    return FindBookMove(from, to, BookSolveType(from, to, move));
+  }
 
-  if (!move)
-    return false;
-
-  const int from{8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7)};
-  const int to  {8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7)};
-
-  return FindBookMove(from, to, BookSolveType(from, to, move));
+  return false;
 }
 
 bool RandomMove() {
   if (g_level == 0) {
-    SwapMoveInRoot(Random(0, g_root_n - 1));
+    SwapMoveInRootList(Random(0, g_root_n - 1));
     return true;
   }
   return false;
@@ -2341,8 +2335,8 @@ bool RandomMove() {
 
 bool FastMove(const int ms) {
   if ((g_root_n <= 1) || // Only move
-      (ms <= 1) || // Hurry up !
-      (RandomMove()) || // Random mover
+      (ms <= 1)       || // Hurry up !
+      (RandomMove())  || // Random mover
       (g_book_exist && ms > BOOK_MS && ProbeBook())) { // Try book
     Speak(g_last_eval, 0);
     return true;
@@ -2355,7 +2349,8 @@ void SearchRootMoves(const bool is_eg) {
   auto good{0}; // Good score per iterations for HCE activation
   const auto now{Now()};
 
-  for ( ; std::abs(g_best_score) != INF && g_depth < g_max_depth && !g_stop_search; ++g_depth) {
+  for ( ; std::abs(g_best_score) != INF && g_depth < g_max_depth && !g_stop_search;
+      ++g_depth) {
     g_best_score = g_wtm ? BestW() : BestB();
 
     // Switch to classical only when the game is decided ( 4+ pawns ) !
@@ -2605,8 +2600,7 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
 }
 
 std::uint64_t MakeSliderMagicMoves(const int *slider_vectors,
-                                   const int sq,
-                                   const std::uint64_t moves) {
+    const int sq, const std::uint64_t moves) {
   std::uint64_t possible_moves{0x0ULL};
   const auto x_pos{Xcoord(sq)};
   const auto y_pos{Ycoord(sq)};
@@ -2676,7 +2670,7 @@ std::uint64_t MakeSliderMoves(const int sq, const int *slider_vectors) {
 
 void InitSliderMoves() {
   constexpr int bishop_vectors[8]{+1, +1, -1, -1, +1, -1, -1, +1};
-  constexpr int rook_vectors[8]  {+1,  0,  0, +1,  0, -1, -1,  0};
+  constexpr int rook_vectors[8]{  +1,  0,  0, +1,  0, -1, -1,  0};
 
   for (auto i{0}; i < 64; ++i) {
     g_rook_moves[i]   = MakeSliderMoves(i, rook_vectors);
@@ -2686,7 +2680,7 @@ void InitSliderMoves() {
 }
 
 std::uint64_t MakeJumpMoves(const int sq, const int len,
-                            const int dy, const int *jump_vectors) {
+    const int dy, const int *jump_vectors) {
   std::uint64_t moves{0x0ULL};
   const auto x_pos{Xcoord(sq)};
   const auto y_pos{Ycoord(sq)};
@@ -2701,7 +2695,7 @@ std::uint64_t MakeJumpMoves(const int sq, const int len,
 }
 
 void InitJumpMoves() {
-  constexpr int king_vectors[16]  {+1,  0,  0, +1,  0, -1, -1,  0,
+  constexpr int king_vectors[16]{  +1,  0,  0, +1,  0, -1, -1,  0,
                                    +1, +1, -1, -1, +1, -1, -1, +1};
   constexpr int knight_vectors[16]{+2, +1, -2, +1, +2, -1, -2, -1,
                                    +1, +2, -1, +2, +1, -2, -1, -2};
@@ -2727,8 +2721,7 @@ void InitJumpMoves() {
 
 void InitZobrist() {
   for (auto i{0}; i < 13; ++i)
-    for (auto j{0}; j < 64; ++j)
-      g_zobrist_board[i][j] = Random8x64();
+    for (auto j{0}; j < 64; ++j) g_zobrist_board[i][j] = Random8x64();
   for (auto i{0}; i < 64; ++i) g_zobrist_ep[i]     = Random8x64();
   for (auto i{0}; i < 16; ++i) g_zobrist_castle[i] = Random8x64();
   for (auto i{0}; i <  2; ++i) g_zobrist_wtm[i]    = Random8x64();
