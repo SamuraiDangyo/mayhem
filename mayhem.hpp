@@ -1824,8 +1824,7 @@ struct ClassicalEval {
 struct NnueEval {
   const bool wtm;
 
-  explicit NnueEval(const bool wtm2) :
-    wtm{wtm2} { }
+  explicit NnueEval(const bool wtm2) : wtm{wtm2} { }
 
   int probe() {
     auto i{2};
@@ -2086,7 +2085,7 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
   if ((!g_nullmove_active) &&
       // Not pv ?
       (!g_is_pv) &&
-      // Enough depth (2 blunders too much, 3 sweet spot ... ) ?
+      // Enough depth ( 2 blunders too much. 3 sweet spot ... ) ?
       (depth >= 3) &&
       // Non pawn material or at least 2 pawns ( Zugzwang ... ) ?
       ((g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4]) ||
@@ -2278,7 +2277,7 @@ bool HCEActivation(const Material &m) {
   return (!g_nnue_exist)    || // No NNUE
          m.is_easy()        || // Easy
          m.is_rook_ending() || // Rook ending
-         m.both_n >= 33;       // Disable NNUE with 32+ pieces
+         m.both_n >= 33;       // Disable NNUE for 33+ pieces
 }
 
 // Play the book move from root list
