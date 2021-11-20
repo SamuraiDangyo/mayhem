@@ -282,6 +282,11 @@ struct Board {
                 //            5: =n, 6: =b, 7: =r, 8: =q)
     castle,     // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
     fifty;      // Rule 50 counter
+
+  // For sorting
+  inline bool operator>(const Board &brd) {
+    return this->score > brd.score;
+  }
 };
 
 struct HashEntry {
@@ -490,7 +495,7 @@ void SetNNUE(const std::string &eval_file, const bool print = false) {
 // Hashtable
 
 void SetHashtable(int hash_mb) {
-  // Limits 4MB -> 512GB
+  // Limits 4MB -> 1TB
   hash_mb = std::clamp(hash_mb, 4, 1048576);
   // Hash in B / block in B
   g_hash_entries = static_cast<std::uint32_t>((1 << 20) * hash_mb) / (sizeof(HashEntry));
@@ -833,7 +838,8 @@ template<bool noisy> // Tiny speedup (avoid checks or =q etc)
 void SortNthMoves(const int nth) {
   for (auto i{0}; i < nth; ++i) {
     for (auto j{i + 1}; j < g_moves_n; ++j)
-      if (g_moves[j].score > g_moves[i].score)
+      //if (g_moves[j].score > g_moves[i].score)
+      if (g_moves[j] > g_moves[i])
         std::swap(g_moves[j], g_moves[i]);
 
     // Can't sort since no scores -> quit
@@ -2188,7 +2194,8 @@ int BestW() {
 
   for (auto i{0}; i < g_root_n; ++i) {
     g_board = g_boards[0] + i;
-    g_is_pv = i <= 1 && !g_boards[0][i].score; // 1 + 2 moves too good and not tactical -> pv
+    // 1 / 2 moves too good and not tactical -> pv
+    g_is_pv = i <= 1 && !g_boards[0][i].score;
 
     if (g_depth >= 1 && i >= 1) { // Null window search for bad moves
       if ((score = SearchB(alpha, alpha + 1, g_depth, 1)) > alpha)
@@ -2529,9 +2536,9 @@ void UciUci() {
 
 // "myid" is for correctness of the program
 // "bench" is for speed of the program
-// myid (NNUE): 6800614
-// myid (HCE):  7622297
-// Don't run anything after these commands !!!
+// myid (NNUE): 8060971
+// myid (HCE):  9021149
+// !!! Don't run anything after these commands !!!
 template <bool bench>
 void UciBench() {
   const auto now{Now()};
