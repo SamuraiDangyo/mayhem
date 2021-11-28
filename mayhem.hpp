@@ -54,7 +54,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 6.2"
+#define VERSION       "Mayhem 6.3"
 #define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0"
 #define MAX_MOVES     256     // Max chess moves
 #define MAX_DEPTH     64      // Max search depth (stack frame problems ...)
@@ -65,7 +65,7 @@ namespace mayhem {
 #define HASH          256     // MB
 #define MOVEOVERHEAD  100     // ms
 #define BOOK_BEST     false   // Nondeterministic opening play
-#define MAX_PIECES    32      // Max pieces on board (32 for Standard ...)
+#define MAX_PIECES    32      // Max pieces on board (32 normally ...)
 #define EVAL_FILE     "nn-cb80fb9393af.nnue" // "x" to disable NNUE
 #define BOOK_FILE     "performance.bin"      // "x" to disable book
 
@@ -326,13 +326,9 @@ Board g_board_tmp{}, *g_board{&g_board_tmp}, *g_moves{nullptr}, *g_board_orig{nu
   g_boards[MAX_DEPTH + MAX_Q_DEPTH + 4][MAX_MOVES]{};
 
 std::uint32_t g_hash_entries{0}, g_tokens_nth{0};
-
 std::vector<std::string> g_tokens{};
-
 polyglotbook::PolyglotBook g_book{};
-
 std::unique_ptr<HashEntry[]> g_hash{};
-
 float g_scale[MAX_POS]{};
 
 // Prototypes
@@ -390,15 +386,15 @@ inline std::uint64_t Bit(const int nbits) {
 }
 
 std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
-  return ms ? (1000 * nodes) / ms : 0;
+  return (1000 * nodes) / (ms ? ms : 1);
 }
 
 bool OnBoard(const int x, const int y) { // Slow, but only for init
   return x >= 0 && x <= 7 && y >= 0 && y <= 7;
 }
 
-inline bool IsUnderpromo(const Board *b) {
-  return b->type >= 5 && b->type <= 7;
+inline bool IsUnderpromo(const Board *b) { // =n / =b / =r
+  return b->type == 5 || b->type == 6 || b->type == 7;
 }
 
 void Ok(const bool test, const std::string &msg) {
@@ -431,7 +427,7 @@ bool InputAvailable() {
 inline std::uint64_t Now() {
   return std::chrono::duration_cast<std::chrono::milliseconds>(
            std::chrono::system_clock::now().time_since_epoch())
-           .count();
+         .count();
 }
 
 std::uint64_t Random64() {
@@ -453,8 +449,8 @@ std::uint64_t Random8x64() {
 int Random(const int min, const int max) {
   static std::uint64_t seed{0x202c7ULL + static_cast<std::uint64_t>(std::time(nullptr))};
   return min +
-    (seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3)) %
-      static_cast<std::uint64_t>(std::max(1, max - min + 1));
+    ((seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3)) %
+      static_cast<std::uint64_t>(std::max(1, max - min + 1)));
 }
 
 template <class T>
@@ -478,18 +474,16 @@ void ReadInput() {
 
 // PolyGlot Book lib
 
-void SetBook(const std::string &book_file, const bool print = false) {
-  g_book_exist = book_file.length() <= 1 ? false : g_book.open_book(book_file);
-  if (print)
-    std::cout << "info string Book " << (g_book_exist ? "enabled" : "disabled") << std::endl;
+void SetBook(const std::string &book_file) { // x.nnue
+  g_book_exist = book_file.length() < 6 ? false : g_book.open_book(book_file);
+  std::cout << "info string PolyGlot book " << (g_book_exist ? "enabled" : "disabled") << std::endl;
 }
 
 // NNUE lib
 
-void SetNNUE(const std::string &eval_file, const bool print = false) {
-  g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str());
-  if (print)
-    std::cout << "info string NNUE " << (g_nnue_exist ? "enabled" : "disabled") << std::endl;
+void SetNNUE(const std::string &eval_file) { // x.bin
+  g_nnue_exist = eval_file.length() < 5 ? false : nnue::nnue_init(eval_file.c_str());
+  std::cout << "info string NNUE evaluation " << (g_nnue_exist ? "enabled" : "disabled") << std::endl;
 }
 
 // Hashtable
@@ -559,7 +553,6 @@ void BuildBitboards() {
 
 template<int to>
 std::uint64_t Fill(int from) {
-  // static_assert(to >= 0 && to <= 63, "Bad to square");
   if (from < 0 || from > 63)
     return 0x0ULL;
 
@@ -838,7 +831,6 @@ template<bool noisy> // Tiny speedup (avoid checks or =q etc)
 void SortNthMoves(const int nth) {
   for (auto i{0}; i < nth; ++i) {
     for (auto j{i + 1}; j < g_moves_n; ++j)
-      //if (g_moves[j].score > g_moves[i].score)
       if (g_moves[j] > g_moves[i])
         std::swap(g_moves[j], g_moves[i]);
 
@@ -872,23 +864,19 @@ void SortByScore(const HashEntry *entry, const std::uint64_t hash) {
 }
 
 void EvalRootMoves() {
-  auto *tmp{g_board}; // Have to call eval()
-
   for (auto i{0}; i < g_root_n; ++i) {
     g_board         = g_boards[0] + i;
                       // =q
     g_board->score += (g_board->type == 8 ? 1000 : 0) +
                       // OO|OOO
                       (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) +
-                      // =rbn
+                      // =r / =b / =n
                       (IsUnderpromo(g_board) ? -5000 : 0) +
                       // Make some noise !!!
                       (g_noise ? Random(-g_noise, +g_noise) : 0) +
                       // Full eval
                       (g_wtm ? +1 : -1) * Evaluate(g_wtm);
   }
-
-  g_board = tmp;
 }
 
 void SortRoot(const int index) {
@@ -1155,30 +1143,26 @@ void AddPromotionB(const int from, const int to, const int piece) {
 }
 
 void AddPromotionStuffW(const int from, const int to) {
-  auto *tmp{g_board};
-
   if (g_underpromos) {
+    auto *tmp{g_board};
     for (const auto p : {+5, +4, +3, +2}) { // QRBN
       AddPromotionW(from, to, p);
       g_board = tmp;
     }
   } else { // Only Q
     AddPromotionW(from, to, +5);
-    g_board = tmp;
   }
 }
 
 void AddPromotionStuffB(const int from, const int to) {
-  auto *tmp{g_board};
-
   if (g_underpromos) {
+    auto *tmp{g_board};
     for (const auto p : {-5, -4, -3, -2}) {
       AddPromotionB(from, to, p);
       g_board = tmp;
     }
   } else {
     AddPromotionB(from, to, -5);
-    g_board = tmp;
   }
 }
 
@@ -1260,7 +1244,7 @@ void AddW(const int from, const int to) {
     AddPromotionStuffW(from, to) :
     AddNormalStuffW(from, to);
 
-  g_board = g_board_orig;
+  g_board = g_board_orig; // Back to old board
 }
 
 void AddB(const int from, const int to) {
@@ -1279,24 +1263,6 @@ void AddMovesW(const int from, std::uint64_t moves) {
 void AddMovesB(const int from, std::uint64_t moves) {
   while (moves)
     AddB(from, CtzPop(&moves));
-}
-
-void MgenSetupW() {
-  g_white   = White();
-  g_black   = Black();
-  g_both    = g_white | g_black;
-  g_empty   = ~g_both;
-  g_pawn_sq = g_black | (g_board->epsq > 0 ? Bit(g_board->epsq) &
-                           0x0000FF0000000000ULL : 0x0ULL);
-}
-
-void MgenSetupB() {
-  g_white   = White();
-  g_black   = Black();
-  g_both    = g_white | g_black;
-  g_empty   = ~g_both;
-  g_pawn_sq = g_white | (g_board->epsq > 0 ? Bit(g_board->epsq) &
-                           0x0000000000FF0000ULL : 0x0ULL);
 }
 
 void MgenPawnsW() {
@@ -1395,6 +1361,25 @@ void MgenKingB() {
   AddMovesB(sq, g_king_moves[sq] & g_good);
 }
 
+inline void MgenSetupBoth() {
+  g_white = White();
+  g_black = Black();
+  g_both  = g_white | g_black;
+  g_empty = ~g_both;
+}
+
+void MgenSetupW() {
+  MgenSetupBoth();
+  g_pawn_sq = g_black | (g_board->epsq > 0 ? Bit(g_board->epsq) &
+                           0x0000FF0000000000ULL : 0x0ULL);
+}
+
+void MgenSetupB() {
+  MgenSetupBoth();
+  g_pawn_sq = g_white | (g_board->epsq > 0 ? Bit(g_board->epsq) &
+                           0x0000000000FF0000ULL : 0x0ULL);
+}
+
 void MgenAllW() {
   MgenSetupW();
   g_good = ~g_white;
@@ -1437,34 +1422,32 @@ void MgenAllCapturesB() {
   MgenKingB();
 }
 
-int MgenW(Board *moves) {
+inline void MgenReset(Board *moves) {
   g_moves_n    = 0;
   g_moves      = moves;
   g_board_orig = g_board;
+}
+
+int MgenW(Board *moves) { // Everything
+  MgenReset(moves);
   MgenAllW();
   return g_moves_n;
 }
 
 int MgenB(Board *moves) {
-  g_moves_n    = 0;
-  g_moves      = moves;
-  g_board_orig = g_board;
+  MgenReset(moves);
   MgenAllB();
   return g_moves_n;
 }
 
-int MgenCapturesW(Board *moves) {
-  g_moves_n    = 0;
-  g_moves      = moves;
-  g_board_orig = g_board;
+int MgenCapturesW(Board *moves) { // Only captures
+  MgenReset(moves);
   MgenAllCapturesW();
   return g_moves_n;
 }
 
 int MgenCapturesB(Board *moves) {
-  g_moves_n    = 0;
-  g_moves      = moves;
-  g_board_orig = g_board;
+  MgenReset(moves);
   MgenAllCapturesB();
   return g_moves_n;
 }
@@ -1478,7 +1461,7 @@ int MgenTacticalB(Board *moves) {
   return ChecksW() ? MgenB(moves) : MgenCapturesB(moves);
 }
 
-void MgenRoot() {
+void MgenRoot() { // Only root moves
   g_root_n = g_wtm ? MgenW(g_boards[0]) : MgenB(g_boards[0]);
 }
 
@@ -1804,10 +1787,9 @@ struct ClassicalEval {
   }
 
   int calculate_score() {
-    // 64 phases for HCE
-    const auto n{std::clamp(2 * this->both_n, 2 * 2, 2 * MAX_PIECES)};
-    const auto s{(n * this->mg + (2 * MAX_PIECES - n) * this->eg) /
-                   (2 * MAX_PIECES)};
+    // 30 phases for HCE (assume kings exist)
+    const float n{std::max<float>(this->both_n - 2, 0) / float(MAX_PIECES - 2)};
+    const int s{static_cast<int>(n * this->mg + (1.0 - n) * this->eg)};
     return (this->score + s) / this->scale_factor;
   }
 
@@ -1826,13 +1808,13 @@ struct NnueEval {
 
   explicit NnueEval(const bool wtm2) : wtm{wtm2} { }
 
-  int probe() {
+  int probe() const {
     auto i{2};
 
     for (auto both{Both()}; both; )
       switch (const auto sq{CtzPop(&both)}; g_board->pieces[sq]) {
         case +1: case +2: case +3: case +4: case +5: // PNBRK
-          g_nnue_pieces[i]    = 7  - g_board->pieces[sq];
+          g_nnue_pieces[i]    = 7 - g_board->pieces[sq];
           g_nnue_squares[i++] = sq;
           break;
         case -1: case -2: case -3: case -4: case -5: // pnbrq
@@ -1863,23 +1845,25 @@ struct NnueEval {
       return entry->score;
 
     entry->eval_hash = hash;
-    return (entry->score = (this->probe() + FixFRC()));
+    return entry->score = (this->probe() + FixFRC());
   }
 };
 
 int EvaluateClassical(const bool wtm) {
-  return ClassicalEval(wtm).evaluate();
+  return ClassicalEval{wtm}.evaluate();
 }
 
 int EvaluateNNUE(const bool wtm) {
-  return NnueEval(wtm).evaluate() / 4;
+  return NnueEval{wtm}.evaluate() / 4;
 }
 
-// 0    (Random Mover)
-// 100  (Full Strength)
-// 1-99 (Levels)
-int LevelNoise() { // 0 -> 5 pawns
-  return g_level == 100 ? 0 : 5 * Random(-g_level, +g_level);
+/*
+0    (Random Mover)
+1-99 (Levels)
+100  (Full Strength)
+*/
+int LevelNoise() { // 0 -> 10 pawns
+  return g_level == 100 ? 0 : Random(-5 * (100 - g_level), +5 * (100 - g_level));
 }
 
 int Evaluate(const bool wtm) {
@@ -1991,7 +1975,7 @@ int QSearchB(const int alpha, int beta, const int depth, const int ply) {
 
 // Update hashtable sorting algorithm
 void UpdateSort(HashEntry *entry, const MoveType type,
-    const std::uint64_t hash, const std::uint8_t index) {
+                const std::uint64_t hash, const std::uint8_t index) {
   entry->sort_hash = hash;
   switch (type) {
     case MoveType::kKiller: entry->killer = index + 1; break;
@@ -2320,8 +2304,7 @@ int BookSolveType(const int from, const int to, const int move) {
 
 // Probe PolyGlot book
 bool ProbeBook() {
-  if (const auto move{g_book.setup(g_board->pieces, Both(),
-                      g_board->castle, g_board->epsq, g_wtm)
+  if (const auto move{g_book.setup(g_board->pieces, Both(), g_board->castle, g_board->epsq, g_wtm)
                             .probe(BOOK_BEST)}) {
     const int from{8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7)};
     const int to{  8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7)};
@@ -2355,13 +2338,11 @@ void SearchRootMoves(const bool is_eg) {
   auto good{0}; // Good score per iterations for HCE activation
   const auto now{Now()};
 
-  for ( ; std::abs(g_best_score) != INF && g_depth < g_max_depth && !g_stop_search;
-      ++g_depth) {
+  for ( ; std::abs(g_best_score) != INF && g_depth < g_max_depth && !g_stop_search; ++g_depth) {
     g_best_score = g_wtm ? BestW() : BestB();
 
     // Switch to classical only when the game is decided ( 4+ pawns ) !
-    g_classical = g_classical ||
-                  (is_eg && std::abs(g_best_score) > (4 * 100) && ((++good) >= 7));
+    g_classical = g_classical || (is_eg && std::abs(g_best_score) > (4 * 100) && ((++good) >= 7));
 
     Speak(g_best_score, Now() - now);
     g_q_depth = std::min(g_q_depth + 2, MAX_Q_DEPTH);
@@ -2377,12 +2358,12 @@ void ThinkReset() {
 }
 
 void Think(const int ms) {
-  auto *tmp{g_board};
   ThinkReset();
   MgenRoot();
   if (FastMove(ms))
     return;
 
+  const auto tmp{g_board};
   const Material m{};
   g_classical        = HCEActivation(m);
   g_stop_search_time = Now() + static_cast<std::uint64_t>(ms);
@@ -2394,7 +2375,7 @@ void Think(const int ms) {
   g_underpromos = false;
   SearchRootMoves(m.is_endgame());
   g_underpromos = true;
-  g_board       = tmp;
+  g_board       = tmp; // Just in case ...
 }
 
 // UCI
@@ -2461,10 +2442,10 @@ void UciSetoption() {
       g_move_overhead = std::clamp(TokenNumber(3), 0, 10000);
       TokenPop(4);
     } else if (TokenPeek("EvalFile", 1)) {
-      SetNNUE(TokenNth(3), true);
+      SetNNUE(TokenNth(3));
       TokenPop(4);
     } else if (TokenPeek("BookFile", 1)) {
-      SetBook(TokenNth(3), true);
+      SetBook(TokenNth(3));
       TokenPop(4);
     }
   }
@@ -2529,19 +2510,18 @@ void UciUci() {
                 EVAL_FILE << "\n";
   std::cout << "option name BookFile type string default " <<
                 BOOK_FILE << "\n";
-  std::cout << "uciok";
-  std::cout << std::endl;
+  std::cout << "uciok" << std::endl;
 }
 
 // "myid" is for correctness of the program
 // "bench" is for speed of the program
-// myid (NNUE): 8060971
-// myid (HCE):  9021149
+// myid (NNUE): 8065964
+// myid (HCE):  8552315
 // !!! Don't run anything after these commands !!!
 template <bool bench>
 void UciBench() {
-  const auto now{Now()};
   std::uint64_t nodes{0x0ULL};
+  const auto now{Now()};
   g_max_depth = bench ? MAX_DEPTH : 10;
 
   SetHashtable(256);    // 256MB
@@ -2556,13 +2536,12 @@ void UciBench() {
     std::cout << std::endl;
   }
 
-  std::cout << std::string(16, '=') << "\n\n";
+  std::cout << "===========================" << "\n\n";
   std::cout << "Mode:  " << (bench ? "bench" : "myid") <<
-               (g_nnue_exist ? " (NNUE)" : " (HCE)") << "\n";
+                            (g_nnue_exist ? " (NNUE)" : " (HCE)") << "\n";
   std::cout << "Nodes: " << nodes << "\n";
   std::cout << "NPS:   " << Nps(nodes, Now() - now) << "\n";
-  std::cout << "Time:  " << (Now() - now);
-  std::cout << std::endl;
+  std::cout << "Time:  " << (Now() - now) << std::endl;
 }
 
 bool UciCommands() {
@@ -2606,7 +2585,7 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
 }
 
 std::uint64_t MakeSliderMagicMoves(const int *slider_vectors,
-    const int sq, const std::uint64_t moves) {
+                                   const int sq, const std::uint64_t moves) {
   std::uint64_t possible_moves{0x0ULL};
   const auto x_pos{Xcoord(sq)};
   const auto y_pos{Ycoord(sq)};
@@ -2686,7 +2665,7 @@ void InitSliderMoves() {
 }
 
 std::uint64_t MakeJumpMoves(const int sq, const int len,
-    const int dy, const int *jump_vectors) {
+                            const int dy, const int *jump_vectors) {
   std::uint64_t moves{0x0ULL};
   const auto x_pos{Xcoord(sq)};
   const auto y_pos{Ycoord(sq)};
