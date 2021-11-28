@@ -1857,11 +1857,9 @@ int EvaluateNNUE(const bool wtm) {
   return NnueEval{wtm}.evaluate() / 4;
 }
 
-/*
-0    (Random Mover)
-1-99 (Levels)
-100  (Full Strength)
-*/
+// 0    (Random Mover)
+// 1-99 (Levels)
+// 100  (Full Strength)
 int LevelNoise() { // 0 -> 10 pawns
   return g_level == 100 ? 0 : Random(-5 * (100 - g_level), +5 * (100 - g_level));
 }
