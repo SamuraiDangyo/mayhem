@@ -54,7 +54,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 6.3"
+#define VERSION       "Mayhem 6.4"
 #define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0"
 #define MAX_MOVES     256     // Max chess moves
 #define MAX_DEPTH     64      // Max search depth (stack frame problems ...)
@@ -326,7 +326,7 @@ Board g_board_tmp{}, *g_board{&g_board_tmp}, *g_moves{nullptr}, *g_board_orig{nu
   g_boards[MAX_DEPTH + MAX_Q_DEPTH + 4][MAX_MOVES]{};
 
 std::uint32_t g_hash_entries{0}, g_tokens_nth{0};
-std::vector<std::string> g_tokens{};
+std::vector<std::string> g_tokens(300); // 300 plys reset
 polyglotbook::PolyglotBook g_book{};
 std::unique_ptr<HashEntry[]> g_hash{};
 float g_scale[MAX_POS]{};
@@ -1143,26 +1143,24 @@ void AddPromotionB(const int from, const int to, const int piece) {
 }
 
 void AddPromotionStuffW(const int from, const int to) {
+  auto *tmp{g_board};
   if (g_underpromos) {
-    auto *tmp{g_board};
-    for (const auto p : {+5, +4, +3, +2}) { // QRBN
-      AddPromotionW(from, to, p);
-      g_board = tmp;
-    }
-  } else { // Only Q
-    AddPromotionW(from, to, +5);
+    for (const auto p : {+5, +4, +3, +2}) // QRBN
+      AddPromotionW(from, to, p), g_board = tmp;
+  } else {
+    for (const auto p : {+5, +2}) // QN
+      AddPromotionW(from, to, p), g_board = tmp;
   }
 }
 
 void AddPromotionStuffB(const int from, const int to) {
+  auto *tmp{g_board};
   if (g_underpromos) {
-    auto *tmp{g_board};
-    for (const auto p : {-5, -4, -3, -2}) {
-      AddPromotionB(from, to, p);
-      g_board = tmp;
-    }
+    for (const auto p : {-5, -4, -3, -2})
+      AddPromotionB(from, to, p), g_board = tmp;
   } else {
-    AddPromotionB(from, to, -5);
+    for (const auto p : {-5, -2})
+      AddPromotionB(from, to, p), g_board = tmp;
   }
 }
 
@@ -1874,7 +1872,7 @@ int Evaluate(const bool wtm) {
 
 // Search
 
-void Speak(const int score, const std::uint64_t ms) {
+void SpeakUci(const int score, const std::uint64_t ms) {
   std::cout << "info depth " << std::min(g_max_depth, g_depth + 1);
   std::cout << " nodes " << g_nodes;
   std::cout << " time " << ms;
@@ -2325,7 +2323,7 @@ bool FastMove(const int ms) {
       (ms <= 1)       || // Hurry up !
       (RandomMove())  || // Random mover
       (g_book_exist && ms > BOOK_MS && ProbeBook())) { // Try book
-    Speak(g_last_eval, 0);
+    SpeakUci(g_last_eval, 0);
     return true;
   }
 
@@ -2342,11 +2340,13 @@ void SearchRootMoves(const bool is_eg) {
     // Switch to classical only when the game is decided ( 4+ pawns ) !
     g_classical = g_classical || (is_eg && std::abs(g_best_score) > (4 * 100) && ((++good) >= 7));
 
-    Speak(g_best_score, Now() - now);
+    SpeakUci(g_best_score, Now() - now);
     g_q_depth = std::min(g_q_depth + 2, MAX_Q_DEPTH);
   }
 
-  Speak((g_last_eval = g_best_score), Now() - now);
+  g_last_eval = g_best_score;
+  if (!g_q_depth) // Print smt for UCI
+    SpeakUci(g_last_eval, Now() - now);
 }
 
 void ThinkReset() {
@@ -2356,6 +2356,8 @@ void ThinkReset() {
 }
 
 void Think(const int ms) {
+  // Start clock early
+  g_stop_search_time = Now() + static_cast<std::uint64_t>(ms);
   ThinkReset();
   MgenRoot();
   if (FastMove(ms))
@@ -2364,12 +2366,12 @@ void Think(const int ms) {
   const auto tmp{g_board};
   const Material m{};
   g_classical        = HCEActivation(m);
-  g_stop_search_time = Now() + static_cast<std::uint64_t>(ms);
   EvalRootMoves();
   SortNthMoves<true>(g_root_n);
 
   // Underpromos are almost useless for gameplay
-  // Disable if you need "full" analysis
+  // Only Q + N are allowed for gameplay
+  // Small speedups
   g_underpromos = false;
   SearchRootMoves(m.is_endgame());
   g_underpromos = true;
@@ -2513,16 +2515,16 @@ void UciUci() {
 
 // "myid" is for correctness of the program
 // "bench" is for speed of the program
-// myid (NNUE): 8065964
-// myid (HCE):  8552315
+// myid (NNUE): 15312908
+// myid (HCE):  14907017
 // !!! Don't run anything after these commands !!!
 template <bool bench>
 void UciBench() {
   std::uint64_t nodes{0x0ULL};
   const auto now{Now()};
-  g_max_depth = bench ? MAX_DEPTH : 10;
 
-  SetHashtable(256);    // 256MB
+  SetHashtable(256); // set 256MB and reset
+  g_max_depth  = bench ? MAX_DEPTH : 11; // Depth limits
   g_noise      = 0;     // Make search deterministic
   g_book_exist = false; // Disable book
 
