@@ -35,11 +35,8 @@ public:
   PolyglotBook();
  ~PolyglotBook();
   int probe(const bool);
-  PolyglotBook& setup(std::int8_t*,
-                      const std::uint64_t,
-                      const std::uint8_t,
-                      const std::int8_t,
-                      const bool);
+  PolyglotBook& setup(std::int8_t*, const std::uint64_t,
+      const std::uint8_t, const std::int8_t, const bool);
   bool open_book(const std::string&);
 
 private:
@@ -60,10 +57,10 @@ private:
   // Board for building a hash key
   struct PolyBoard {
     std::uint64_t both;
-    std::int8_t *pieces;
-    std::int8_t epsq;
-    std::uint8_t castling;
-    std::uint8_t wtm;
+    std::int8_t   *pieces;
+    std::int8_t   epsq;
+    std::uint8_t  castling;
+    std::uint8_t  wtm;
   } polyboard;
 
   int ctz(const std::uint64_t);

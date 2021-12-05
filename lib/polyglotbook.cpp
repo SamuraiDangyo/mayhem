@@ -30,8 +30,7 @@
 
 namespace polyglotbook {
 
-PolyglotBook::PolyglotBook() :
-  polyboard{} {
+PolyglotBook::PolyglotBook() : polyboard{} {
 
   std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
@@ -52,7 +51,7 @@ template<typename T>
 PolyglotBook& PolyglotBook::operator>>(T& n) {
 
   n = 0;
-  for (std::size_t i{0}; i < sizeof(T); ++i)
+  for (std::size_t i = 0; i < sizeof(T); ++i)
     n = T((n << 8) + std::ifstream::get());
 
   return *this;
@@ -74,7 +73,7 @@ inline int PolyglotBook::ctz(const std::uint64_t bb) {
 
 inline int PolyglotBook::ctz_pop(std::uint64_t *bb) {
 
-  const auto ret{this->ctz(*bb)};
+  const auto ret = this->ctz(*bb);
   *bb = *bb & (*bb - 0x1ULL);
   return ret;
 
@@ -82,13 +81,13 @@ inline int PolyglotBook::ctz_pop(std::uint64_t *bb) {
 
 std::uint64_t PolyglotBook::polyglot_key() {
 
-  std::uint64_t key{0x0ULL};
+  std::uint64_t key = 0;
 
   //
   // Board
   //
   for (auto both{this->polyboard.both}; both; )
-    switch (const auto sq{this->ctz_pop(&both)}; this->polyboard.pieces[sq]) {
+    switch (const auto sq = this->ctz_pop(&both); this->polyboard.pieces[sq]) {
       case +1: key ^= kZobrist.PG.psq[1][sq];  break;
       case +2: key ^= kZobrist.PG.psq[3][sq];  break;
       case +3: key ^= kZobrist.PG.psq[5][sq];  break;
@@ -137,8 +136,7 @@ bool PolyglotBook::open(const std::string &file) {
       this->close();
 
   std::ifstream::open(file, std::ifstream::in | std::ifstream::binary);
-
-  const auto opened{this->is_open()};
+  const auto opened = this->is_open();
   std::ifstream::clear(); // Reset any error flag to allow a retry ifstream::open()
 
   return opened;
@@ -168,8 +166,8 @@ bool PolyglotBook::is_ep_legal() {
   if (this->polyboard.epsq < 0 || this->polyboard.epsq > 63)
     return false;
 
-  const auto x{this->polyboard.epsq % 8};
-  const auto y{this->polyboard.epsq / 8};
+  const auto x = this->polyboard.epsq % 8;
+  const auto y = this->polyboard.epsq / 8;
 
   return this->polyboard.wtm ?
       (this->on_board(x - 1) && this->polyboard.pieces[8 * y + x - 1] == -1) ||
@@ -180,11 +178,8 @@ bool PolyglotBook::is_ep_legal() {
 
 }
 
-PolyglotBook& PolyglotBook::setup(std::int8_t *pieces,
-                                  const std::uint64_t both,
-                                  const std::uint8_t castling,
-                                  const std::int8_t epsq,
-                                  const bool wtm) {
+PolyglotBook& PolyglotBook::setup(std::int8_t *pieces, const std::uint64_t both,
+    const std::uint8_t castling, const std::int8_t epsq, const bool wtm) {
 
   this->polyboard.pieces   = pieces;
   this->polyboard.both     = both;
@@ -201,11 +196,11 @@ int PolyglotBook::probe(const bool pick_best) {
   if (!this->is_open())
     return 0;
 
-  Entry e{};
-  std::uint16_t best{0};
-  unsigned sum{0};
-  int move{0};
-  const auto key{this->polyglot_key()};
+  Entry e            = {};
+  std::uint16_t best = 0;
+  unsigned sum       = 0;
+  int move           = 0;
+  const auto key     = this->polyglot_key();
 
   this->seekg(this->find_first(key) * sizeof(Entry), std::ios_base::beg);
 
@@ -244,12 +239,12 @@ std::size_t PolyglotBook::find_first(const std::uint64_t key) {
 
   this->seekg(0, std::ios::end); // Move pointer to end, so tellg() gets file's size
 
-  std::size_t low{0}, high{static_cast<std::size_t>(this->tellg()) / sizeof(Entry) - 1};
+  std::size_t low = 0, high = static_cast<std::size_t>(this->tellg()) / sizeof(Entry) - 1;
   Entry e{};
 
   while (low < high && this->good()) {
 
-    const std::size_t mid{(low + high) / 2};
+    const std::size_t mid = (low + high) / 2;
 
     this->seekg(mid * sizeof(Entry), std::ios_base::beg);
     *this >> e;
