@@ -169,7 +169,7 @@ constexpr std::uint64_t kRookMagic[3][64]{
     0x40100229080420aULL,  0x9801084000201103ULL, 0x8408622090484202ULL, 0x4022001048a0e2ULL,
     0x280120020049902ULL,  0x1200412602009402ULL, 0x914900048020884ULL,  0x104824281002402ULL
   },
-  { // Mask
+  { // Masks
     0x101010101017eULL,    0x202020202027cULL,    0x404040404047aULL,    0x8080808080876ULL,
     0x1010101010106eULL,   0x2020202020205eULL,   0x4040404040403eULL,   0x8080808080807eULL,
     0x1010101017e00ULL,    0x2020202027c00ULL,    0x4040404047a00ULL,    0x8080808087600ULL,
@@ -226,7 +226,7 @@ constexpr std::uint64_t kBishopMagic[3][64]{
     0x8d1a0210b0c000ULL,   0x164c500ca0410cULL,   0xc6040804283004ULL,   0x14808001a040400ULL,
     0x180450800222a011ULL, 0x600014600490202ULL,  0x21040100d903ULL,     0x10404821000420ULL
   },
-  { // Mask
+  { // Masks
     0x40201008040200ULL,   0x402010080400ULL,     0x4020100a00ULL,       0x40221400ULL,
     0x2442800ULL,          0x204085000ULL,        0x20408102000ULL,      0x2040810204000ULL,
     0x20100804020000ULL,   0x40201008040000ULL,   0x4020100a0000ULL,     0x4022140000ULL,
@@ -449,8 +449,7 @@ std::uint64_t Random8x64() {
 
 int Random(const int min, const int max) {
   static std::uint64_t seed{0x202c7ULL + static_cast<std::uint64_t>(std::time(nullptr))};
-  return min +
-    ((seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3)) %
+  return min + ((seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3)) %
       static_cast<std::uint64_t>(std::max(1, max - min + 1)));
 }
 
@@ -552,7 +551,7 @@ void BuildBitboards() {
     else if (g_board->pieces[i] < 0) g_board->black[-g_board->pieces[i] - 1] |= Bit(i);
 }
 
-std::uint64_t Fill(int from, const int to) {
+std::uint64_t Fill(int from, const int to) { // to is good
   if (from < 0 || from > 63)
     return 0x0ULL;
 
@@ -638,7 +637,8 @@ int Piece2Num(const char p) {
     case 'b': return -3;
     case 'r': return -4;
     case 'q': return -5;
-    default:  return -6; // k
+    case 'k': return -6;
+    default:  return  0; // Impossible
   }
 }
 
@@ -735,9 +735,8 @@ void FenReset() {
 
 // Not perfect. Just avoid obvious crashes
 bool BoardIsGood() {
-         // 1 king / side
-  return (  PopCount(g_board->white[5]) == 1 &&
-            PopCount(g_board->black[5]) == 1) &&
+         // 1 king per side
+  return (PopCount(g_board->white[5]) == 1 && PopCount(g_board->black[5]) == 1) &&
          // No illegal checks
          (!(g_wtm ? ChecksW() : ChecksB()));
 }
@@ -2072,8 +2071,8 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
       (!ChecksB()) &&
       // Looks good ?
       (Evaluate(true) >= beta)) {
-    const auto ep {g_board->epsq};
-    auto *tmp     {g_board};
+    const auto ep   {g_board->epsq};
+    auto *tmp       {g_board};
     g_board->epsq = -1;
 
     g_nullmove_active = true;
@@ -2100,8 +2099,8 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
          (PopCount(g_board->black[0]) >= 2)) &&
       (!ChecksW()) &&
       (alpha >= Evaluate(false))) {
-    const auto ep {g_board->epsq};
-    auto *tmp     {g_board};
+    const auto ep   {g_board->epsq};
+    auto *tmp       {g_board};
     g_board->epsq = -1;
 
     g_nullmove_active = true;
@@ -2590,11 +2589,11 @@ std::uint64_t MakeSliderMagicMoves(const int *slider_vectors,
 
   for (auto i{0}; i < 4; ++i)
     for (auto j{1}; j < 8; ++j) {
-      const auto x{x_pos + j * slider_vectors[2 * i]};
-      const auto y{y_pos + j * slider_vectors[2 * i + 1]};
+      const auto x {x_pos + j * slider_vectors[2 * i]};
+      const auto y {y_pos + j * slider_vectors[2 * i + 1]};
       if (!OnBoard(x, y))
         break;
-      const auto tmp{Bit(8 * y + x)};
+      const auto tmp    {Bit(8 * y + x)};
       possible_moves |= tmp;
       if (tmp & moves)
         break;
@@ -2664,13 +2663,13 @@ void InitSliderMoves() {
 
 std::uint64_t MakeJumpMoves(const int sq, const int len,
                             const int dy, const int *jump_vectors) {
-  std::uint64_t moves{0x0ULL};
-  const auto x_pos{Xcoord(sq)};
-  const auto y_pos{Ycoord(sq)};
+  std::uint64_t moves {0x0ULL};
+  const auto x_pos    {Xcoord(sq)};
+  const auto y_pos    {Ycoord(sq)};
 
   for (auto i{0}; i < len; ++i)
-    if (const auto x{x_pos + jump_vectors[2 * i]},
-                   y{y_pos + dy * jump_vectors[2 * i + 1]};
+    if (const auto x {x_pos + jump_vectors[2 * i]},
+                   y {y_pos + dy * jump_vectors[2 * i + 1]};
         OnBoard(x, y))
       moves |= Bit(8 * y + x);
 
@@ -2682,8 +2681,8 @@ void InitJumpMoves() {
                                     +1, +1, -1, -1, +1, -1, -1, +1};
   constexpr int knight_vectors[16] {+2, +1, -2, +1, +2, -1, -2, -1,
                                     +1, +2, -1, +2, +1, -2, -1, -2};
-  constexpr int pawn_check_vectors[2 * 2]{-1, +1, +1, +1};
-  constexpr int pawn_1_vectors[1 * 2]{0, +1};
+  constexpr int pawn_check_vectors[2 * 2] {-1, +1, +1, +1};
+  constexpr int pawn_1_vectors[1 * 2]     {0, +1};
 
   for (auto i{0}; i < 64; ++i) {
     g_king_moves[i]     = MakeJumpMoves(i, 8, +1, king_vectors);
