@@ -292,11 +292,11 @@ struct Board {
 
 struct HashEntry {
   // Hashes for eval and sort
-  std::uint64_t eval_hash{0}, sort_hash{0};
+  std::uint64_t eval_hash = 0, sort_hash = 0;
   // Score for NNUE only
-  std::int32_t score{0};
+  std::int32_t score = 0;
   // Indexes for sorting
-  std::uint8_t killer{0}, good{0}, quiet{0};
+  std::uint8_t killer = 0, good = 0, quiet = 0;
 };
 
 // Enums
@@ -490,7 +490,7 @@ void SetNNUE(const std::string &eval_file) { // x.bin
 
 void SetHashtable(int hash_mb) {
   // Limits 4MB -> 1TB
-  hash_mb = std::clamp(hash_mb, 4, 1048576);
+  hash_mb = std::clamp(hash_mb, 1, 1048576);
   // Hash in B / block in B
   g_hash_entries = static_cast<std::uint32_t>((1 << 20) * hash_mb) / (sizeof(HashEntry));
   // Claim space
@@ -500,9 +500,8 @@ void SetHashtable(int hash_mb) {
 // Hash
 
 inline std::uint64_t Hash(const bool wtm) {
-  auto ret = g_zobrist_ep[g_board->epsq + 1] ^
-             g_zobrist_wtm[int(wtm)]         ^
-             g_zobrist_castle[g_board->castle];
+  auto ret = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[wtm] ^
+               g_zobrist_castle[g_board->castle];
 
   for (auto both = Both(); both; ) {
     const auto sq = CtzPop(&both);
@@ -552,8 +551,6 @@ void BuildBitboards() {
 }
 
 std::uint64_t Fill(int from, const int to) { // from / to -> always good
-  //Ok(from >= 0 && from <= 63 && to >= 0 && to <= 63, "Buggy ...");
-
   auto ret = Bit(from);
   if (from == to)
     return ret;
@@ -1457,10 +1454,8 @@ void MgenRoot() { // Only root moves
 // Probe Eucalyptus KPK bitbases
 inline bool ProbeKPK(const bool wtm) {
   return g_board->white[0] ?
-    eucalyptus::IsDraw(Ctz(g_board->white[5]),
-        Ctz(g_board->white[0]), Ctz(g_board->black[5]), int(wtm)) :
-    eucalyptus::IsDraw(63 - Ctz(g_board->black[5]),
-        63 - Ctz(g_board->black[0]), 63 - Ctz(g_board->white[5]), int(!wtm));
+    eucalyptus::IsDraw(Ctz(g_board->white[5]), Ctz(g_board->white[0]), Ctz(g_board->black[5]), wtm) :
+    eucalyptus::IsDraw(63 - Ctz(g_board->black[5]), 63 - Ctz(g_board->black[0]), 63 - Ctz(g_board->white[5]), !wtm);
 }
 
 // Detect trivial draws really fast
@@ -1769,7 +1764,7 @@ struct ClassicalEval {
 
   int calculate_score() {
     // 30 phases for HCE (assume kings exist)
-    const float n = std::max<float>(this->both_n - 2, 0) / float(MAX_PIECES - 2);
+    const float n = std::max<float>(this->both_n - 2, 0) / static_cast<float>(MAX_PIECES - 2);
     const int s   = static_cast<int>(n * this->mg + (1.0f - n) * this->eg);
     return (this->score + s) / this->scale_factor;
   }
@@ -2060,7 +2055,7 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
     g_board->epsq = -1;
 
     g_nullmove_active = true;
-    const auto score  = SearchB(*alpha, beta, depth - int(depth / 4 + 3), ply);
+    const auto score  = SearchB(*alpha, beta, depth - static_cast<int>(depth / 4 + 3), ply);
     g_nullmove_active = false;
 
     g_board       = tmp;
@@ -2088,7 +2083,7 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
     g_board->epsq = -1;
 
     g_nullmove_active = true;
-    const auto score  = SearchW(alpha, *beta, depth - int(depth / 4 + 3), ply);
+    const auto score  = SearchW(alpha, *beta, depth - static_cast<int>(depth / 4 + 3), ply);
     g_nullmove_active = false;
 
     g_board       = tmp;
@@ -2357,6 +2352,49 @@ void Think(const int ms) {
   g_board       = tmp; // Just in case ...
 }
 
+// Perft
+
+std::uint64_t Perft(const bool wtm, const int ply) {
+  if (ply <= 0)
+    return 1;
+
+  const auto moves_n = wtm ? MgenW(g_boards[ply]) : MgenB(g_boards[ply]);
+  if (ply == 1) // Bulk counting
+    return moves_n;
+
+  // Hack! Using gameplay hashtable for perft ...
+  const auto hash = Hash(wtm);
+  auto *entry     = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
+  if (ply == entry->score && entry->eval_hash == hash)
+    return entry->sort_hash;
+
+  std::uint64_t nodes = 0;
+  for (auto i = 0; i < moves_n; ++i)
+    g_board = g_boards[ply] + i, nodes += Perft(!wtm, ply - 1);
+
+  // Only store the biggest numbers
+  if (entry->eval_hash == hash && entry->sort_hash > nodes)
+    return nodes;
+
+  entry->score     = ply;
+  entry->eval_hash = hash;
+  return entry->sort_hash = nodes;
+}
+
+std::uint64_t Perft(const std::string &fen, const int depth) {
+  std::cout << "[ " << fen << " ]" << "\n";
+  std::uint64_t nodes = 0;
+  for (auto i = 0; i <= depth; ++i) {
+    Fen(fen);
+    const auto now    = Now();
+    const auto nodes2 = Perft(g_wtm, i);
+    nodes            += nodes2;
+    std::cout << "depth " << i << " nodes " << nodes2 << " time " <<
+      (Now() - now) << " nps " << Nps(nodes2, Now() - now) << "\n";
+  }
+  return nodes;
+}
+
 // UCI
 
 void UciMake(const int root_i) {
@@ -2494,21 +2532,30 @@ void UciUci() {
   std::cout << "uciok" << std::endl;
 }
 
+// perft (5): 625989260
+// perft (6): 21077004157
+void UciPerft() {
+  SetHashtable(256);// Set 256MB and reset
+  std::uint64_t nodes = 0;
+  const auto now      = Now();
+  for (const auto &fen : kBench)
+    nodes += Perft(fen, 6), std::cout << std::endl;
+  std::cout << "= " << "nodes " << nodes << " time " <<
+    (Now() - now) << " nps " << Nps(nodes, Now() - now) << std::endl;
+}
+
 // "myid" is for correctness of the program
 // "bench" is for speed of the program
-// !!! Don't run anything after these commands !!!
-// ::: Signatures :::
 // myid (NNUE): 15313000
 // myid (HCE):  14908517
 void UciBench(const bool bench) {
-  std::uint64_t nodes = 0;
-  const auto now      = Now();
-
   SetHashtable(256); // Set 256MB and reset
   g_max_depth  = bench ? MAX_DEPTH : 11; // Depth limits
   g_noise      = 0;     // Make search deterministic
   g_book_exist = false; // Disable book
 
+  std::uint64_t nodes = 0;
+  const auto now      = Now();
   for (const auto &fen : kBench) {
     std::cout << "[ " << fen << " ]" << "\n";
     Fen(fen);
@@ -2535,8 +2582,9 @@ bool UciCommands() {
   else if (Token("isready"))    std::cout << "readyok" << std::endl;
   else if (Token("setoption"))  UciSetoption();
   else if (Token("uci"))        UciUci();
-  else if (Token("myid"))       UciBench(false);
-  else if (Token("bench"))      UciBench(true);
+  else if (Token("myid"))       UciBench(false); // !!! Dev command !!!
+  else if (Token("bench"))      UciBench(true);  // !!! Dev command !!!
+  else if (Token("perft"))      UciPerft();      // !!! Dev command !!!
   else if (Token("quit"))       return false;
 
   return g_game_on;
@@ -2703,7 +2751,7 @@ void InitScale() {
 void InitLMR() {
   for (auto d = 0; d < MAX_DEPTH; ++d)
     for (auto m = 0; m < MAX_MOVES; ++m)
-      g_lmr[d][m] = std::clamp(int(0.25 * std::log(d) * std::log(m)), 1, 6);
+      g_lmr[d][m] = std::clamp(static_cast<int>(0.25 * std::log(d) * std::log(m)), 1, 6);
 }
 
 void PrintVersion() {
