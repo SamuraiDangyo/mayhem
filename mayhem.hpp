@@ -311,8 +311,7 @@ std::uint64_t g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_s
   g_knight_moves[64] = {}, g_king_moves[64] = {}, g_pawn_checks_w[64] = {}, g_pawn_checks_b[64] = {},
   g_castle_w[2] = {}, g_castle_b[2] = {}, g_castle_empty_w[2] = {}, g_castle_empty_b[2] = {},
   g_bishop_magic_moves[64][512] = {}, g_rook_magic_moves[64][4096] = {}, g_zobrist_ep[64] = {},
-  g_zobrist_castle[16] = {}, g_zobrist_wtm[2] = {},
-  g_r50_positions[MAX_POS] = {}, g_zobrist_board[13][64] = {};
+  g_zobrist_castle[16] = {}, g_zobrist_wtm[2] = {}, g_r50_positions[MAX_POS] = {}, g_zobrist_board[13][64] = {};
 
 int g_move_overhead = MOVEOVERHEAD, g_level = 100, g_root_n = 0, g_king_w = 0, g_king_b = 0,
   g_moves_n = 0, g_max_depth = MAX_DEPTH, g_q_depth = 0, g_depth = 0, g_best_score = 0, g_noise = 2,
@@ -501,7 +500,7 @@ void SetHashtable(int hash_mb) {
 
 inline std::uint64_t Hash(const bool wtm) {
   auto ret = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[wtm] ^
-               g_zobrist_castle[g_board->castle];
+             g_zobrist_castle[g_board->castle];
 
   for (auto both = Both(); both; ) {
     const auto sq = CtzPop(&both);
@@ -654,8 +653,8 @@ void FenBoard(const std::string &board) {
   auto sq = 56;
   for (std::size_t i = 0; i < board.length() /* O(n) */ && sq >= 0; ++i)
     if (const auto c = board[i]; c == '/') sq -= 16;
-    else if (std::isdigit(c))             sq += Empty2Num(c);
-    else                                  PutPiece(sq++, Piece2Num(c));
+    else if (std::isdigit(c))              sq += Empty2Num(c);
+    else                                   PutPiece(sq++, Piece2Num(c));
 }
 
 void FenAddCastle(int *rooks, const int sq, const int castle) {
@@ -1219,16 +1218,14 @@ void AddNormalStuffB(const int from, const int to) {
 
 void AddW(const int from, const int to) {
   g_board->pieces[from] == +1 && Ycoord(from) == 6 ?
-    AddPromotionStuffW(from, to) :
-    AddNormalStuffW(from, to);
+    AddPromotionStuffW(from, to) : AddNormalStuffW(from, to);
 
   g_board = g_board_orig; // Back to old board
 }
 
 void AddB(const int from, const int to) {
   g_board->pieces[from] == -1 && Ycoord(from) == 1 ?
-    AddPromotionStuffB(from, to) :
-    AddNormalStuffB(from, to);
+    AddPromotionStuffB(from, to) : AddNormalStuffB(from, to);
 
   g_board = g_board_orig;
 }
@@ -1789,7 +1786,7 @@ struct NnueEval {
 
     for (auto both = Both(); both; )
       switch (const auto sq = CtzPop(&both); g_board->pieces[sq]) {
-        case +1: case +2: case +3: case +4: case +5: // PNBRK
+        case +1: case +2: case +3: case +4: case +5: // PNBRQ
           g_nnue_pieces[i]    = 7 - g_board->pieces[sq];
           g_nnue_squares[i++] = sq;
           break;
@@ -1896,9 +1893,7 @@ bool UserStop() {
 // Time checking
 inline bool CheckTime() {
   static std::uint64_t ticks = 0;
-  return ((++ticks) & READ_CLOCK) ?
-    false :
-    ((Now() >= g_stop_search_time) || UserStop());
+  return ((++ticks) & READ_CLOCK) ? false : ((Now() >= g_stop_search_time) || UserStop());
 }
 
 // 1. Check against standpat to see whether we are better -> Done
@@ -2257,7 +2252,7 @@ bool FindBookMove(const int from, const int to, const int type) {
 
 int BookSolveType(const int from, const int to, const int move) {
   // PolyGlot promos (=n / =b / =r / =q)
-  auto is_promo{[&move](const int v){ return move & (0x1 << (12 + v)); }};
+  auto is_promo = [&move](const int v){ return move & (0x1 << (12 + v)); };
   constexpr std::array<int, 4> v = {0, 1, 2, 3};
   if (const auto res = std::find_if(v.begin(), v.end(), is_promo); res != v.end())
     return 5 + *res;
@@ -2357,28 +2352,13 @@ void Think(const int ms) {
 std::uint64_t Perft(const bool wtm, const int ply) {
   if (ply <= 0)
     return 1;
-
   const auto moves_n = wtm ? MgenW(g_boards[ply]) : MgenB(g_boards[ply]);
   if (ply == 1) // Bulk counting
     return moves_n;
-
-  // Hack! Using gameplay hashtable for perft ...
-  const auto hash = Hash(wtm);
-  auto *entry     = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
-  if (ply == entry->score && entry->eval_hash == hash)
-    return entry->sort_hash;
-
   std::uint64_t nodes = 0;
   for (auto i = 0; i < moves_n; ++i)
     g_board = g_boards[ply] + i, nodes += Perft(!wtm, ply - 1);
-
-  // Only store the biggest numbers
-  if (entry->eval_hash == hash && entry->sort_hash > nodes)
-    return nodes;
-
-  entry->score     = ply;
-  entry->eval_hash = hash;
-  return entry->sort_hash = nodes;
+  return nodes;
 }
 
 std::uint64_t Perft(const std::string &fen, const int depth) {
@@ -2398,10 +2378,10 @@ std::uint64_t Perft(const std::string &fen, const int depth) {
 // UCI
 
 void UciMake(const int root_i) {
-  g_r50_positions[g_board->fifty] = Hash(g_wtm);
-  g_board_tmp = g_boards[0][root_i];
-  g_board     = &g_board_tmp;
-  g_wtm       = !g_wtm;
+  g_r50_positions[g_board->fifty] = Hash(g_wtm); // Set hash
+  g_board_tmp = g_boards[0][root_i]; // Copy current board
+  g_board     = &g_board_tmp; // Set pointer
+  g_wtm       = !g_wtm; // Flip the board
 }
 
 void UciMakeMove() {
@@ -2428,9 +2408,7 @@ void UciTakeSpecialFen() {
 }
 
 void UciFen() {
-  Token("startpos") ?
-    Fen(STARTPOS) :
-    UciTakeSpecialFen();
+  Token("startpos") ? Fen(STARTPOS) : UciTakeSpecialFen();
 }
 
 void UciMoves() {
@@ -2524,7 +2502,7 @@ void UciUci() {
   std::cout << "option name MoveOverhead type spin default " <<
                 MOVEOVERHEAD << " min 0 max 10000" << "\n";
   std::cout << "option name Hash type spin default " <<
-                HASH << " min 4 max 1048576" << "\n";
+                HASH << " min 1 max 1048576" << "\n";
   std::cout << "option name EvalFile type string default " <<
                 EVAL_FILE << "\n";
   std::cout << "option name BookFile type string default " <<
@@ -2532,34 +2510,39 @@ void UciUci() {
   std::cout << "uciok" << std::endl;
 }
 
+// Mayhem movegen bench
+// > perft [depth = 5]
+// perft (4): 17440940
 // perft (5): 625989260
 // perft (6): 21077004157
-void UciPerft() {
-  SetHashtable(256);// Set 256MB and reset
+void UciPerft(const int depth) {
   std::uint64_t nodes = 0;
   const auto now      = Now();
   for (const auto &fen : kBench)
-    nodes += Perft(fen, 6), std::cout << std::endl;
+    nodes += Perft(fen, depth), std::cout << std::endl;
   std::cout << "= " << "nodes " << nodes << " time " <<
     (Now() - now) << " nps " << Nps(nodes, Now() - now) << std::endl;
 }
 
 // "myid" is for correctness of the program
 // "bench" is for speed of the program
+// > myid  [depth = 11]  [hash = 256] [nnue = 1]
+// > bench [time = 5000] [hash = 256] [nnue = 1]
 // myid (NNUE): 15313000
 // myid (HCE):  14908517
-void UciBench(const bool bench) {
-  SetHashtable(256); // Set 256MB and reset
-  g_max_depth  = bench ? MAX_DEPTH : 11; // Depth limits
-  g_noise      = 0;     // Make search deterministic
+void UciBench(const bool bench, const int depth_or_time) {
+  SetHashtable(TokenOk(1) ? TokenNumber(1) : 256); // Set hash and reset
+  g_max_depth  = bench ? MAX_DEPTH : depth_or_time; // Set depth limits
+  g_noise      = 0; // Make search deterministic
   g_book_exist = false; // Disable book
+  g_nnue_exist = g_nnue_exist && !TokenPeek("0", 2); // Disable NNUE ?
 
   std::uint64_t nodes = 0;
   const auto now      = Now();
   for (const auto &fen : kBench) {
     std::cout << "[ " << fen << " ]" << "\n";
     Fen(fen);
-    Think(bench ? 5000 : INF);
+    Think(bench ? depth_or_time : INF);
     nodes += g_nodes;
     std::cout << std::endl;
   }
@@ -2582,9 +2565,9 @@ bool UciCommands() {
   else if (Token("isready"))    std::cout << "readyok" << std::endl;
   else if (Token("setoption"))  UciSetoption();
   else if (Token("uci"))        UciUci();
-  else if (Token("myid"))       UciBench(false); // !!! Dev command !!!
-  else if (Token("bench"))      UciBench(true);  // !!! Dev command !!!
-  else if (Token("perft"))      UciPerft();      // !!! Dev command !!!
+  else if (Token("myid"))       UciBench(false, TokenOk() ? TokenNumber() : 11); // Dev command !
+  else if (Token("bench"))      UciBench(true, TokenOk() ? TokenNumber() : 5000); // Dev command !
+  else if (Token("perft"))      UciPerft(TokenOk() ? TokenNumber() : 5); // Dev command !
   else if (Token("quit"))       return false;
 
   return g_game_on;
@@ -2605,7 +2588,7 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
     if (moves & Bit(i))
       good[total++] = i; // post inc
 
-  const auto popn{PopCount(moves)};
+  const auto popn = PopCount(moves);
   for (auto i = 0; i < popn; ++i)
     if ((0x1 << i) & index)
       permutations |= Bit(good[i]);
