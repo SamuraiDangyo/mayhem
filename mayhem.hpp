@@ -386,7 +386,7 @@ inline std::uint64_t Bit(const int nth) {
 }
 
 std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
-  return (1000 * nodes) / (ms ? ms : 1); // Nodes Per Second
+  return ms ? ((1000 * nodes) / ms) : nodes; // Nodes Per Second
 }
 
 bool OnBoard(const int x, const int y) { // Slow, but only for init
