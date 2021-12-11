@@ -148,4 +148,4 @@ int nnue_evaluate(
   int* squares                      /** Corresponding array of squares the piece stand on */
 );
 
-}
+} // extern "C"
