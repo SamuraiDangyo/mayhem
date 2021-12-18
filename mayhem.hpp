@@ -2497,40 +2497,43 @@ void UciUci() {
 }
 
 // > perft [depth = 6] [fen = startpos]
-// perft: 124132537
-// perft 5 r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R_w_KQkq_-_0: 197876243
-// perft 5 r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1_w_-_-_0: 168062161
-void UciPerft(const std::string &depth2, const std::string &fen2) {
-  const int depth = depth2.length() ? std::stoi(depth2) : 6;
-  std::string fen = fen2.length() ? fen2 : STARTPOS;
-  std::replace(fen.begin(), fen.end(), '_', ' ');
+// perft -> 124132537
+// perft 5 r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R_w_KQkq_-_0    -> 197876243
+// perft 5 r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1_w_-_-_0 -> 168062161
+void UciPerft(const std::string &d, const std::string &f) {
+  const int depth = d.length() ? std::stoi(d) : 6;
+  std::string fen = f.length() ? f : STARTPOS;
+  std::replace(fen.begin(), fen.end(), '_', ' '); // Hack !
   std::cout << "[ " << fen << " ]" << "\n";
-  std::uint64_t nodes = 0, time = 0;
+  std::uint64_t nodes = 0, total = 0;
   for (auto i = 0; i <= depth; ++i) {
     Fen(fen);
     const auto now    = Now();
     const auto nodes2 = Perft(g_wtm, i);
+    const auto diff   = Now() - now;
     nodes            += nodes2;
-    time             += Now() - now;
+    total            += diff;
     std::cout << "depth " << i << " nodes " << nodes2 << " time " <<
-      (Now() - now) << " nps " << Nps(nodes2, Now() - now) << std::endl;
+      diff << " nps " << Nps(nodes2, diff) << std::endl;
   }
-  std::cout << "\n= " << "nodes " << nodes << " time " << time << " nps " << Nps(nodes, time) << std::endl;
+  std::cout << "\n= " << "nodes " << nodes << " time " << total <<
+    " nps " << Nps(nodes, total) << std::endl;
 }
 
 // > bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]
-// > bench inf 5000 256 1 = speed
-// > bench 11 inf 256 1   = signature
-// bench: 15313000
-void UciBench(const std::string &d, const std::string &t, const std::string &hash, const std::string &nnue) {
-  SetHashtable(hash.length() ? std::stoi(hash) : 256); // Set hash and reset
+// Speed:        bench inf 5000 256 1
+// Signature:    bench 11 inf 256 1
+// bench (NNUE): 15313000
+// bench (HCE):  14908517
+void UciBench(const std::string &d, const std::string &t, const std::string &h, const std::string &nnue) {
+  SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
   g_max_depth         = !d.length() ? 11 : (d == "inf" ? MAX_DEPTH : std::stoi(d)); // Set depth limits
   g_noise             = 0; // Make search deterministic
   g_book_exist        = false; // Disable book
   g_nnue_exist        = !(nnue.length() && nnue == "0"); // Use nnue ?
   std::uint64_t nodes = 0;
   const auto now      = Now();
-  const auto time     = (!t.length() || t == "inf") ? INF : std::stoi(t); // Set depth limits
+  const auto time     = (!t.length() || t == "inf") ? INF : std::stoi(t); // Set time limits
   for (const auto &fen : kBench) {
     std::cout << "[ " << fen << " ]" << "\n";
     Fen(fen);
@@ -2554,8 +2557,8 @@ bool UciCommands() {
   else if (Token("isready"))    std::cout << "readyok" << std::endl;
   else if (Token("setoption"))  UciSetoption();
   else if (Token("uci"))        UciUci();
-  else if (Token("bench"))      UciBench(TokenNth(0), TokenNth(1), TokenNth(2), TokenNth(3)); // Dev command !
-  else if (Token("perft"))      UciPerft(TokenNth(0), TokenNth(1)); // Dev command !
+  else if (Token("bench"))      UciBench(TokenNth(0), TokenNth(1), TokenNth(2), TokenNth(3));
+  else if (Token("perft"))      UciPerft(TokenNth(0), TokenNth(1));
   else if (Token("quit"))       return false;
 
   return g_game_on;
