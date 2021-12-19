@@ -320,9 +320,9 @@ int g_move_overhead = MOVEOVERHEAD, g_level = 100, g_root_n = 0, g_king_w = 0, g
 
 bool g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active = false,
   g_stop_search = false, g_is_pv = false, g_book_exist = false, g_nnue_exist = false,
-  g_classical = false, g_game_on = true, g_frc_problems = false, g_analyzing = false;
+  g_classical = false, g_game_on = true, g_analyzing = false;
 
-Board g_board_tmp = {}, *g_board = &g_board_tmp, *g_moves = nullptr, *g_board_orig = nullptr,
+Board g_board_tmp{}, *g_board = &g_board_tmp, *g_moves = nullptr, *g_board_orig = nullptr,
   g_boards[MAX_DEPTH + MAX_Q_DEPTH + 4][MAX_MOVES] = {};
 
 std::uint32_t g_hash_entries = 0, g_tokens_nth = 0;
@@ -381,7 +381,7 @@ inline int Ycoord(const int sq) {
   return sq >> 3; // / 8
 }
 
-inline std::uint64_t Bit(const int nth) {
+constexpr inline std::uint64_t Bit(const int nth) {
   return 0x1ULL << nth; // Set bit in 1 -> 64
 }
 
@@ -568,14 +568,14 @@ void BuildCastlingBitboard1W() {
   if (g_board->castle & 0x1) {
     g_castle_w[0]       = Fill(g_king_w, 6);
     g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5)) ^
-                            (Bit(g_king_w) | Bit(g_rook_w[0]));
+                          (Bit(g_king_w) | Bit(g_rook_w[0]));
   }
 
   // White: O-O-O
   if (g_board->castle & 0x2) {
     g_castle_w[1]       = Fill(g_king_w, 2);
     g_castle_empty_w[1] = (g_castle_w[1] | Fill(g_rook_w[1], 3)) ^
-                            (Bit(g_king_w) | Bit(g_rook_w[1]));
+                          (Bit(g_king_w) | Bit(g_rook_w[1]));
   }
 }
 
@@ -584,14 +584,14 @@ void BuildCastlingBitboard1B() {
   if (g_board->castle & 0x4) {
     g_castle_b[0]       = Fill(g_king_b, 56 + 6);
     g_castle_empty_b[0] = (g_castle_b[0] | Fill(g_rook_b[0], 56 + 5)) ^
-                            (Bit(g_king_b) | Bit(g_rook_b[0]));
+                          (Bit(g_king_b) | Bit(g_rook_b[0]));
   }
 
   // Black: O-O-O
   if (g_board->castle & 0x8) {
     g_castle_b[1]       = Fill(g_king_b, 56 + 2);
     g_castle_empty_b[1] = (g_castle_b[1] | Fill(g_rook_b[1], 56 + 3)) ^
-                            (Bit(g_king_b) | Bit(g_rook_b[1]));
+                          (Bit(g_king_b) | Bit(g_rook_b[1]));
   }
 }
 
@@ -931,8 +931,7 @@ void HandleCastlingB(const int mtype, const int from, const int to) {
 }
 
 void AddCastleOOW() {
-  if (ChecksCastleB(g_castle_w[0]))
-    return;
+  if (ChecksCastleB(g_castle_w[0])) return;
 
   HandleCastlingW(1, g_king_w, 6);
 
@@ -948,8 +947,7 @@ void AddCastleOOW() {
 }
 
 void AddCastleOOB() {
-  if (ChecksCastleW(g_castle_b[0]))
-    return;
+  if (ChecksCastleW(g_castle_b[0])) return;
 
   HandleCastlingB(3, g_king_b, 56 + 6);
 
@@ -965,8 +963,7 @@ void AddCastleOOB() {
 }
 
 void AddCastleOOOW() {
-  if (ChecksCastleB(g_castle_w[1]))
-    return;
+  if (ChecksCastleB(g_castle_w[1])) return;
 
   HandleCastlingW(2, g_king_w, 2);
 
@@ -982,8 +979,7 @@ void AddCastleOOOW() {
 }
 
 void AddCastleOOOB() {
-  if (ChecksCastleW(g_castle_b[1]))
-    return;
+  if (ChecksCastleW(g_castle_b[1])) return;
 
   HandleCastlingB(4, g_king_b, 56 + 2);
 
@@ -1048,8 +1044,7 @@ void HandleCastlingRights() {
 }
 
 void ModifyPawnStuffW(const int from, const int to) {
-  if (g_board->pieces[to] != +1)
-    return;
+  if (g_board->pieces[to] != +1) return;
 
   g_board->fifty = 0;
   if (to == g_board_orig->epsq) {
@@ -1064,8 +1059,7 @@ void ModifyPawnStuffW(const int from, const int to) {
 }
 
 void ModifyPawnStuffB(const int from, const int to) {
-  if (g_board->pieces[to] != -1)
-    return;
+  if (g_board->pieces[to] != -1) return;
 
   g_board->fifty = 0;
   if (to == g_board_orig->epsq) {
@@ -1477,26 +1471,19 @@ bool EasyDraw(const bool wtm) {
   return pawns_n == 1 ? ProbeKPK(wtm) : (pawns_n == 0);
 }
 
-// Only look for bishop penalty when it's possible
-bool AnyFRCProblems() {
-  return ((g_board->white[2] & Bit(0))  && (g_board->white[0] & Bit(9)))  ||
-         ((g_board->white[2] & Bit(7))  && (g_board->white[0] & Bit(14))) ||
-         ((g_board->black[2] & Bit(56)) && (g_board->black[0] & Bit(49))) ||
-         ((g_board->black[2] & Bit(63)) && (g_board->black[0] & Bit(54)));
-}
-
 // Trapped bishop penalty in FRC
 // Bishop on a1/h1/a8/h8 blocked by own pawn
 int FixFRC() {
-  // Small speedup since pawns can't move backwards
-  if (!g_frc_problems)
+  // No bishop in corner -> speedup
+  constexpr std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
+  if (!((g_board->white[2] | g_board->black[2]) & corners))
     return 0;
 
   auto s = 0;
-  if ((g_board->white[2] & Bit(0))  && (g_board->white[0] & Bit(9)))  s += -FRC_PENALTY;
-  if ((g_board->white[2] & Bit(7))  && (g_board->white[0] & Bit(14))) s += -FRC_PENALTY;
-  if ((g_board->black[2] & Bit(56)) && (g_board->black[0] & Bit(49))) s -= -FRC_PENALTY;
-  if ((g_board->black[2] & Bit(63)) && (g_board->black[0] & Bit(54))) s -= -FRC_PENALTY;
+  if (g_board->pieces[0]  == +3 && g_board->pieces[9]  == +1) s += -FRC_PENALTY;
+  if (g_board->pieces[7]  == +3 && g_board->pieces[14] == +1) s += -FRC_PENALTY;
+  if (g_board->pieces[56] == -3 && g_board->pieces[49] == -1) s += +FRC_PENALTY;
+  if (g_board->pieces[63] == -3 && g_board->pieces[54] == -1) s += +FRC_PENALTY;
   return s;
 }
 
@@ -2323,7 +2310,6 @@ void SearchRootMoves(const bool is_eg) {
 void ThinkReset() {
   g_stop_search = g_nullmove_active = g_is_pv = false;
   g_q_depth = g_best_score = g_nodes = g_depth = 0;
-  g_frc_problems = AnyFRCProblems();
 }
 
 void Think(const int ms) {
@@ -2331,8 +2317,7 @@ void Think(const int ms) {
   g_stop_search_time = Now() + static_cast<std::uint64_t>(ms);
   ThinkReset();
   MgenRoot();
-  if (FastMove(ms))
-    return;
+  if (FastMove(ms)) return;
 
   const auto tmp = g_board;
   const Material m{};
@@ -2521,10 +2506,10 @@ void UciPerft(const std::string &d, const std::string &f) {
 }
 
 // > bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]
-// Speed:        bench inf 5000 256 1
-// Signature:    bench 11 inf 256 1
-// bench (NNUE): 15313000
-// bench (HCE):  14908517
+// Speed:     bench inf 5000
+// Signature: bench 11 inf
+// bench 11 inf 256 1 -> 15313000 (NNUE)
+// bench 11 inf 256 0 -> 14908517 (HCE)
 void UciBench(const std::string &d, const std::string &t, const std::string &h, const std::string &nnue) {
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
   g_max_depth         = !d.length() ? 11 : (d == "inf" ? MAX_DEPTH : std::stoi(d)); // Set depth limits
