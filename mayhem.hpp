@@ -1719,9 +1719,9 @@ struct ClassicalEval {
   void white_is_mating() {
     if (this->white_n == 3) {
       if (this->wnn == 1 && this->wbn == 1) {this->bonus_knbk_w(); return;}
-      if (this->wbn == 1 && this->wpn == 1) {this->check_blind_bishop_w(); return;}
+      if (this->wbn == 1 && this->wpn == 1) {this->check_blind_bishop_w();}
       // Can't force mate w/ 2 knights -> Scale
-      if (this->wnn == 2)                   {this->scale_factor = 4;}
+      else if (this->wnn == 2)              {this->scale_factor = 2;}
     }
     this->bonus_mating_w();
   }
@@ -1729,8 +1729,8 @@ struct ClassicalEval {
   void black_is_mating() {
     if (this->black_n == 3) {
       if (this->bnn == 1 && this->bbn == 1) {this->bonus_knbk_b(); return;}
-      if (this->bbn == 1 && this->bpn == 1) {this->check_blind_bishop_b(); return;}
-      if (this->bnn == 2)                   {this->scale_factor = 4;}
+      if (this->bbn == 1 && this->bpn == 1) {this->check_blind_bishop_b();}
+      else if (this->bnn == 2)              {this->scale_factor = 2;}
     }
     this->bonus_mating_b();
   }
@@ -2187,9 +2187,7 @@ int BestB() {
 struct Material {
   const int white_n, black_n, both_n;
 
-  Material() :
-    white_n{PopCount(White())},
-    black_n{PopCount(Black())},
+  Material() : white_n{PopCount(White())}, black_n{PopCount(Black())},
     both_n{this->white_n + this->black_n} { }
 
   // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
@@ -2291,10 +2289,8 @@ void SearchRootMoves(const bool is_eg) {
 
   for ( ; std::abs(g_best_score) != INF && g_depth < g_max_depth && !g_stop_search; ++g_depth) {
     g_best_score = g_wtm ? BestW() : BestB();
-
     // Switch to classical only when the game is decided ( 4+ pawns ) !
     g_classical = g_classical || (is_eg && std::abs(g_best_score) > (4 * 100) && ((++good) >= 7));
-
     SpeakUci(g_best_score, Now() - now);
     g_q_depth = std::min(g_q_depth + 2, MAX_Q_DEPTH);
   }
@@ -2366,7 +2362,7 @@ void UciMakeMove() {
 }
 
 void UciTakeSpecialFen() {
-  TokenPop(); // fen
+  TokenPop(); // pop "fen"
 
   std::string fen{};
   for ( ; TokenOk() && !TokenPeek("moves"); TokenPop())
@@ -2480,8 +2476,7 @@ void UciUci() {
 
 // > perft [depth = 6] [fen = startpos]
 // perft -> 124132537
-// perft 5 r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R_w_KQkq_-_0    -> 197876243
-// perft 5 r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1_w_-_-_0 -> 168062161
+// perft 5 r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R_w_KQkq_-_0 -> 197876243
 void UciPerft(const std::string &d, const std::string &f) {
   const int depth = d.length() ? std::stoi(d) : 6;
   std::string fen = f.length() ? f : STARTPOS;
