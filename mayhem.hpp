@@ -1340,13 +1340,13 @@ inline void MgenSetupBoth() {
 void MgenSetupW() {
   MgenSetupBoth();
   g_pawn_sq = g_black | (g_board->epsq > 0 ? Bit(g_board->epsq) &
-                          0x0000FF0000000000ULL : 0);
+                         0x0000FF0000000000ULL : 0);
 }
 
 void MgenSetupB() {
   MgenSetupBoth();
   g_pawn_sq = g_white | (g_board->epsq > 0 ? Bit(g_board->epsq) &
-                          0x0000000000FF0000ULL : 0);
+                         0x0000000000FF0000ULL : 0);
 }
 
 void MgenAllW() {
@@ -1480,10 +1480,10 @@ int FixFRC() {
     return 0;
 
   auto s = 0;
-  if (g_board->pieces[0]  == +3 && g_board->pieces[9]  == +1) s += -FRC_PENALTY;
-  if (g_board->pieces[7]  == +3 && g_board->pieces[14] == +1) s += -FRC_PENALTY;
-  if (g_board->pieces[56] == -3 && g_board->pieces[49] == -1) s += +FRC_PENALTY;
-  if (g_board->pieces[63] == -3 && g_board->pieces[54] == -1) s += +FRC_PENALTY;
+  if (g_board->pieces[0]  == +3 && g_board->pieces[9]  == +1) s -= FRC_PENALTY;
+  if (g_board->pieces[7]  == +3 && g_board->pieces[14] == +1) s -= FRC_PENALTY;
+  if (g_board->pieces[56] == -3 && g_board->pieces[49] == -1) s += FRC_PENALTY;
+  if (g_board->pieces[63] == -3 && g_board->pieces[54] == -1) s += FRC_PENALTY;
   return s;
 }
 
@@ -1692,50 +1692,47 @@ struct ClassicalEval {
 
   void bonus_special_5men() {
     // KRRvKR / KR(NB)vK(NB)
-    if (     (this->wrn == 2 && this->brn) ||
+    if ((this->wrn == 2 && this->brn) ||
         (this->wrn && (this->wbn || this->wnn) && (this->bbn || this->bnn)))
       this->bonus_mating_w();
     // KRvKRR / K(NB)vKR(NB)
     else if ((this->brn == 2 && this->wrn) ||
-        (this->brn && (this->bbn || this->bnn) && (this->wbn || this->wnn)))
+             (this->brn && (this->bbn || this->bnn) && (this->wbn || this->wnn)))
       this->bonus_mating_b();
   }
 
   // Blind KBPvK ( Not perfect, just a hint ) -> Drawish ?
   void check_blind_bishop_w() {
-    if (this->white_n == 3 && this->wbn && this->wpn) {
-      const auto wpx   = Xcoord(Ctz(g_board->white[0]));
-      const auto color = g_board->white[2] & 0x55aa55aa55aa55aaULL;
-      if ((color && wpx == 7) || (!color && wpx == 0))
-        this->scale_factor = 2;
-    }
+    const auto wpx   = Xcoord(Ctz(g_board->white[0]));
+    const auto color = g_board->white[2] & 0x55aa55aa55aa55aaULL;
+    if ((color && wpx == 7) || (!color && wpx == 0))
+      this->scale_factor = 2;
   }
 
   void check_blind_bishop_b() {
-    if (this->black_n == 3 && this->bbn && this->bpn) {
-      const auto bpx   = Xcoord(Ctz(g_board->black[0]));
-      const auto color = g_board->black[2] & 0x55aa55aa55aa55aaULL;
-      if ((!color && bpx == 7) || (color && bpx == 0))
-        this->scale_factor = 2;
-    }
+    const auto bpx   = Xcoord(Ctz(g_board->black[0]));
+    const auto color = g_board->black[2] & 0x55aa55aa55aa55aaULL;
+    if ((!color && bpx == 7) || (color && bpx == 0))
+      this->scale_factor = 2;
   }
 
   void white_is_mating() {
-    if (this->white_n == 3 && this->wnn && this->wbn) {
-      this->bonus_knbk_w();
-    } else {
-      this->bonus_mating_w();
-      this->check_blind_bishop_w();
+    if (this->white_n == 3) {
+      if (this->wnn == 1 && this->wbn == 1) {this->bonus_knbk_w(); return;}
+      if (this->wbn == 1 && this->wpn == 1) {this->check_blind_bishop_w(); return;}
+      // Can't force mate w/ 2 knights -> Scale
+      if (this->wnn == 2)                   {this->scale_factor = 4;}
     }
+    this->bonus_mating_w();
   }
 
   void black_is_mating() {
-    if (this->black_n == 3 && this->bnn && this->bbn) {
-      this->bonus_knbk_b();
-    } else {
-      this->bonus_mating_b();
-      this->check_blind_bishop_b();
+    if (this->black_n == 3) {
+      if (this->bnn == 1 && this->bbn == 1) {this->bonus_knbk_b(); return;}
+      if (this->bbn == 1 && this->bpn == 1) {this->check_blind_bishop_b(); return;}
+      if (this->bnn == 2)                   {this->scale_factor = 4;}
     }
+    this->bonus_mating_b();
   }
 
   // Special EG functions. To avoid always doing "Tabula rasa"
@@ -2507,9 +2504,9 @@ void UciPerft(const std::string &d, const std::string &f) {
 
 // > bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]
 // Speed:     bench inf 5000
-// Signature: bench 11 inf / bench
-// bench 11 inf 256 1 -> 15313000 (NNUE)
-// bench 11 inf 256 0 -> 14908517 (HCE)
+// Signature: bench 11 inf
+// bench              -> 15313000
+// bench 11 inf 256 0 -> 14908517
 void UciBench(const std::string &d, const std::string &t, const std::string &h, const std::string &nnue) {
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
   g_max_depth         = !d.length() ? 11 : (d == "inf" ? MAX_DEPTH : std::stoi(d)); // Set depth limits
@@ -2517,8 +2514,8 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
   g_book_exist        = false; // Disable book
   g_nnue_exist        = g_nnue_exist && nnue != "0"; // Use nnue ?
   std::uint64_t nodes = 0;
-  const auto now      = Now();
   const auto time     = (!t.length() || t == "inf") ? INF : std::stoi(t); // Set time limits
+  const auto now      = Now();
   for (const auto &fen : kBench) {
     std::cout << "[ " << fen << " ]" << "\n";
     Fen(fen);
