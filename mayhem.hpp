@@ -2507,7 +2507,7 @@ void UciPerft(const std::string &d, const std::string &f) {
 
 // > bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]
 // Speed:     bench inf 5000
-// Signature: bench 11 inf
+// Signature: bench 11 inf / bench
 // bench 11 inf 256 1 -> 15313000 (NNUE)
 // bench 11 inf 256 0 -> 14908517 (HCE)
 void UciBench(const std::string &d, const std::string &t, const std::string &h, const std::string &nnue) {
@@ -2515,7 +2515,7 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
   g_max_depth         = !d.length() ? 11 : (d == "inf" ? MAX_DEPTH : std::stoi(d)); // Set depth limits
   g_noise             = 0; // Make search deterministic
   g_book_exist        = false; // Disable book
-  g_nnue_exist        = !(nnue.length() && nnue == "0"); // Use nnue ?
+  g_nnue_exist        = g_nnue_exist && nnue != "0"; // Use nnue ?
   std::uint64_t nodes = 0;
   const auto now      = Now();
   const auto time     = (!t.length() || t == "inf") ? INF : std::stoi(t); // Set time limits
