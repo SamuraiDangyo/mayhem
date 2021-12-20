@@ -397,7 +397,7 @@ inline bool IsUnderpromo(const Board *b) { // =n / =b / =r
   return b->type == 5 || b->type == 6 || b->type == 7;
 }
 
-void Ok(const bool test, const std::string &msg) {
+void Ok(const bool test, const std::string &msg) { // Simple assert
   if (!test) {
     std::cout << "info string " << msg << std::endl;
     std::exit(EXIT_FAILURE);
@@ -501,12 +501,10 @@ void SetHashtable(int hash_mb) {
 inline std::uint64_t Hash(const bool wtm) {
   auto ret = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[wtm] ^
              g_zobrist_castle[g_board->castle];
-
   for (auto both = Both(); both; ) {
     const auto sq = CtzPop(&both);
     ret ^= g_zobrist_board[g_board->pieces[sq] + 6][sq];
   }
-
   return ret;
 }
 
@@ -549,7 +547,7 @@ void BuildBitboards() {
     else if (g_board->pieces[i] < 0) g_board->black[-g_board->pieces[i] - 1] |= Bit(i);
 }
 
-std::uint64_t Fill(int from, const int to) { // from / to -> always good
+std::uint64_t Fill(int from, const int to) { // from / to -> Always good
   auto ret = Bit(from);
   if (from == to)
     return ret;
@@ -829,7 +827,7 @@ void SortNthMoves(const int nth) {
       if (g_moves[j] > g_moves[i])
         std::swap(g_moves[j], g_moves[i]);
 
-    // Can't sort since no scores -> quit
+    // Can't sort since no scores -> Quit
     if constexpr (noisy)
       if (!g_moves[i].score)
         return;
@@ -867,7 +865,7 @@ void EvalRootMoves() {
                       (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) +
                       // =r / =b / =n
                       (IsUnderpromo(g_board) ? -5000 : 0) +
-                      // Make some noise !!!
+                      // Add noise -> Make unpredictable
                       (g_noise ? Random(-g_noise, +g_noise) : 0) +
                       // Full eval
                       (g_wtm ? +1 : -1) * Evaluate(g_wtm);
@@ -1157,7 +1155,7 @@ inline void CheckNormalCapturesB(const int me, const int eat, const int to) {
   }
 }
 
-// If not under checks -> handle castling -> add move
+// If not under checks -> Handle castling rights -> Add move
 inline void AddMoveIfOkW() {
   if (!ChecksB())
     HandleCastlingRights(), ++g_moves_n;
@@ -1339,14 +1337,14 @@ inline void MgenSetupBoth() {
 
 void MgenSetupW() {
   MgenSetupBoth();
-  g_pawn_sq = g_black | (g_board->epsq > 0 ? Bit(g_board->epsq) &
-                         0x0000FF0000000000ULL : 0);
+  g_pawn_sq = g_black |
+              (g_board->epsq > 0 ? Bit(g_board->epsq) & 0x0000FF0000000000ULL : 0);
 }
 
 void MgenSetupB() {
   MgenSetupBoth();
-  g_pawn_sq = g_white | (g_board->epsq > 0 ? Bit(g_board->epsq) &
-                         0x0000000000FF0000ULL : 0);
+  g_pawn_sq = g_white |
+              (g_board->epsq > 0 ? Bit(g_board->epsq) & 0x0000000000FF0000ULL : 0);
 }
 
 void MgenAllW() {
@@ -1442,7 +1440,7 @@ void MgenRoot() { // Only root moves
 #define CHECKS_BONUS       17
 #define FRC_PENALTY        400
 
-// Probe Eucalyptus KPK bitbases
+// Probe Eucalyptus KPK bitbases -> true = draw -> false = not draw
 inline bool ProbeKPK(const bool wtm) {
   return g_board->white[0] ?
     eucalyptus::IsDraw(Ctz(g_board->white[5]), Ctz(g_board->white[0]), Ctz(g_board->black[5]), wtm) :
@@ -1474,7 +1472,7 @@ bool EasyDraw(const bool wtm) {
 // Trapped bishop penalty in FRC
 // Bishop on a1/h1/a8/h8 blocked by own pawn
 int FixFRC() {
-  // No bishop in corner -> speedup
+  // No bishop in corner -> Speedup
   constexpr std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
   if (!((g_board->white[2] | g_board->black[2]) & corners))
     return 0;
@@ -1510,7 +1508,7 @@ struct ClassicalEval {
   int white_n, black_n, both_n, wk, bk, wpn, wnn, wbn, wrn, wqn,
       bpn, bnn, bbn, brn, bqn, score, mg, eg, scale_factor;
 
-  // explicit -> force curly init
+  // explicit -> Force curly init
   explicit ClassicalEval(const bool wtm2) :
     white{White()}, black{Black()}, both{this->white | this->black}, wtm{wtm2}, white_n{0},
     black_n{0}, both_n{0}, wk{0}, bk{0}, wpn{0}, wnn{0}, wbn{0}, wrn{0}, wqn{0}, bpn{0},
@@ -1586,15 +1584,15 @@ struct ClassicalEval {
   void queen_w(const int sq) {
     ++this->wqn;
     this->pesto_w(4, sq);
-    this->mobility_w(2, (BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) &
-                          (~this->white));
+    this->mobility_w(2, ((BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) &
+                         (~this->white)));
   }
 
   void queen_b(const int sq) {
     ++this->bqn;
     this->pesto_b(4, sq);
-    this->mobility_b(2, (BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) &
-                          (~this->black));
+    this->mobility_b(2, ((BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) &
+                         (~this->black)));
   }
 
   void king_w(const int sq) {
@@ -1636,17 +1634,17 @@ struct ClassicalEval {
   }
 
   void bonus_knbk_w() {
-    this->score += (2 * CloseBonus(this->wk, this->bk)) +
-                   ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ?
-                     10 * std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
-                     10 * std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk)));
+    this->score += 2 * CloseBonus(this->wk, this->bk);
+    this->score += (g_board->white[2] & 0xaa55aa55aa55aa55ULL) ?
+                    10 * std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
+                    10 * std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk));
   }
 
   void bonus_knbk_b() {
-    this->score -= (2 * CloseBonus(this->wk, this->bk)) +
-                   ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ?
-                     10 * std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
-                     10 * std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk)));
+    this->score -= 2 * CloseBonus(this->wk, this->bk);
+    this->score -= (g_board->black[2] & 0xaa55aa55aa55aa55ULL) ?
+                    10 * std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
+                    10 * std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk));
   }
 
   void bonus_tempo() {
@@ -1720,7 +1718,7 @@ struct ClassicalEval {
     if (this->white_n == 3) {
       if (this->wnn == 1 && this->wbn == 1) {this->bonus_knbk_w(); return;}
       if (this->wbn == 1 && this->wpn == 1) {this->check_blind_bishop_w();}
-      // Can't force mate w/ 2 knights -> Scale
+      // Can't force mate w/ 2 knights -> Scale down
       else if (this->wnn == 2)              {this->scale_factor = 2;}
     }
     this->bonus_mating_w();
@@ -1823,10 +1821,9 @@ int LevelNoise() { // 0 -> 10 pawns
 
 int Evaluate(const bool wtm) {
   return LevelNoise() +
-    (EasyDraw(wtm) ?
-      0 :
-      (g_scale[g_board->fifty] * static_cast<float>(
-        g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm))));
+    (EasyDraw(wtm) ? 0 :
+     (g_scale[g_board->fifty] *
+      static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm))));
 }
 
 // Search
@@ -2296,7 +2293,7 @@ void SearchRootMoves(const bool is_eg) {
   }
 
   g_last_eval = g_best_score;
-  if (!g_q_depth) // Print smt for UCI
+  if (!g_q_depth) // Nothing searched -> Print smt for UCI
     SpeakUci(g_last_eval, Now() - now);
 }
 
@@ -2358,7 +2355,7 @@ void UciMakeMove() {
       return;
     }
 
-  Ok(false, "Bad move");
+  Ok(false, "Bad move"); // No move found -> Quit
 }
 
 void UciTakeSpecialFen() {
@@ -2478,7 +2475,7 @@ void UciUci() {
 // perft -> 124132537
 // perft 5 r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R_w_KQkq_-_0 -> 197876243
 void UciPerft(const std::string &d, const std::string &f) {
-  const int depth = d.length() ? std::stoi(d) : 6;
+  const int depth = d.length() ? std::max(0, std::stoi(d)) : 6;
   std::string fen = f.length() ? f : STARTPOS;
   std::replace(fen.begin(), fen.end(), '_', ' '); // Hack !
   std::cout << "[ " << fen << " ]" << "\n";
@@ -2502,14 +2499,17 @@ void UciPerft(const std::string &d, const std::string &f) {
 // Signature: bench 11 inf
 // bench              -> 15313000
 // bench 11 inf 256 0 -> 14908517
-void UciBench(const std::string &d, const std::string &t, const std::string &h, const std::string &nnue) {
+void UciBench(const std::string &d, const std::string &t,
+              const std::string &h, const std::string &nnue) {
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
-  g_max_depth         = !d.length() ? 11 : (d == "inf" ? MAX_DEPTH : std::stoi(d)); // Set depth limits
+  g_max_depth         = (!d.length()) ? 11 : (d == "inf" ? MAX_DEPTH :
+                          std::clamp(std::stoi(d), 0, MAX_DEPTH)); // Set depth limits
   g_noise             = 0; // Make search deterministic
   g_book_exist        = false; // Disable book
   g_nnue_exist        = g_nnue_exist && nnue != "0"; // Use nnue ?
   std::uint64_t nodes = 0;
-  const auto time     = (!t.length() || t == "inf") ? INF : std::stoi(t); // Set time limits
+  const auto time     = (!t.length() || t == "inf") ? INF :
+                        std::max(0, std::stoi(t)); // Set time limits
   const auto now      = Now();
   for (const auto &fen : kBench) {
     std::cout << "[ " << fen << " ]" << "\n";
@@ -2686,8 +2686,7 @@ void InitJumpMoves() {
 
 void InitZobrist() {
   for (auto i = 0; i < 13; ++i)
-    for (auto j = 0; j < 64; ++j)
-      g_zobrist_board[i][j] = Random8x64();
+    for (auto j = 0; j < 64; ++j) g_zobrist_board[i][j] = Random8x64();
   for (auto i = 0; i < 64; ++i) g_zobrist_ep[i]     = Random8x64();
   for (auto i = 0; i < 16; ++i) g_zobrist_castle[i] = Random8x64();
   for (auto i = 0; i <  2; ++i) g_zobrist_wtm[i]    = Random8x64();
@@ -2709,6 +2708,7 @@ void PrintVersion() {
   std::cout << VERSION << " by Toni Helminen" << std::endl;
 }
 
+// Mayhem initialization (required to work)
 void Init() {
   InitBishopMagics();
   InitRookMagics();
