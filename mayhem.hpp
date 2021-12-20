@@ -292,11 +292,11 @@ struct Board {
 
 struct HashEntry {
   // Hashes for eval and sort
-  std::uint64_t eval_hash = 0, sort_hash = 0;
+  std::uint64_t eval_hash{0}, sort_hash{0};
   // Score for NNUE only
-  std::int32_t score = 0;
+  std::int32_t score{0};
   // Indexes for sorting
-  std::uint8_t killer = 0, good = 0, quiet = 0;
+  std::uint8_t killer{0}, good{0}, quiet{0};
 };
 
 // Enums
@@ -385,8 +385,8 @@ constexpr inline std::uint64_t Bit(const int nth) {
   return 0x1ULL << nth; // Set bit in 1 -> 64
 }
 
-std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
-  return ms ? ((1000 * nodes) / ms) : nodes; // Nodes Per Second
+std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) { // Nodes Per Second
+  return (1000 * nodes) / std::max<std::uint64_t>(1, ms);
 }
 
 bool OnBoard(const int x, const int y) { // Slow, but only for init
@@ -699,7 +699,7 @@ void FenGen(const std::string &fen) {
   std::vector<std::string> tokens{};
 
   SplitString<std::vector<std::string>>(fen, tokens);
-  Ok(fen.length() >= 10 && tokens.size() >= 5, "Bad fen #1");
+  Ok(fen.length() >= 10 && tokens.size() >= 5, "Bad fen");
 
   FenBoard(tokens[0]);
   g_wtm = tokens[1][0] == 'w';
@@ -726,19 +726,10 @@ void FenReset() {
     g_board->white[i] = g_board->black[i] = 0;
 }
 
-// Not perfect. Just avoid obvious crashes
-bool BoardIsGood() {
-         // 1 king per side
-  return (PopCount(g_board->white[5]) == 1 && PopCount(g_board->black[5]) == 1) &&
-         // No illegal checks
-         (!(g_wtm ? ChecksW() : ChecksB()));
-}
-
 void Fen(const std::string &fen) {
   FenReset();
   FenGen(fen);
   BuildBitboards();
-  Ok(BoardIsGood(), "Bad fen #2");
 }
 
 // Checks
@@ -1716,19 +1707,21 @@ struct ClassicalEval {
 
   void white_is_mating() {
     if (this->white_n == 3) {
-      if (this->wnn == 1 && this->wbn == 1) {this->bonus_knbk_w(); return;}
-      if (this->wbn == 1 && this->wpn == 1) {this->check_blind_bishop_w();}
+      // Special mating pattern
+      if (this->wbn == 1 && this->wnn == 1) {this->bonus_knbk_w(); return;}
+      // Don't force to corner -> Try to promote
+      if (this->wbn == 1 && this->wpn == 1) {this->check_blind_bishop_w(); return;}
       // Can't force mate w/ 2 knights -> Scale down
-      else if (this->wnn == 2)              {this->scale_factor = 2;}
+      if (this->wnn == 2)                   {this->scale_factor = 2;}
     }
     this->bonus_mating_w();
   }
 
   void black_is_mating() {
     if (this->black_n == 3) {
-      if (this->bnn == 1 && this->bbn == 1) {this->bonus_knbk_b(); return;}
-      if (this->bbn == 1 && this->bpn == 1) {this->check_blind_bishop_b();}
-      else if (this->bnn == 2)              {this->scale_factor = 2;}
+      if (this->bbn == 1 && this->bnn == 1) {this->bonus_knbk_b(); return;}
+      if (this->bbn == 1 && this->bpn == 1) {this->check_blind_bishop_b(); return;}
+      if (this->bnn == 2)                   {this->scale_factor = 2;}
     }
     this->bonus_mating_b();
   }
@@ -1829,13 +1822,12 @@ int Evaluate(const bool wtm) {
 // Search
 
 void SpeakUci(const int score, const std::uint64_t ms) {
-  std::cout << "info depth " << std::min(g_max_depth, g_depth + 1);
-  std::cout << " nodes " << g_nodes;
-  std::cout << " time " << ms;
-  std::cout << " nps " << Nps(g_nodes, ms);
-  std::cout << " score cp " << ((g_wtm ? +1 : -1) * (std::abs(score) == INF ? score / 100 : score));
-  std::cout << " pv " << MoveName(g_boards[0]);
-  std::cout << std::endl; // flush
+  std::cout << "info depth " << std::min(g_max_depth, g_depth + 1) <<
+    " nodes " << g_nodes <<
+    " time " << ms <<
+    " nps " << Nps(g_nodes, ms) <<
+    " score cp " << ((g_wtm ? +1 : -1) * (std::abs(score) == INF ? score / 100 : score)) <<
+    " pv " << MoveName(g_boards[0]) << std::endl; // flush
 }
 
 // g_r50_positions.pop() must contain hash !
@@ -2325,11 +2317,9 @@ void Think(const int ms) {
 // Perft
 
 std::uint64_t Perft(const bool wtm, const int ply) {
-  if (ply <= 0)
-    return 1;
+  if (ply <= 0) return 1;
   const auto moves_n = wtm ? MgenW(g_boards[ply]) : MgenB(g_boards[ply]);
-  if (ply == 1) // Bulk counting
-    return moves_n;
+  if (ply == 1) return moves_n; // Bulk counting
   std::uint64_t nodes = 0;
   for (auto i = 0; i < moves_n; ++i)
     g_board = g_boards[ply] + i, nodes += Perft(!wtm, ply - 1);
@@ -2509,7 +2499,7 @@ void UciBench(const std::string &d, const std::string &t,
   g_nnue_exist        = g_nnue_exist && nnue != "0"; // Use nnue ?
   std::uint64_t nodes = 0;
   const auto time     = (!t.length() || t == "inf") ? INF :
-                        std::max(0, std::stoi(t)); // Set time limits
+                          std::max(0, std::stoi(t)); // Set time limits
   const auto now      = Now();
   for (const auto &fen : kBench) {
     std::cout << "[ " << fen << " ]" << "\n";
@@ -2518,11 +2508,11 @@ void UciBench(const std::string &d, const std::string &t,
     nodes += g_nodes;
     std::cout << std::endl;
   }
-  std::cout << "===========================" << "\n\n";
-  std::cout << "Mode:  " << (g_nnue_exist ? "NNUE" : "HCE") << "\n";
-  std::cout << "Nodes: " << nodes << "\n";
-  std::cout << "NPS:   " << Nps(nodes, Now() - now) << "\n";
-  std::cout << "Time:  " << (Now() - now) << std::endl;
+  std::cout << "===========================" << "\n\n" <<
+               "Nodes: " << nodes << "\n" <<
+               "NPS:   " << Nps(nodes, Now() - now) << "\n" <<
+               "Time:  " << (Now() - now)  << "\n" <<
+               "Mode:  " << (g_nnue_exist ? "NNUE" : "HCE") << std::endl;
 }
 
 bool UciCommands() {
