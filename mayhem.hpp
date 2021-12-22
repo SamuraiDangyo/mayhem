@@ -290,18 +290,19 @@ struct Board {
   }
 };
 
-struct HashEntry {
+struct HashEntry { // 176B
   // Hashes for eval and sort
-  std::uint64_t eval_hash{0}, sort_hash{0};
+  std::uint64_t eval_hash{0};
+  std::uint32_t killer_hash{0}, good_hash{0};
   // Score for NNUE only
   std::int32_t score{0};
   // Indexes for sorting
-  std::uint8_t killer{0}, good{0}, quiet{0};
+  std::uint8_t killer{0}, good{0};
 };
 
 // Enums
 
-enum class MoveType { kKiller, kGood, kQuiet };
+enum class MoveType { kKiller, kGood };
 
 // Variables
 
@@ -699,7 +700,11 @@ void FenGen(const std::string &fen) {
   std::vector<std::string> tokens{};
 
   SplitString<std::vector<std::string>>(fen, tokens);
-  Ok(fen.length() >= 10 && tokens.size() >= 5, "Bad fen");
+  Ok(fen.length() >= std::string_view("k6K/8/8/8/8/8/8/8 w - - 0").length() &&
+      tokens.size() >= 5 &&
+      tokens[0].find('K') != std::string::npos &&
+      tokens[0].find('k') != std::string::npos,
+    "Bad fen");
 
   FenBoard(tokens[0]);
   g_wtm = tokens[1][0] == 'w';
@@ -794,8 +799,7 @@ char PromoLetter(const std::int8_t piece) {
 }
 
 const std::string MoveName(const Board *move) {
-  auto from = move->from;
-  auto to   = move->to;
+  auto from = move->from, to = move->to;
 
   switch (move->type) {
     case 1: from = g_king_w; to = g_chess960 ? g_rook_w[0] : 6;      break;
@@ -839,11 +843,10 @@ int EvaluateMoves() {
 
 // Best moves put first for maximum cutoffs
 void SortByScore(const HashEntry *entry, const std::uint64_t hash) {
-  if (entry->sort_hash == hash) {
-    if (entry->killer) g_moves[entry->killer - 1].score += 10000;
-    if (entry->good)   g_moves[entry->good   - 1].score += 7000;
-    if (entry->quiet)  g_moves[entry->quiet  - 1].score += 3000;
-  }
+  if ((entry->killer_hash == static_cast<std::uint32_t>(hash >> 32)) && entry->killer)
+    g_moves[entry->killer - 1].score += 10000;
+  if ((entry->good_hash == static_cast<std::uint32_t>(hash >> 32)) && entry->good)
+    g_moves[entry->good - 1].score += 7000;
   SortNthMoves<false>(EvaluateMoves());
 }
 
@@ -1822,12 +1825,12 @@ int Evaluate(const bool wtm) {
 // Search
 
 void SpeakUci(const int score, const std::uint64_t ms) {
-  std::cout << "info depth " << std::min(g_max_depth, g_depth + 1) <<
-    " nodes " << g_nodes <<
-    " time " << ms <<
-    " nps " << Nps(g_nodes, ms) <<
-    " score cp " << ((g_wtm ? +1 : -1) * (std::abs(score) == INF ? score / 100 : score)) <<
-    " pv " << MoveName(g_boards[0]) << std::endl; // flush
+  std::cout << "info depth " << std::min(g_max_depth, g_depth + 1);
+  std::cout << " nodes " << g_nodes;
+  std::cout << " time " << ms;
+  std::cout << " nps " << Nps(g_nodes, ms);
+  std::cout << " score cp " << ((g_wtm ? +1 : -1) * (std::abs(score) == INF ? score / 100 : score));
+  std::cout << " pv " << MoveName(g_boards[0]) << std::endl; // flush
 }
 
 // g_r50_positions.pop() must contain hash !
@@ -1916,11 +1919,15 @@ int QSearchB(const int alpha, int beta, const int depth, const int ply) {
 // Update hashtable sorting algorithm
 void UpdateSort(HashEntry *entry, const MoveType type,
                 const std::uint64_t hash, const std::uint8_t index) {
-  entry->sort_hash = hash;
   switch (type) {
-    case MoveType::kKiller: entry->killer = index + 1; break;
-    case MoveType::kGood:   entry->good   = index + 1; break;
-    case MoveType::kQuiet:  entry->quiet  = index + 1; break;
+    case MoveType::kKiller:
+      entry->killer_hash = static_cast<std::uint32_t>(hash >> 32);
+      entry->killer      = index + 1;
+      break;
+    case MoveType::kGood:
+      entry->good_hash = static_cast<std::uint32_t>(hash >> 32);
+      entry->good      = index + 1;
+      break;
   }
 }
 
@@ -1957,8 +1964,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
         UpdateSort(entry, MoveType::kKiller, hash, g_boards[ply][i].index);
         return alpha;
       }
-      UpdateSort(entry, g_boards[ply][i].score ? MoveType::kGood : MoveType::kQuiet,
-                 hash, g_boards[ply][i].index);
+      UpdateSort(entry, MoveType::kGood, hash, g_boards[ply][i].index);
     }
   }
 
@@ -1995,8 +2001,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
         UpdateSort(entry, MoveType::kKiller, hash, g_boards[ply][i].index);
         return beta;
       }
-      UpdateSort(entry, g_boards[ply][i].score ? MoveType::kGood : MoveType::kQuiet,
-                 hash, g_boards[ply][i].index);
+      UpdateSort(entry, MoveType::kGood, hash, g_boards[ply][i].index);
     }
   }
 
@@ -2487,8 +2492,8 @@ void UciPerft(const std::string &d, const std::string &f) {
 // > bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]
 // Speed:     bench inf 5000
 // Signature: bench 11 inf
-// bench              -> 15313000
-// bench 11 inf 256 0 -> 14908517
+// bench              -> 15775315
+// bench 11 inf 256 0 -> 15031391
 void UciBench(const std::string &d, const std::string &t,
               const std::string &h, const std::string &nnue) {
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
@@ -2508,11 +2513,11 @@ void UciBench(const std::string &d, const std::string &t,
     nodes += g_nodes;
     std::cout << std::endl;
   }
-  std::cout << "===========================" << "\n\n" <<
-               "Nodes: " << nodes << "\n" <<
-               "NPS:   " << Nps(nodes, Now() - now) << "\n" <<
-               "Time:  " << (Now() - now)  << "\n" <<
-               "Mode:  " << (g_nnue_exist ? "NNUE" : "HCE") << std::endl;
+  std::cout << "===========================" << "\n\n";
+  std::cout << "Nodes: " << nodes << "\n";
+  std::cout << "NPS:   " << Nps(nodes, Now() - now) << "\n";
+  std::cout << "Time:  " << (Now() - now)  << "\n";
+  std::cout << "Mode:  " << (g_nnue_exist ? "NNUE" : "HCE") << std::endl;
 }
 
 bool UciCommands() {
