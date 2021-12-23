@@ -26,8 +26,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cmath>
 #include <memory>
 #include <iostream>
+#include <sstream>
 #include <vector>
-#include <fstream>
 #include <cstdint>
 #include <ctime>
 #include <array>
@@ -476,14 +476,12 @@ void ReadInput() {
 
 void SetBook(const std::string &book_file) { // x.nnue
   g_book_exist = book_file.length() <= 1 ? false : g_book.open_book(book_file);
-  std::cout << "info string PolyGlot book " << (g_book_exist ? "enabled" : "disabled") << std::endl;
 }
 
 // NNUE lib
 
 void SetNNUE(const std::string &eval_file) { // x.bin
   g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str());
-  std::cout << "info string NNUE evaluation " << (g_nnue_exist ? "enabled" : "disabled") << std::endl;
 }
 
 // Hashtable
@@ -693,7 +691,7 @@ void FenEp(const std::string &ep) {
 
 void FenRule50(const std::string &fifty) {
   if (fifty.length() != 0 && fifty[0] != '-')
-    g_board->fifty = std::clamp(std::stoi(fifty), 0, 100);
+    g_board->fifty = std::clamp(2 * std::stoi(fifty), 0, 100);
 }
 
 void FenGen(const std::string &fen) {
@@ -2470,8 +2468,8 @@ void UciUci() {
 // perft -> 124132537
 // perft 5 r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R_w_KQkq_-_0 -> 197876243
 void UciPerft(const std::string &d, const std::string &f) {
-  const int depth = d.length() ? std::max(0, std::stoi(d)) : 6;
-  std::string fen = f.length() ? f : STARTPOS;
+  const auto depth = d.length() ? std::max(0, std::stoi(d)) : 6;
+  std::string fen  = f.length() ? f : STARTPOS;
   std::replace(fen.begin(), fen.end(), '_', ' '); // Hack !
   std::cout << "[ " << fen << " ]" << "\n";
   std::uint64_t nodes = 0, total = 0;
@@ -2520,6 +2518,50 @@ void UciBench(const std::string &d, const std::string &t,
   std::cout << "Mode:  " << (g_nnue_exist ? "NNUE" : "HCE") << std::endl;
 }
 
+// Convert Board to FEN
+std::string Board2Fen() {
+  std::stringstream s{};
+  for (auto r = 7; r >= 0; --r) {
+    auto empty = 0;
+    for (auto f = 0; f <= 7; ++f) {
+      if (const auto p = "kqrbnp.PNBRQK"[g_board->pieces[8 * r + f] + 6]; p == '.') {
+        ++empty;
+      } else {
+        if (empty) s << empty;
+        empty = 0;
+        s << p;
+      }
+    }
+    if (empty) s << empty;
+    if (r != 0) s << "/";
+  }
+  s << (g_wtm ? " w " : " b ");
+  if (g_board->castle & 0x1) s << static_cast<char>('A' + g_rook_w[0]);
+  if (g_board->castle & 0x2) s << static_cast<char>('A' + g_rook_w[1]);
+  if (g_board->castle & 0x4) s << static_cast<char>('a' + g_rook_b[0] - 56);
+  if (g_board->castle & 0x8) s << static_cast<char>('a' + g_rook_b[1] - 56);
+  s << (g_board->castle ? " " : "- ");
+  g_board->epsq == -1 ? s << "-" :
+    s << static_cast<char>('a' + Xcoord(g_board->epsq)) << static_cast<char>('1' + Ycoord(g_board->epsq));
+  s << " " << static_cast<int>(g_board->fifty / 2);
+  return s.str();
+}
+
+// Print board + some info
+void UciPrintBoard() {
+  std::cout << "\n +---+---+---+---+---+---+---+---+\n";
+  for (auto r = 7; r >= 0; --r) {
+    for (auto f = 0; f <= 7; ++f)
+      std::cout << " | " << "kqrbnp.PNBRQK"[g_board->pieces[8 * r + f] + 6];
+    std::cout << " | " << (1 + r) << "\n +---+---+---+---+---+---+---+---+\n";
+  }
+  std::cout << "   a   b   c   d   e   f   g   h\n\n";
+  std::cout << "> " << Board2Fen() << "\n";
+  std::cout << "> NNUE( " << (g_nnue_exist ? "OK" : "FAIL") << " ) / ";
+  std::cout << "Book( " << (g_book_exist ? "OK" : "FAIL") << " ) / ";
+  std::cout << "Hash( " << (g_hash_entries) << " )" << std::endl;
+}
+
 bool UciCommands() {
   if (!TokenOk()) return true;
 
@@ -2531,6 +2573,7 @@ bool UciCommands() {
   else if (Token("uci"))        UciUci();
   else if (Token("bench"))      UciBench(TokenNth(0), TokenNth(1), TokenNth(2), TokenNth(3));
   else if (Token("perft"))      UciPerft(TokenNth(0), TokenNth(1));
+  else if (Token("p"))          UciPrintBoard();
   else if (Token("quit"))       return false;
 
   return g_game_on;
