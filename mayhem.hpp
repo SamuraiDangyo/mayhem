@@ -360,7 +360,7 @@ inline std::uint64_t Both() {
 }
 
 inline int Ctz(const std::uint64_t bb) {
-  return __builtin_ctzll(bb); // first 0's
+  return __builtin_ctzll(bb); // Count first 0's
 }
 
 // Count (return) zeros AND then pop (arg) BitBoard
@@ -386,8 +386,8 @@ constexpr inline std::uint64_t Bit(const int nth) {
   return 0x1ULL << nth; // Set bit in 1 -> 64
 }
 
-std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) { // Nodes Per Second
-  return (1000 * nodes) / std::max<std::uint64_t>(1, ms);
+std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
+  return (1000 * nodes) / std::max<std::uint64_t>(1, ms); // Nodes Per Second
 }
 
 bool OnBoard(const int x, const int y) { // Slow, but only for init
@@ -412,7 +412,7 @@ bool InputAvailable() {
   return _kbhit();
 }
 #else
-bool InputAvailable() {
+bool InputAvailable() { // See if cin has smt
   fd_set fd;
   struct timeval tv;
   FD_ZERO(&fd);
@@ -425,13 +425,13 @@ bool InputAvailable() {
 
 } // extern "C"
 
-inline std::uint64_t Now() {
+inline std::uint64_t Now() { // ms since 1970
   return std::chrono::duration_cast<std::chrono::milliseconds>(
            std::chrono::system_clock::now().time_since_epoch())
          .count();
 }
 
-std::uint64_t Random64() {
+std::uint64_t Random64() { // Deterministic Rand()
   static std::uint64_t a = 0X12311227ULL, b = 0X1931311ULL, c = 0X13138141ULL;
 #define MIXER(num) (((num) << 7) ^ ((num) >> 5))
   a ^= b + c;
@@ -440,14 +440,13 @@ std::uint64_t Random64() {
   return MIXER(a) ^ MIXER(b) ^ MIXER(c);
 }
 
-std::uint64_t Random8x64() {
+std::uint64_t Random8x64() { // Mixer for superrandom
   std::uint64_t ret = 0;
-  for (auto i = 0; i < 8; ++i)
-    ret ^= Random64() << (8 * i);
+  for (auto i = 0; i < 8; ++i) ret ^= Random64() << (8 * i);
   return ret;
 }
 
-int Random(const int min, const int max) {
+int Random(const int min, const int max) { // Nondeterministic Rand()
   static std::uint64_t seed = 0x202c7ULL + static_cast<std::uint64_t>(std::time(nullptr));
   return min + ((seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3)) %
       static_cast<std::uint64_t>(std::max(1, std::abs(max - min) + 1)));
@@ -540,12 +539,6 @@ int TokenNumber(const std::uint32_t nth = 0) {
 
 // Board
 
-void BuildBitboards() {
-  for (auto i = 0; i < 64; ++i)
-    if      (g_board->pieces[i] > 0) g_board->white[+g_board->pieces[i] - 1] |= Bit(i);
-    else if (g_board->pieces[i] < 0) g_board->black[-g_board->pieces[i] - 1] |= Bit(i);
-}
-
 std::uint64_t Fill(int from, const int to) { // from / to -> Always good
   auto ret = Bit(from);
   if (from == to)
@@ -613,7 +606,13 @@ void PutPiece(const int sq, const int p) {
   // Find kings too
   if      (p == +6) g_king_w = sq; // K
   else if (p == -6) g_king_b = sq; // k
+
+  // Put piece on board
   g_board->pieces[sq] = p;
+
+  // Create bitboards
+  if      (p > 0) g_board->white[+p - 1] |= Bit(sq);
+  else if (p < 0) g_board->black[-p - 1] |= Bit(sq);
 }
 
 int Piece2Num(const char p) {
@@ -732,7 +731,6 @@ void FenReset() {
 void Fen(const std::string &fen) {
   FenReset();
   FenGen(fen);
-  BuildBitboards();
 }
 
 // Checks
@@ -924,7 +922,6 @@ void AddCastleOOW() {
   if (ChecksCastleB(g_castle_w[0])) return;
 
   HandleCastlingW(1, g_king_w, 6);
-
   g_board->pieces[g_rook_w[0]] = 0;
   g_board->pieces[g_king_w]    = 0;
   g_board->pieces[5]           = +4;
@@ -940,7 +937,6 @@ void AddCastleOOB() {
   if (ChecksCastleW(g_castle_b[0])) return;
 
   HandleCastlingB(3, g_king_b, 56 + 6);
-
   g_board->pieces[g_rook_b[0]] = 0;
   g_board->pieces[g_king_b]    = 0;
   g_board->pieces[56 + 5]      = -4;
@@ -956,7 +952,6 @@ void AddCastleOOOW() {
   if (ChecksCastleB(g_castle_w[1])) return;
 
   HandleCastlingW(2, g_king_w, 2);
-
   g_board->pieces[g_rook_w[1]] = 0;
   g_board->pieces[g_king_w]    = 0;
   g_board->pieces[3]           = +4;
@@ -972,7 +967,6 @@ void AddCastleOOOB() {
   if (ChecksCastleW(g_castle_b[1])) return;
 
   HandleCastlingB(4, g_king_b, 56 + 2);
-
   g_board->pieces[g_rook_b[1]] = 0;
   g_board->pieces[g_king_b]    = 0;
   g_board->pieces[56 + 3]      = -4;
@@ -1461,7 +1455,7 @@ bool EasyDraw(const bool wtm) {
   return pawns_n == 1 ? ProbeKPK(wtm) : (pawns_n == 0);
 }
 
-// Trapped bishop penalty in FRC
+// Cornered bishop penalty in FRC
 // Bishop on a1/h1/a8/h8 blocked by own pawn
 int FixFRC() {
   // No bishop in corner -> Speedup
@@ -2276,7 +2270,7 @@ bool FastMove(const int ms) {
 }
 
 void SearchRootMoves(const bool is_eg) {
-  auto good      = 0; // Good score per iterations for HCE activation
+  auto good      = 0; // Good score in a row for HCE activation
   const auto now = Now();
 
   for ( ; std::abs(g_best_score) != INF && g_depth < g_max_depth && !g_stop_search; ++g_depth) {
@@ -2523,7 +2517,7 @@ std::string Board2Fen() {
   std::stringstream s{};
   for (auto r = 7; r >= 0; --r) {
     auto empty = 0;
-    for (auto f = 0; f <= 7; ++f) {
+    for (auto f = 0; f <= 7; ++f)
       if (const auto p = "kqrbnp.PNBRQK"[g_board->pieces[8 * r + f] + 6]; p == '.') {
         ++empty;
       } else {
@@ -2531,8 +2525,7 @@ std::string Board2Fen() {
         empty = 0;
         s << p;
       }
-    }
-    if (empty) s << empty;
+    if (empty)  s << empty;
     if (r != 0) s << "/";
   }
   s << (g_wtm ? " w " : " b ");
@@ -2565,7 +2558,7 @@ void UciPrintBoard() {
 bool UciCommands() {
   if (!TokenOk()) return true;
 
-  if (Token("position"))        UciPosition();
+  if (     Token("position"))   UciPosition();
   else if (Token("go"))         UciGo();
   else if (Token("ucinewgame")) g_last_eval = 0;
   else if (Token("isready"))    std::cout << "readyok" << std::endl;
