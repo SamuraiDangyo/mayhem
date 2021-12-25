@@ -2526,7 +2526,7 @@ void UciPrintBoard() {
   std::cout << "\n +---+---+---+---+---+---+---+---+\n";
   for (auto r = 7; r >= 0; --r) {
     for (auto f = 0; f <= 7; ++f)
-      std::cout << " | " << "kqrbnp.PNBRQK"[g_board->pieces[8 * r + f] + 6];
+      std::cout << " | " << "kqrbnp PNBRQK"[g_board->pieces[8 * r + f] + 6];
     std::cout << " | " << (1 + r) << "\n +---+---+---+---+---+---+---+---+\n";
   }
   std::cout << "   a   b   c   d   e   f   g   h\n\n";
