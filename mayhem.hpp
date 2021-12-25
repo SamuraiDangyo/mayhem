@@ -46,7 +46,6 @@ namespace nnue { // No clashes
 }
 #include "lib/eucalyptus.hpp"
 #include "lib/polyglotbook.hpp"
-#include "lib/poseidon.hpp"
 
 // Namespace
 
@@ -291,13 +290,8 @@ struct Board {
 };
 
 struct HashEntry { // 176B
-  // Hashes for eval and sort
-  std::uint64_t eval_hash{0};
-  std::uint32_t killer_hash{0}, good_hash{0};
-  // Score for NNUE only
-  std::int32_t score{0};
-  // Indexes for sorting
-  std::uint8_t killer{0}, good{0};
+  std::uint32_t killer_hash{0}, good_hash{0}; // Hash
+  std::uint8_t killer{0}, good{0}; // Index
 };
 
 // Enums
@@ -1471,10 +1465,9 @@ int FixFRC() {
   return s;
 }
 
-// More bonus for closeness
-int CloseBonus(const int sq1, const int sq2) {
-  return std::pow(7 - std::abs(Xcoord(sq1) - Xcoord(sq2)), 2) +
-         std::pow(7 - std::abs(Ycoord(sq1) - Ycoord(sq2)), 2);
+int CloseBonus(const int a, const int b) {
+  return std::pow(7 - std::abs(Xcoord(a) - Xcoord(b)), 2) +
+         std::pow(7 - std::abs(Ycoord(a) - Ycoord(b)), 2);
 }
 
 int CloseAnyCornerBonus(const int sq) {
@@ -1781,14 +1774,7 @@ struct NnueEval {
   }
 
   int evaluate() {
-    const auto hash = Hash(this->wtm);
-    auto *entry     = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
-
-    if (entry->eval_hash == hash)
-      return entry->score;
-
-    entry->eval_hash = hash;
-    return entry->score = (this->probe() + FixFRC());
+    return this->probe() + FixFRC();
   }
 };
 
@@ -1831,10 +1817,6 @@ bool Draw(const bool wtm) {
     return true;
 
   const auto hash = g_r50_positions[g_board->fifty];
-
-  // Contains rook + pawn endgames only
-  if (poseidon::IsDraw(hash))
-    return true;
 
   // Only 2 rep
   for (auto i = g_board->fifty - 2; i >= 0; i -= 2)
@@ -2484,8 +2466,8 @@ void UciPerft(const std::string &d, const std::string &f) {
 // > bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]
 // Speed:     bench inf 5000
 // Signature: bench 11 inf
-// bench              -> 15775315
-// bench 11 inf 256 0 -> 15031391
+// bench              -> 15775473
+// bench 11 inf 256 0 -> 14997983
 void UciBench(const std::string &d, const std::string &t,
               const std::string &h, const std::string &nnue) {
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
@@ -2521,8 +2503,7 @@ std::string Board2Fen() {
       if (const auto p = "kqrbnp.PNBRQK"[g_board->pieces[8 * r + f] + 6]; p == '.') {
         ++empty;
       } else {
-        if (empty) s << empty;
-        empty = 0;
+        if (empty) s << empty, empty = 0;
         s << p;
       }
     if (empty)  s << empty;
@@ -2534,13 +2515,13 @@ std::string Board2Fen() {
   if (g_board->castle & 0x4) s << static_cast<char>('a' + g_rook_b[0] - 56);
   if (g_board->castle & 0x8) s << static_cast<char>('a' + g_rook_b[1] - 56);
   s << (g_board->castle ? " " : "- ");
-  g_board->epsq == -1 ? s << "-" :
-    s << static_cast<char>('a' + Xcoord(g_board->epsq)) << static_cast<char>('1' + Ycoord(g_board->epsq));
+  g_board->epsq == -1 ? s << "-" : s << static_cast<char>('a' + Xcoord(g_board->epsq)) <<
+                                        static_cast<char>('1' + Ycoord(g_board->epsq));
   s << " " << static_cast<int>(g_board->fifty / 2);
   return s.str();
 }
 
-// Print board + some info
+// Print board + some info (NNUE, Book, Eval, Hash entries)
 void UciPrintBoard() {
   std::cout << "\n +---+---+---+---+---+---+---+---+\n";
   for (auto r = 7; r >= 0; --r) {
@@ -2550,9 +2531,10 @@ void UciPrintBoard() {
   }
   std::cout << "   a   b   c   d   e   f   g   h\n\n";
   std::cout << "> " << Board2Fen() << "\n";
-  std::cout << "> NNUE( " << (g_nnue_exist ? "OK" : "FAIL") << " ) / ";
-  std::cout << "Book( " << (g_book_exist ? "OK" : "FAIL") << " ) / ";
-  std::cout << "Hash( " << (g_hash_entries) << " )" << std::endl;
+  std::cout << "> NN: " << (g_nnue_exist ? "OK" : "FAIL") << " / ";
+  std::cout << "BK: " << (g_book_exist ? "OK" : "FAIL") << " / ";
+  std::cout << "EV: " << (0.01f * Evaluate(g_wtm)) << " / ";
+  std::cout << "HT: " << (g_hash_entries) << std::endl;
 }
 
 bool UciCommands() {
