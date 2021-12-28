@@ -60,7 +60,7 @@ namespace mayhem {
 #define MAX_Q_DEPTH   12       // Max Qsearch depth
 #define BOOK_MS       100      // At least 100ms+ for the book lookup
 #define INF           1048576  // System max number
-#define MAX_POS       101      // Rule 50 + 1 ply for arrays
+#define MAX_ARR       128      // Enough space for arrays
 #define HASH          256      // MB
 #define MOVEOVERHEAD  100      // ms
 #define BOOK_BEST     false    // Nondeterministic opening play
@@ -289,7 +289,7 @@ struct Board {
   }
 };
 
-struct HashEntry { // 176B
+struct HashEntry { // 80B
   std::uint32_t killer_hash{0}, good_hash{0}; // Hash
   std::uint8_t killer{0}, good{0}; // Index
 };
@@ -306,7 +306,7 @@ std::uint64_t g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_s
   g_knight_moves[64] = {}, g_king_moves[64] = {}, g_pawn_checks_w[64] = {}, g_pawn_checks_b[64] = {},
   g_castle_w[2] = {}, g_castle_b[2] = {}, g_castle_empty_w[2] = {}, g_castle_empty_b[2] = {},
   g_bishop_magic_moves[64][512] = {}, g_rook_magic_moves[64][4096] = {}, g_zobrist_ep[64] = {},
-  g_zobrist_castle[16] = {}, g_zobrist_wtm[2] = {}, g_r50_positions[MAX_POS] = {}, g_zobrist_board[13][64] = {};
+  g_zobrist_castle[16] = {}, g_zobrist_wtm[2] = {}, g_r50_positions[MAX_ARR] = {}, g_zobrist_board[13][64] = {};
 
 int g_move_overhead = MOVEOVERHEAD, g_level = 100, g_root_n = 0, g_king_w = 0, g_king_b = 0,
   g_moves_n = 0, g_max_depth = MAX_DEPTH, g_q_depth = 0, g_depth = 0, g_best_score = 0, g_noise = 2,
@@ -324,7 +324,7 @@ std::uint32_t g_hash_entries = 0, g_tokens_nth = 0;
 std::vector<std::string> g_tokens(300); // 300 plys init
 polyglotbook::PolyglotBook g_book{};
 std::unique_ptr<HashEntry[]> g_hash{};
-float g_scale[MAX_POS] = {};
+float g_scale[MAX_ARR] = {};
 
 // Prototypes
 
@@ -2441,8 +2441,8 @@ void UciUci() {
 }
 
 // > perft [depth = 6] [fen = startpos]
-// perft -> 124132537
-// perft 5 r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R_w_KQkq_-_0 -> 197876243
+// > perft -> 124132537
+// > perft 7 R7/P4k2/8/8/8/8/r7/6K1_w_-_-_0 -> 258918365
 void UciPerft(const std::string &d, const std::string &f) {
   const auto depth = d.length() ? std::max(0, std::stoi(d)) : 6;
   std::string fen  = f.length() ? f : STARTPOS;
@@ -2466,8 +2466,8 @@ void UciPerft(const std::string &d, const std::string &f) {
 // > bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]
 // Speed:     bench inf 5000
 // Signature: bench 11 inf
-// bench              -> 15775473
-// bench 11 inf 256 0 -> 14997983
+// > bench              -> 15775473
+// > bench 11 inf 256 0 -> 14997983
 void UciBench(const std::string &d, const std::string &t,
               const std::string &h, const std::string &nnue) {
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
@@ -2521,8 +2521,11 @@ std::string Board2Fen() {
   return s.str();
 }
 
-// Print board + some info (NNUE, Book, Eval, Hash entries)
-void UciPrintBoard() {
+// > p [fen = startpos]
+// > p R7/P4k2/8/8/8/8/r7/6K1_w_-_-_0
+// Print board + some info (NNUE, Book, Eval (cp), Hash (entries))
+void UciPrintBoard(std::string s = "") {
+  if (s.length()) std::replace(s.begin(), s.end(), '_', ' '), Fen(s);
   std::cout << "\n +---+---+---+---+---+---+---+---+\n";
   for (auto r = 7; r >= 0; --r) {
     for (auto f = 0; f <= 7; ++f)
@@ -2531,10 +2534,10 @@ void UciPrintBoard() {
   }
   std::cout << "   a   b   c   d   e   f   g   h\n\n";
   std::cout << "> " << Board2Fen() << "\n";
-  std::cout << "> NN: " << (g_nnue_exist ? "OK" : "FAIL") << " / ";
-  std::cout << "BK: " << (g_book_exist ? "OK" : "FAIL") << " / ";
-  std::cout << "EV: " << (0.01f * Evaluate(g_wtm)) << " / ";
-  std::cout << "HT: " << (g_hash_entries) << std::endl;
+  std::cout << "> NN(" << (g_nnue_exist ? "OK" : "FAIL") << ") / ";
+  std::cout << "Book(" << (g_book_exist ? "OK" : "FAIL") << ") / ";
+  std::cout << "Eval(" << Evaluate(g_wtm) << ") / ";
+  std::cout << "Hash(" << (g_hash_entries) << ")" << std::endl;
 }
 
 bool UciCommands() {
@@ -2548,7 +2551,7 @@ bool UciCommands() {
   else if (Token("uci"))        UciUci();
   else if (Token("bench"))      UciBench(TokenNth(0), TokenNth(1), TokenNth(2), TokenNth(3));
   else if (Token("perft"))      UciPerft(TokenNth(0), TokenNth(1));
-  else if (Token("p"))          UciPrintBoard();
+  else if (Token("p"))          UciPrintBoard(TokenNth(0));
   else if (Token("quit"))       return false;
 
   return g_game_on;
@@ -2707,7 +2710,7 @@ void InitZobrist() {
 
 // Shuffle period 30 plies then scale
 void InitScale() {
-  for (auto i = 0; i < MAX_POS; ++i)
+  for (auto i = 0; i < MAX_ARR; ++i)
     g_scale[i] = i < 30 ? 1.0f : (1.0f - ((static_cast<float>(i - 30)) / 110.0f));
 }
 
