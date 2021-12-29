@@ -60,7 +60,7 @@ namespace mayhem {
 #define MAX_Q_DEPTH   12       // Max Qsearch depth
 #define BOOK_MS       100      // At least 100ms+ for the book lookup
 #define INF           1048576  // System max number
-#define MAX_ARR       128      // Enough space for arrays
+#define MAX_ARR       102      // Enough space for arrays
 #define HASH          256      // MB
 #define MOVEOVERHEAD  100      // ms
 #define BOOK_BEST     false    // Nondeterministic opening play
@@ -923,8 +923,7 @@ void AddCastleOOW() {
   g_board->white[3]            = (g_board->white[3] ^ Bit(g_rook_w[0])) | Bit(5);
   g_board->white[5]            = (g_board->white[5] ^ Bit(g_king_w))    | Bit(6);
 
-  if (!ChecksB())
-    ++g_moves_n;
+  if (!ChecksB()) ++g_moves_n;
 }
 
 void AddCastleOOB() {
@@ -938,8 +937,7 @@ void AddCastleOOB() {
   g_board->black[3]            = (g_board->black[3] ^ Bit(g_rook_b[0])) | Bit(56 + 5);
   g_board->black[5]            = (g_board->black[5] ^ Bit(g_king_b))    | Bit(56 + 6);
 
-  if (!ChecksW())
-    ++g_moves_n;
+  if (!ChecksW()) ++g_moves_n;
 }
 
 void AddCastleOOOW() {
@@ -953,8 +951,7 @@ void AddCastleOOOW() {
   g_board->white[3]            = (g_board->white[3] ^ Bit(g_rook_w[1])) | Bit(3);
   g_board->white[5]            = (g_board->white[5] ^ Bit(g_king_w))    | Bit(2);
 
-  if (!ChecksB())
-    ++g_moves_n;
+  if (!ChecksB()) ++g_moves_n;
 }
 
 void AddCastleOOOB() {
@@ -968,8 +965,7 @@ void AddCastleOOOB() {
   g_board->black[3]            = (g_board->black[3] ^ Bit(g_rook_b[1])) | Bit(56 + 3);
   g_board->black[5]            = (g_board->black[5] ^ Bit(g_king_b))    | Bit(56 + 2);
 
-  if (!ChecksW())
-    ++g_moves_n;
+  if (!ChecksW()) ++g_moves_n;
 }
 
 void AddOOW() {
@@ -1317,14 +1313,12 @@ inline void MgenSetupBoth() {
 
 void MgenSetupW() {
   MgenSetupBoth();
-  g_pawn_sq = g_black |
-              (g_board->epsq > 0 ? Bit(g_board->epsq) & 0x0000FF0000000000ULL : 0);
+  g_pawn_sq = g_black | (g_board->epsq > 0 ? Bit(g_board->epsq) & 0x0000FF0000000000ULL : 0);
 }
 
 void MgenSetupB() {
   MgenSetupBoth();
-  g_pawn_sq = g_white |
-              (g_board->epsq > 0 ? Bit(g_board->epsq) & 0x0000000000FF0000ULL : 0);
+  g_pawn_sq = g_white | (g_board->epsq > 0 ? Bit(g_board->epsq) & 0x0000000000FF0000ULL : 0);
 }
 
 void MgenAllW() {
@@ -2515,8 +2509,8 @@ std::string Board2Fen() {
   if (g_board->castle & 0x4) s << static_cast<char>('a' + g_rook_b[0] - 56);
   if (g_board->castle & 0x8) s << static_cast<char>('a' + g_rook_b[1] - 56);
   s << (g_board->castle ? " " : "- ");
-  g_board->epsq == -1 ? s << "-" : s << static_cast<char>('a' + Xcoord(g_board->epsq)) <<
-                                        static_cast<char>('1' + Ycoord(g_board->epsq));
+  g_board->epsq == -1 ? s << "-" :
+    s << char('a' + Xcoord(g_board->epsq)) << char('1' + Ycoord(g_board->epsq));
   s << " " << static_cast<int>(g_board->fifty / 2);
   return s.str();
 }
@@ -2534,10 +2528,10 @@ void UciPrintBoard(std::string s = "") {
   }
   std::cout << "   a   b   c   d   e   f   g   h\n\n";
   std::cout << "> " << Board2Fen() << "\n";
-  std::cout << "> NN(" << (g_nnue_exist ? "OK" : "FAIL") << ") / ";
-  std::cout << "Book(" << (g_book_exist ? "OK" : "FAIL") << ") / ";
-  std::cout << "Eval(" << Evaluate(g_wtm) << ") / ";
-  std::cout << "Hash(" << (g_hash_entries) << ")" << std::endl;
+  std::cout << "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " / ";
+  std::cout << "Book: " << (g_book_exist ? "OK" : "FAIL") << " / ";
+  std::cout << "Eval: " << Evaluate(g_wtm) << " / ";
+  std::cout << "Hash: " << (g_hash_entries) << std::endl;
 }
 
 bool UciCommands() {

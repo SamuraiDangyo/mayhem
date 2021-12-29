@@ -4,17 +4,18 @@ Linux UCI Chess960 engine.
 Written in C++17 language.
 Licensed under the GPLv3.
 Optimized for speed and simplicity.
+Programmed in self-documenting style.
 
-Mayhem uses EvalFile ( NNUE ) and BookFile ( PolyGlot ) for maximum strength.
+Mayhem uses EvalFile and BookFile for maximum strength.
 Works well w/o them of course.
 
-Strength ( Blitz ): *HCE* _~2300 Elo_ / *NNUE* _~3000 Elo_.
+Strength ( Blitz ): *HCE* ~2300 _Elo_ and *NNUE* ~3000 _Elo_.
 
 Simple `make` should build a good binary.
-See `Makefile` for more information.
-`perft/bench/p` commands should be used to verify/test speed of the program.
+`perft/bench/p` commands should be used to verify the program.
+See `Makefile` and `mayhem.hpp` for more information.
 
-If needed adjust _MoveOverhead / Hash_ values accordingly.
-Credit for _polyglotbook.cpp and nnue.cpp_.
+If needed adjust _MoveOverhead_ and _Hash_ values accordingly.
+Credit for _polyglotbook.cpp_ and _nnue.cpp_.
 
 Happy hacking !
