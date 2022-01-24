@@ -11,7 +11,7 @@ Works well w/o them of course.
 
 Strength ( Blitz ): *HCE* ~2300 _Elo_ and *NNUE* ~3000 _Elo_.
 
-Simple `make` should build a good binary.
+Simple `make -j` should build a good binary.
 `perft/bench/p` commands should be used to verify the program.
 See `Makefile` and `mayhem.hpp` for more information.
 
