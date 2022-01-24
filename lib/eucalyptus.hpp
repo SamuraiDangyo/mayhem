@@ -1,6 +1,6 @@
 /*
 Eucalyptus KPK bitbases
-Copyright (C) 2020-2021 Toni Helminen
+Copyright (C) 2020-2022 Toni Helminen
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,8 +31,8 @@ namespace eucalyptus {
     return ((wpsq & 0x7) & 0x4) ?
       kKpk[wtm * 24 * 64 + (4 * (((wpsq ^ 0x7) >> 3) - 0x1) + ((wpsq ^ 0x7) & 0x7)) *
         64 + (wksq ^ 7)] & (0x1ULL << ((bksq ^ 0x7) & 0x3F)) :
-      kKpk[wtm * 24 * 64 + (4 * (( wpsq        >> 3) - 0x1) +  (wpsq        & 0x7)) *
-        64 +  wksq     ] & (0x1ULL << ( bksq        & 0x3F));
+      kKpk[wtm * 24 * 64 + (4 * (((wpsq)       >> 3) - 0x1) + ((wpsq)       & 0x7)) *
+        64 + (wksq)    ] & (0x1ULL << ((bksq)       & 0x3F));
   }
 
 } // namespace eucalyptus
