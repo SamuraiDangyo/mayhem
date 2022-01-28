@@ -100,7 +100,7 @@ void unmap_file(const void *data, map_t map);
 
 // Functions
 
-inline int16_t clamp_int16(const int16_t a, const int16_t b, const int16_t c) {return a < b ? b : (a > c ? c : a);}
+inline int16_t clamp_i16(const int16_t a, const int16_t b, const int16_t c) {return a < b ? b : (a > c ? c : a);}
 inline unsigned int min_u32(const unsigned int a, const unsigned int b) {return a > b ? b : a;}
 
 FD open_file(const char *name)
@@ -1093,7 +1093,7 @@ INLINE void transform(Position *pos, clipped_t *output, mask_t *outMask)
 
 #else
   for (unsigned i = 0; i < kHalfDimensions; ++i)
-    output[offset + i] = clamp_int16((*accumulation)[perspectives[p]][i], 0, 127);
+    output[offset + i] = clamp_i16((*accumulation)[perspectives[p]][i], 0, 127);
 #endif
 
   }
@@ -1200,7 +1200,7 @@ static const char *read_hidden_weights(weight_t *w, unsigned dims,
 }
 
 #ifdef USE_AVX2
-static void permute_biases(const int32_t *biases)
+static void permute_biases(int32_t *biases)
 {
   __m128i *b = (__m128i *)biases;
   __m128i tmp[8];
