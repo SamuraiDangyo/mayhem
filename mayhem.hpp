@@ -280,11 +280,6 @@ struct Board {
                 //            5: =n, 6: =b, 7: =r, 8: =q)
     castle,     // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
     fifty;      // Rule 50 counter
-
-  // For sorting
-  inline bool operator>(const Board &brd) {
-    return this->score > brd.score;
-  }
 };
 
 struct HashEntry { // 80B
@@ -808,15 +803,13 @@ const std::string MoveName(const Board *move) {
 
 // Lazy sorting algorithm
 bool SortOneMoveOnly(const int ply, const int nth, const int total_moves) {
-  auto score = g_boards[ply][nth].score, score2 = score, index = 0;
+  auto score = g_boards[ply][nth].score;
   for (auto i = nth + 1; i < total_moves; ++i)
-    if (g_boards[ply][i].score > score2) {
-      score2 = g_boards[ply][i].score;
-      index  = i;
+    if (g_boards[ply][i].score > score) {
+      score = g_boards[ply][i].score;
+      std::swap(g_boards[ply][nth], g_boards[ply][i]);
     }
-  if (index)
-    std::swap(g_boards[ply][nth], g_boards[ply][index]);
-  return score2 != 0;
+  return score != 0; // Did smt
 }
 
 // Best moves put first for maximum cutoffs
@@ -845,7 +838,8 @@ void EvalRootMoves() {
 
 // 2. Then sort root moves (last - 1 a tiny speedup)
 void SortRootMoves() {
-  for (auto i = 0; i < g_root_n - 1; ++i) SortOneMoveOnly(0, i, g_root_n);
+  std::sort(g_boards[0] + 0, g_boards[0] + g_moves_n, // 9 -> 0
+      [](const auto &a, const auto &b) {return a.score > b.score;});
 }
 
 void SortRoot(const int index) {
@@ -1793,8 +1787,7 @@ void SpeakUci(const int score, const std::uint64_t ms) {
 
 // g_r50_positions.pop() must contain hash !
 bool Draw(const bool wtm) {
-  if (g_board->fifty > 100 || EasyDraw(wtm))
-    return true;
+  if (g_board->fifty > 100 || EasyDraw(wtm)) return true;
 
   const auto hash = g_r50_positions[g_board->fifty];
   // Only 2 rep
@@ -1905,7 +1898,6 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
     if (sort) sort = SortOneMoveOnly(ply, i, moves_n);
     g_board = g_boards[ply] + i;
     g_is_pv = i <= 1 && !g_boards[ply][i].score;
-
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksW()) {
       if (SearchB(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) <= alpha)
         continue;
@@ -1945,7 +1937,6 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
     if (sort) sort = SortOneMoveOnly(ply, i, moves_n);
     g_board = g_boards[ply] + i;
     g_is_pv = i <= 1 && !g_boards[ply][i].score;
-
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksB()) {
       if (SearchW(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) >= beta)
         continue;
@@ -2074,13 +2065,14 @@ int SearchB(const int alpha, int beta, const int depth, const int ply) {
 
 // Root search
 int BestW() {
-  auto best_i = 0, alpha = -INF, score = alpha;
+  auto best_i = 0, alpha = -INF;
 
   for (auto i = 0; i < g_root_n; ++i) {
     g_board = g_boards[0] + i;
     // 1 / 2 moves too good and not tactical -> pv
     g_is_pv = i <= 1 && !g_boards[0][i].score;
 
+    int score;
     if (g_depth >= 1 && i >= 1) { // Null window search for bad moves
       if ((score = SearchB(alpha, alpha + 1, g_depth, 1)) > alpha)
         g_board = g_boards[0] + i, score = SearchB(alpha, +INF, g_depth, 1);
@@ -2104,12 +2096,13 @@ int BestW() {
 }
 
 int BestB() {
-  auto best_i = 0, beta = +INF, score = beta;
+  auto best_i = 0, beta = +INF;
 
   for (auto i = 0; i < g_root_n; ++i) {
     g_board = g_boards[0] + i;
     g_is_pv = i <= 1 && !g_boards[0][i].score;
 
+    int score;
     if (g_depth >= 1 && i >= 1) {
       if ((score = SearchW(beta - 1, beta, g_depth, 1)) < beta)
         g_board = g_boards[0] + i, score = SearchW(-INF, beta, g_depth, 1);
@@ -2296,14 +2289,12 @@ void UciMake(const int root_i) {
 
 void UciMakeMove() {
   const auto move = TokenNth();
-
   g_root_n = MgenRoot();
   for (auto i = 0; i < g_root_n; ++i)
     if (move == MoveName(g_boards[0] + i)) {
       UciMake(i);
       return;
     }
-
   Ok(false, "Bad move"); // No move found -> Quit
 }
 
@@ -2443,7 +2434,7 @@ std::string Board2Fen() {
 
 // > p [fen = startpos]
 // > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0
-// Print board + some info (NNUE, Book, Eval, Hash (entries))
+// Print board + some info (NNUE, Book, Eval (cp), Hash (entries))
 void UciPrintBoard(std::string s = "") {
   if (s.length()) std::replace(s.begin(), s.end(), '_', ' '), Fen(s);
   std::cout << "\n +---+---+---+---+---+---+---+---+\n";
@@ -2456,14 +2447,13 @@ void UciPrintBoard(std::string s = "") {
   std::cout << "> " << Board2Fen() << "\n";
   std::cout << "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " / ";
   std::cout << "Book: " << (g_book_exist ? "OK" : "FAIL") << " / ";
-  std::cout << "Eval: " << (0.01 * float(Evaluate(g_wtm))) << " / ";
+  std::cout << "Eval: " << Evaluate(g_wtm) << " / ";
   std::cout << "Hash: " << (g_hash_entries) << std::endl;
 }
 
 // > perft [depth = 6] [fen = startpos]
 // > perft -> 119060324
 // > perft 7 R7/P4k2/8/8/8/8/r7/6K1_w_-_-_0 -> 245764549
-// > perft 7 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8_w_-_-_0 -> 178633661
 void UciPerft(const std::string &d, const std::string &f) {
   const auto depth = d.length() ? std::max(0, std::stoi(d)) : 6;
   std::string fen  = f.length() ? f : STARTPOS;
@@ -2477,21 +2467,21 @@ void UciPerft(const std::string &d, const std::string &f) {
     const auto nodes2 = depth ? Perft(!g_wtm, depth - 1, 1) : 0;
     const auto diff   = Now() - now;
     std::cout << (i + 1) << ". " << MoveName(g_boards[0] + i) << " -> " <<
-      nodes2 << " (" << (0.001 * float(diff)) << "s)" << std::endl;
+      nodes2 << " (" << (diff) << " ms)" << std::endl;
     nodes    += nodes2;
     total_ms += diff;
   }
   std::cout << "\n===========================" << "\n\n";
-  std::cout << "Nodes: " << nodes << "\n";
-  std::cout << "Time:  " << total_ms << "\n";
-  std::cout << "NPS:   " << Nps(nodes, total_ms) << std::endl;
+  std::cout << "Nodes:    " << nodes << "\n";
+  std::cout << "Time(ms): " << total_ms << "\n";
+  std::cout << "NPS:      " << Nps(nodes, total_ms) << std::endl;
 }
 
 // > bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]
 // Speed:     bench inf 5000
 // Signature: bench 11 inf
-// > bench              -> 15866536
-// > bench 11 inf 256 0 -> 15775473
+// > bench              -> 15798059
+// > bench 11 inf 256 0 -> 15128190
 void UciBench(const std::string &d, const std::string &t,
               const std::string &h, const std::string &nnue) {
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
@@ -2514,10 +2504,10 @@ void UciBench(const std::string &d, const std::string &t,
   }
   const auto diff = Now() - now;
   std::cout << "===========================" << "\n\n";
-  std::cout << "Nodes: " << nodes << "\n";
-  std::cout << "Time:  " << diff << "\n";
-  std::cout << "NPS:   " << Nps(nodes, diff) << "\n";
-  std::cout << "Mode:  " << (g_nnue_exist ? "NNUE" : "HCE") << std::endl;
+  std::cout << "Nodes:    " << nodes << "\n";
+  std::cout << "Time(ms): " << diff << "\n";
+  std::cout << "NPS:      " << Nps(nodes, diff) << "\n";
+  std::cout << "Mode:     " << (g_nnue_exist ? "NNUE" : "HCE") << std::endl;
 }
 
 bool UciCommands() {
