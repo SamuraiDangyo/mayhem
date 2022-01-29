@@ -1453,7 +1453,6 @@ int CloseAnyCornerBonus(const int sq) {
                    CloseBonus(sq, 56), CloseBonus(sq, 63)});
 }
 
-
 // Classical evaluation. To finish the game or no NNUE
 struct ClassicalEval {
   const std::uint64_t white, black, both;
@@ -2480,8 +2479,8 @@ void UciPerft(const std::string &d, const std::string &f) {
 // > bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]
 // Speed:     bench inf 5000
 // Signature: bench 11 inf
-// > bench              -> 15798059
-// > bench 11 inf 256 0 -> 15128190
+// > bench              -> 15794542
+// > bench 11 inf 256 0 -> 15126764
 void UciBench(const std::string &d, const std::string &t,
               const std::string &h, const std::string &nnue) {
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
