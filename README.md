@@ -16,6 +16,6 @@ Simple `make -j` should build a good binary.
 See `Makefile` and `mayhem.hpp` for more information.
 
 If needed adjust _MoveOverhead_ and _Hash_ values accordingly.
-Credit for _polyglotbook.cpp_ and _nnue.cpp_.
+Credit for _PolyGlot_ and _NNUE_ stuff.
 
 Happy hacking !

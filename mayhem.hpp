@@ -836,9 +836,9 @@ void EvalRootMoves() {
                       (g_wtm ? +1 : -1) * Evaluate(g_wtm);
 }
 
-// 2. Then sort root moves (last - 1 a tiny speedup)
+// 2. Then sort root moves
 void SortRootMoves() {
-  std::sort(g_boards[0] + 0, g_boards[0] + g_moves_n, // 9 -> 0
+  std::sort(g_boards[0] + 0, g_boards[0] + g_root_n, // 9 -> 0
       [](const auto &a, const auto &b) {return a.score > b.score;});
 }
 
@@ -2467,7 +2467,7 @@ void UciPerft(const std::string &d, const std::string &f) {
     const auto nodes2 = depth ? Perft(!g_wtm, depth - 1, 1) : 0;
     const auto diff   = Now() - now;
     std::cout << (i + 1) << ". " << MoveName(g_boards[0] + i) << " -> " <<
-      nodes2 << " (" << (diff) << " ms)" << std::endl;
+      nodes2 << " (" << diff << " ms)" << std::endl;
     nodes    += nodes2;
     total_ms += diff;
   }
