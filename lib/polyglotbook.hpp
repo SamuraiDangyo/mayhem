@@ -24,7 +24,11 @@
   Public License, and can be downloaded from http://wbec-ridderkerk.nl
 */
 
+// Header guard
+
 #pragma once
+
+// Headers
 
 #include <fstream>
 #include <string>
@@ -32,9 +36,13 @@
 #include <iostream>
 #include <ctime>
 
+// Name space
+
 namespace polyglotbook {
 
 // polyglotbook.hpp start
+
+// Class PolyglotBook
 
 class PolyglotBook : private std::ifstream {
 
