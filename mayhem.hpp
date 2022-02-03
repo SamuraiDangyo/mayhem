@@ -41,9 +41,9 @@ extern "C" {
 #endif
 }
 
-#include "lib/nnue.hpp"
-#include "lib/eucalyptus.hpp"
-#include "lib/polyglotbook.hpp"
+#include "nnue.hpp"
+#include "eucalyptus.hpp"
+#include "polyglotbook.hpp"
 
 // Namespace
 
@@ -51,7 +51,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 6.6"
+#define VERSION       "Mayhem 6.7"
 #define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0"
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
@@ -2447,7 +2447,7 @@ void UciPrintBoard(std::string s = "") {
   std::cout << "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " / ";
   std::cout << "Book: " << (g_book_exist ? "OK" : "FAIL") << " / ";
   std::cout << "Eval: " << Evaluate(g_wtm) << " / ";
-  std::cout << "Hash: " << (g_hash_entries) << std::endl;
+  std::cout << "Hash: " << g_hash_entries << std::endl;
 }
 
 // > perft [depth = 6] [fen = startpos]
