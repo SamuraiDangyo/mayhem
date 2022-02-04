@@ -39,7 +39,7 @@ extern "C" {
 #ifdef WINDOWS
 #include <conio.h>
 #endif
-}
+} // extern "C"
 
 #include "nnue.hpp"
 #include "eucalyptus.hpp"
@@ -261,9 +261,13 @@ constexpr std::uint64_t kBishopMagic[3][64] = {
   }
 };
 
+// Enums
+
+enum class MoveType { kKiller, kGood };
+
 // Structs
 
-struct Board {
+struct Board { // 728B
   std::uint64_t
     white[6],   // White bitboards
     black[6];   // Black bitboards
@@ -276,8 +280,7 @@ struct Board {
     index,      // Sorting index
     from,       // From square
     to,         // To square
-    type,       // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb,
-                //            5: =n, 6: =b, 7: =r, 8: =q)
+    type,       // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
     castle,     // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
     fifty;      // Rule 50 counter
 };
@@ -285,11 +288,29 @@ struct Board {
 struct HashEntry { // 80B
   std::uint32_t killer_hash{0}, good_hash{0}; // Hash
   std::uint8_t killer{0}, good{0}; // Index
+
+  // Update hashtable sorting algorithm
+  void update(const MoveType type, const std::uint64_t hash, const std::uint8_t index) {
+    switch (type) {
+      case MoveType::kKiller:
+        this->killer_hash = static_cast<std::uint32_t>(hash >> 32);
+        this->killer      = index + 1;
+        break;
+      case MoveType::kGood:
+        this->good_hash = static_cast<std::uint32_t>(hash >> 32);
+        this->good      = index + 1;
+        break;
+    }
+  }
+
+  // Best moves put first for maximum cutoffs
+  void put_hash_value_2_moves(const std::uint64_t hash, Board *moves) const {
+    if ((this->killer_hash == static_cast<std::uint32_t>(hash >> 32)) && this->killer)
+      moves[this->killer - 1].score += 10000;
+    if ((this->good_hash == static_cast<std::uint32_t>(hash >> 32)) && this->good)
+      moves[this->good - 1].score += 7000;
+  }
 };
-
-// Enums
-
-enum class MoveType { kKiller, kGood };
 
 // Variables
 
@@ -810,14 +831,6 @@ bool SortOneMoveOnly(const int ply, const int nth, const int total_moves) {
       std::swap(g_boards[ply][nth], g_boards[ply][i]);
     }
   return score != 0; // Did smt
-}
-
-// Best moves put first for maximum cutoffs
-void PutHashValue2Move(const HashEntry *entry, const std::uint64_t hash) {
-  if ((entry->killer_hash == static_cast<std::uint32_t>(hash >> 32)) && entry->killer)
-    g_moves[entry->killer - 1].score += 10000;
-  if ((entry->good_hash == static_cast<std::uint32_t>(hash >> 32)) && entry->good)
-    g_moves[entry->good - 1].score += 7000;
 }
 
 // 1. Evaluate all root moves
@@ -1444,13 +1457,11 @@ int FixFRC() {
 }
 
 int CloseBonus(const int a, const int b) {
-  return std::pow(7 - std::abs(Xcoord(a) - Xcoord(b)), 2) +
-         std::pow(7 - std::abs(Ycoord(a) - Ycoord(b)), 2);
+  return std::pow(7 - std::abs(Xcoord(a) - Xcoord(b)), 2) + std::pow(7 - std::abs(Ycoord(a) - Ycoord(b)), 2);
 }
 
 int CloseAnyCornerBonus(const int sq) {
-  return std::max({CloseBonus(sq, 0),  CloseBonus(sq, 7),
-                   CloseBonus(sq, 56), CloseBonus(sq, 63)});
+  return std::max({CloseBonus(sq, 0),  CloseBonus(sq, 7), CloseBonus(sq, 56), CloseBonus(sq, 63)});
 }
 
 // Classical evaluation. To finish the game or no NNUE
@@ -1461,10 +1472,9 @@ struct ClassicalEval {
       bpn, bnn, bbn, brn, bqn, score, mg, eg, scale_factor;
 
   // explicit -> Force curly init
-  explicit ClassicalEval(const bool wtm2) :
-    white{White()}, black{Black()}, both{this->white | this->black}, wtm{wtm2}, white_n{0},
-    black_n{0}, both_n{0}, wk{0}, bk{0}, wpn{0}, wnn{0}, wbn{0}, wrn{0}, wqn{0}, bpn{0},
-    bnn{0}, bbn{0}, brn{0}, bqn{0}, score{0}, mg{0}, eg{0}, scale_factor{1} { }
+  explicit ClassicalEval(const bool wtm2) : white{White()}, black{Black()}, both{this->white | this->black},
+    wtm{wtm2}, white_n{0}, black_n{0}, both_n{0}, wk{0}, bk{0}, wpn{0}, wnn{0}, wbn{0}, wrn{0}, wqn{0},
+    bpn{0}, bnn{0}, bbn{0}, brn{0}, bqn{0}, score{0}, mg{0}, eg{0}, scale_factor{1} { }
 
   void mgeg(const int mg2, const int eg2) {
     this->mg += mg2;
@@ -1536,15 +1546,13 @@ struct ClassicalEval {
   void queen_w(const int sq) {
     ++this->wqn;
     this->pesto_w(4, sq);
-    this->mobility_w(2, ((BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) &
-                         (~this->white)));
+    this->mobility_w(2, ((BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) & (~this->white)));
   }
 
   void queen_b(const int sq) {
     ++this->bqn;
     this->pesto_b(4, sq);
-    this->mobility_b(2, ((BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) &
-                         (~this->black)));
+    this->mobility_b(2, ((BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) & (~this->black)));
   }
 
   void king_w(const int sq) {
@@ -1860,21 +1868,6 @@ int QSearchB(const int alpha, int beta, const int depth, const int ply) {
   return beta;
 }
 
-// Update hashtable sorting algorithm
-void UpdateSort(HashEntry *entry, const MoveType type,
-                const std::uint64_t hash, const std::uint8_t index) {
-  switch (type) {
-    case MoveType::kKiller:
-      entry->killer_hash = static_cast<std::uint32_t>(hash >> 32);
-      entry->killer      = index + 1;
-      break;
-    case MoveType::kGood:
-      entry->good_hash = static_cast<std::uint32_t>(hash >> 32);
-      entry->good      = index + 1;
-      break;
-  }
-}
-
 // a >= b -> Minimizer won't pick any better move anyway.
 //           So searching beyond is a waste of time.
 int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
@@ -1890,7 +1883,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
-  PutHashValue2Move(entry, hash);
+  entry->put_hash_value_2_moves(hash, g_boards[ply]);
 
   auto sort = true;
   for (auto i = 0; i < moves_n; ++i) {
@@ -1906,10 +1899,10 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
     // Improved scope
     if (const auto score = SearchB(alpha, beta, depth - 1, ply + 1); score > alpha) {
       if ((alpha = score) >= beta) {
-        UpdateSort(entry, MoveType::kKiller, hash, g_boards[ply][i].index);
+        entry->update(MoveType::kKiller, hash, g_boards[ply][i].index);
         return alpha;
       }
-      UpdateSort(entry, MoveType::kGood, hash, g_boards[ply][i].index);
+      entry->update(MoveType::kGood, hash, g_boards[ply][i].index);
     }
   }
 
@@ -1929,7 +1922,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
-  PutHashValue2Move(entry, hash);
+  entry->put_hash_value_2_moves(hash, g_boards[ply]);
 
   auto sort = true;
   for (auto i = 0; i < moves_n; ++i) {
@@ -1944,10 +1937,10 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
 
     if (const auto score = SearchW(alpha, beta, depth - 1, ply + 1); score < beta) {
       if (alpha >= (beta = score)) {
-        UpdateSort(entry, MoveType::kKiller, hash, g_boards[ply][i].index);
+        entry->update(MoveType::kKiller, hash, g_boards[ply][i].index);
         return beta;
       }
-      UpdateSort(entry, MoveType::kGood, hash, g_boards[ply][i].index);
+      entry->update(MoveType::kGood, hash, g_boards[ply][i].index);
     }
   }
 
@@ -2127,8 +2120,7 @@ int BestB() {
 struct Material {
   const int white_n, black_n, both_n;
 
-  Material() : white_n{PopCount(White())}, black_n{PopCount(Black())},
-    both_n{this->white_n + this->black_n} { }
+  Material() : white_n{PopCount(White())}, black_n{PopCount(Black())}, both_n{this->white_n + this->black_n} { }
 
   // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
   bool is_rook_ending() const {
@@ -2195,8 +2187,8 @@ int BookSolveType(const int from, const int to, const int move) {
 bool ProbeBook() {
   if (const auto move = g_book.setup(g_board->pieces, Both(), g_board->castle, g_board->epsq, g_wtm)
                               .probe(BOOK_BEST)) {
-    const int from = 8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7);
-    const int to   = 8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7);
+    const auto from = 8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7);
+    const auto to   = 8 * ((move >> 3) & 0x7) + ((move >> 0) & 0x7);
     return FindBookMove(from, to, BookSolveType(from, to, move));
   }
 
@@ -2431,10 +2423,28 @@ std::string Board2Fen() {
   return s.str();
 }
 
+struct Save {
+  const bool nnue, book;
+  const int noise;
+  const std::string fen;
+
+  // Save stuff in constructor
+  Save() : nnue{g_nnue_exist}, book{g_book_exist}, noise{g_noise}, fen{Board2Fen()} { }
+
+  // Restore stuff in destructor
+  ~Save() {
+    g_nnue_exist = this->nnue;
+    g_book_exist = this->book;
+    g_noise      = this->noise;
+    Fen(this->fen);
+  }
+};
+
 // > p [fen = startpos]
 // > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0
 // Print board + some info (NNUE, Book, Eval (cp), Hash (entries))
 void UciPrintBoard(std::string s = "") {
+  const Save save{};
   if (s.length()) std::replace(s.begin(), s.end(), '_', ' '), Fen(s);
   std::cout << "\n +---+---+---+---+---+---+---+---+\n";
   for (auto r = 7; r >= 0; --r) {
@@ -2454,6 +2464,7 @@ void UciPrintBoard(std::string s = "") {
 // > perft -> 119060324
 // > perft 7 R7/P4k2/8/8/8/8/r7/6K1_w_-_-_0 -> 245764549
 void UciPerft(const std::string &d, const std::string &f) {
+  const Save save{};
   const auto depth = d.length() ? std::max(0, std::stoi(d)) : 6;
   std::string fen  = f.length() ? f : STARTPOS;
   std::replace(fen.begin(), fen.end(), '_', ' '); // Hack !
@@ -2464,11 +2475,10 @@ void UciPerft(const std::string &d, const std::string &f) {
     g_board = g_boards[0] + i;
     const auto now    = Now();
     const auto nodes2 = depth ? Perft(!g_wtm, depth - 1, 1) : 0;
-    const auto diff   = Now() - now;
-    std::cout << (i + 1) << ". " << MoveName(g_boards[0] + i) << " -> " <<
-      nodes2 << " (" << diff << " ms)" << std::endl;
+    const auto ms     = Now() - now;
+    std::cout << (i + 1) << ". " << MoveName(g_boards[0] + i) << " -> " << nodes2 << " (" << ms << " ms)" << std::endl;
     nodes    += nodes2;
-    total_ms += diff;
+    total_ms += ms;
   }
   std::cout << "\n===========================" << "\n\n";
   std::cout << "Nodes:    " << nodes << "\n";
@@ -2481,31 +2491,29 @@ void UciPerft(const std::string &d, const std::string &f) {
 // Signature: bench 11 inf
 // > bench              -> 15794542
 // > bench 11 inf 256 0 -> 15126764
-void UciBench(const std::string &d, const std::string &t,
-              const std::string &h, const std::string &nnue) {
+void UciBench(const std::string &d, const std::string &t, const std::string &h, const std::string &nnue) {
+  const Save save{};
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
-  g_max_depth         = (!d.length()) ? 11 : (d == "inf" ? MAX_DEPTH :
-                          std::clamp(std::stoi(d), 0, MAX_DEPTH)); // Set depth limits
+  g_max_depth         = (!d.length()) ? 11 : (d == "inf" ? MAX_DEPTH : std::clamp(std::stoi(d), 0, MAX_DEPTH)); // Set depth limits
   g_noise             = 0; // Make search deterministic
   g_book_exist        = false; // Disable book
   g_nnue_exist        = g_nnue_exist && nnue != "0"; // Use nnue ?
   std::uint64_t nodes = 0;
-  const auto time     = (!t.length() || t == "inf") ? INF :
-                          std::max(0, std::stoi(t)); // Set time limits
-  const auto now      = Now();
-  auto n              = 0;
+  const auto time     = (!t.length() || t == "inf") ? INF : std::max(0, std::stoi(t)); // Set time limits
+  auto n = 0, ms = 0;
   for (const auto &fen : kBench) {
     std::cout << "[ " << (++n) << "/" << kBench.size() << " ; "  << fen << " ]" << "\n";
     Fen(fen);
+    const auto now = Now();
     Think(time);
+    ms    += Now() - now;
     nodes += g_nodes;
     std::cout << std::endl;
   }
-  const auto diff = Now() - now;
   std::cout << "===========================" << "\n\n";
   std::cout << "Nodes:    " << nodes << "\n";
-  std::cout << "Time(ms): " << diff << "\n";
-  std::cout << "NPS:      " << Nps(nodes, diff) << "\n";
+  std::cout << "Time(ms): " << ms << "\n";
+  std::cout << "NPS:      " << Nps(nodes, ms) << "\n";
   std::cout << "Mode:     " << (g_nnue_exist ? "NNUE" : "HCE") << std::endl;
 }
 
@@ -2644,10 +2652,8 @@ std::uint64_t MakeJumpMoves(const int sq, const int len,
 }
 
 void InitJumpMoves() {
-  constexpr int king_vectors[16] = {+1,  0,  0, +1,  0, -1, -1,  0,
-                                    +1, +1, -1, -1, +1, -1, -1, +1};
-  constexpr int knight_vectors[16] = {+2, +1, -2, +1, +2, -1, -2, -1,
-                                      +1, +2, -1, +2, +1, -2, -1, -2};
+  constexpr int king_vectors[16]   = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1};
+  constexpr int knight_vectors[16] = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2};
   constexpr int pawn_check_vectors[2 * 2] = {-1, +1, +1, +1};
   constexpr int pawn_1_vectors[1 * 2] = {0, +1};
 
@@ -2711,4 +2717,4 @@ void UciLoop() {
   while (Uci());
 }
 
-} // namespace mayhem
+} // Namespace mayhem
