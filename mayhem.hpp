@@ -267,7 +267,7 @@ enum class MoveType { kKiller, kGood };
 
 // Structs
 
-struct Board { // 130B
+struct Board { // 171B
 
   // Variables
 
@@ -398,9 +398,25 @@ bool OnBoard(const int x, const int y) { // Slow, but only for init
   return x >= 0 && x <= 7 && y >= 0 && y <= 7;
 }
 
-// Mirror horizontal
-int FlipY(const int sq) {
+int FlipY(const int sq) { // Mirror horizontal
   return sq ^ 56;
+}
+
+char File2Char(const int f) { // X coord to char
+  return 'a' + f;
+}
+
+char Rank2Char(const int r) { // Y coord to char
+  return '1' + r;
+}
+
+const std::string MoveStr(const int from, const int to) {
+  return std::string{File2Char(Xcoord(from)), Rank2Char(Ycoord(from)),
+                     File2Char(Xcoord(to)),   Rank2Char(Ycoord(to))};
+}
+
+char PromoLetter(const std::int8_t piece) {
+  return "nbrq"[std::abs(piece) - 2];
 }
 
 void Ok(const bool test, const std::string &msg) { // Simple assert
@@ -533,6 +549,72 @@ void HashEntry::put_hash_value_2_moves(const std::uint64_t hash, Board *moves) c
     moves[this->good - 1].score += 7000;
 }
 
+// Board
+
+inline bool Board::is_underpromo() const { // =n / =b / =r
+  return this->type == 5 || this->type == 6 || this->type == 7;
+}
+
+const std::string Board::movename() const {
+  auto from2 = this->from, to2 = this->to;
+
+  switch (this->type) {
+    case 1: from2 = g_king_w, to2 = g_chess960 ? g_rook_w[0] : 6;      break;
+    case 2: from2 = g_king_w, to2 = g_chess960 ? g_rook_w[1] : 2;      break;
+    case 3: from2 = g_king_b, to2 = g_chess960 ? g_rook_b[0] : 56 + 6; break;
+    case 4: from2 = g_king_b, to2 = g_chess960 ? g_rook_b[1] : 56 + 2; break;
+    case 5: case 6: case 7: case 8:
+            return MoveStr(from2, to2) + PromoLetter(this->pieces[to2]);
+  }
+
+  return MoveStr(from2, to2);
+}
+
+// Board presentation in FEN
+const std::string Board::to_fen() const {
+  std::stringstream s{};
+  for (auto r = 7; r >= 0; --r) {
+    auto empty = 0;
+    for (auto f = 0; f <= 7; ++f)
+      if (const auto p = "kqrbnp.PNBRQK"[this->pieces[8 * r + f] + 6]; p == '.') {
+        ++empty;
+      } else {
+        if (empty) s << empty, empty = 0;
+        s << p;
+      }
+    if (empty)  s << empty;
+    if (r != 0) s << "/";
+  }
+  s << (g_wtm ? " w " : " b ");
+  if (this->castle & 0x1) s << static_cast<char>('A' + g_rook_w[0]);
+  if (this->castle & 0x2) s << static_cast<char>('A' + g_rook_w[1]);
+  if (this->castle & 0x4) s << static_cast<char>('a' + g_rook_b[0] - 56);
+  if (this->castle & 0x8) s << static_cast<char>('a' + g_rook_b[1] - 56);
+  s << (this->castle ? " " : "- ");
+  this->epsq == -1 ? s << "-" :
+    s << static_cast<char>('a' + Xcoord(this->epsq)) << static_cast<char>('1' + Ycoord(this->epsq));
+  s << " " << static_cast<int>(this->fifty / 2);
+  return s.str();
+}
+
+// String presentation of board
+const std::string Board::to_s() const {
+  std::stringstream s{};
+  s << "\n +---+---+---+---+---+---+---+---+\n";
+  for (auto r = 7; r >= 0; --r) {
+    for (auto f = 0; f <= 7; ++f)
+      s << " | " << "kqrbnp PNBRQK"[this->pieces[8 * r + f] + 6];
+    s << " | " << (1 + r) << "\n +---+---+---+---+---+---+---+---+\n";
+  }
+  s << "   a   b   c   d   e   f   g   h\n\n";
+  s << "> " << this->to_fen() << "\n";
+  s << "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " / ";
+  s << "Book: " << (g_book_exist ? "OK" : "FAIL") << " / ";
+  s << "Eval: " << Evaluate(g_wtm) << " / ";
+  s << "Hash: " << g_hash_entries;
+  return s.str();
+}
+
 // Tokenizer
 
 bool TokenOk(const std::uint32_t nth = 0) {
@@ -564,11 +646,7 @@ int TokenNumber(const std::uint32_t nth = 0) {
   return TokenOk(nth) ? std::stoi(g_tokens[g_tokens_nth + nth]) : 0;
 }
 
-// Board
-
-inline bool Board::is_underpromo() const { // =n / =b / =r
-  return this->type == 5 || this->type == 6 || this->type == 7;
-}
+// Fen handling
 
 std::uint64_t Fill(int from, const int to) { // from / to -> Always good
   auto ret = Bit(from);
@@ -630,8 +708,6 @@ void BuildCastlingBitboards() {
   BuildCastlingBitboard1B();
   BuildCastlingBitboard2();
 }
-
-// Fen handling
 
 void PutPiece(const int sq, const int p) {
   // Find kings too
@@ -803,40 +879,6 @@ inline bool ChecksW() {
 
 inline bool ChecksB() {
   return ChecksHereB(Ctz(g_board->white[5]));
-}
-
-// Move printing
-
-char File2Char(const int f) {
-  return 'a' + f;
-}
-
-char Rank2Char(const int r) {
-  return '1' + r;
-}
-
-const std::string MoveStr(const int from, const int to) {
-  return std::string{File2Char(Xcoord(from)), Rank2Char(Ycoord(from)),
-                     File2Char(Xcoord(to)),   Rank2Char(Ycoord(to))};
-}
-
-char PromoLetter(const std::int8_t piece) {
-  return "nbrq"[std::abs(piece) - 2];
-}
-
-const std::string Board::movename() const {
-  auto from2 = this->from, to2 = this->to;
-
-  switch (this->type) {
-    case 1: from2 = g_king_w, to2 = g_chess960 ? g_rook_w[0] : 6;      break;
-    case 2: from2 = g_king_w, to2 = g_chess960 ? g_rook_w[1] : 2;      break;
-    case 3: from2 = g_king_b, to2 = g_chess960 ? g_rook_b[0] : 56 + 6; break;
-    case 4: from2 = g_king_b, to2 = g_chess960 ? g_rook_b[1] : 56 + 2; break;
-    case 5: case 6: case 7: case 8:
-            return MoveStr(from2, to2) + PromoLetter(this->pieces[to2]);
-  }
-
-  return MoveStr(from2, to2);
 }
 
 // Sorting
@@ -1794,8 +1836,8 @@ int LevelNoise() { // 0 -> 10 pawns
 }
 
 int Evaluate(const bool wtm) {
-  const auto score = static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm));
-  return LevelNoise() + (EasyDraw(wtm) ? 0 : g_scale[g_board->fifty] * score);
+  return LevelNoise() + (EasyDraw(wtm) ? 0 :
+    (g_scale[g_board->fifty] * (static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)))));
 }
 
 // Search
@@ -2413,50 +2455,6 @@ void UciUci() {
   std::cout << "uciok" << std::endl;
 }
 
-// Board presentation in FEN
-const std::string Board::to_fen() const {
-  std::stringstream s{};
-  for (auto r = 7; r >= 0; --r) {
-    auto empty = 0;
-    for (auto f = 0; f <= 7; ++f)
-      if (const auto p = "kqrbnp.PNBRQK"[this->pieces[8 * r + f] + 6]; p == '.') {
-        ++empty;
-      } else {
-        if (empty) s << empty, empty = 0;
-        s << p;
-      }
-    if (empty)  s << empty;
-    if (r != 0) s << "/";
-  }
-  s << (g_wtm ? " w " : " b ");
-  if (this->castle & 0x1) s << static_cast<char>('A' + g_rook_w[0]);
-  if (this->castle & 0x2) s << static_cast<char>('A' + g_rook_w[1]);
-  if (this->castle & 0x4) s << static_cast<char>('a' + g_rook_b[0] - 56);
-  if (this->castle & 0x8) s << static_cast<char>('a' + g_rook_b[1] - 56);
-  s << (this->castle ? " " : "- ");
-  this->epsq == -1 ? s << "-" :
-    s << static_cast<char>('a' + Xcoord(this->epsq)) << static_cast<char>('1' + Ycoord(this->epsq));
-  s << " " << static_cast<int>(this->fifty / 2);
-  return s.str();
-}
-
-// String presentation of board
-const std::string Board::to_s() const {
-  std::stringstream s{};
-  s << "\n +---+---+---+---+---+---+---+---+\n";
-  for (auto r = 7; r >= 0; --r) {
-    for (auto f = 0; f <= 7; ++f)
-      s << " | " << "kqrbnp PNBRQK"[this->pieces[8 * r + f] + 6];
-    s << " | " << (1 + r) << "\n +---+---+---+---+---+---+---+---+\n";
-  }
-  s << "   a   b   c   d   e   f   g   h\n\n";
-  s << "> " << this->to_fen() << "\n";
-  s << "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " / ";
-  s << "Book: " << (g_book_exist ? "OK" : "FAIL") << " / ";
-  s << "Eval: " << Evaluate(g_wtm) << " / ";
-  s << "Hash: " << g_hash_entries;
-  return s.str();
-}
 
 // Save state (just in case) if multiple commands in a row
 struct Save {
