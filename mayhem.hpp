@@ -23,16 +23,16 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // Headers
 
 #include <algorithm>
-#include <cmath>
 #include <memory>
 #include <iostream>
 #include <sstream>
 #include <vector>
-#include <cstdint>
-#include <ctime>
 #include <array>
 #include <string>
 #include <chrono>
+#include <cmath>
+#include <cstdlib>
+#include <cstdint>
 
 extern "C" {
 #include <unistd.h>
@@ -269,7 +269,7 @@ enum class MoveType { kKiller, kGood };
 
 struct Board { // 171B
 
-  // Variables
+  // Attributes
 
   std::uint64_t
     white[6],   // White bitboards
@@ -297,7 +297,7 @@ struct Board { // 171B
 
 struct HashEntry { // 10B
 
-  // Variables
+  // Attributes
 
   std::uint32_t killer_hash{0}, good_hash{0}; // Hash
   std::uint8_t killer{0}, good{0}; // Index
