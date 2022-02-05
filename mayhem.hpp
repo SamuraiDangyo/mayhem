@@ -390,8 +390,8 @@ constexpr inline std::uint64_t Bit(const int nth) {
   return 0x1ULL << nth; // Set bit in 1 -> 64
 }
 
-std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
-  return (1000 * nodes) / std::max<std::uint64_t>(1, ms); // Nodes Per Second
+std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) { // Nodes Per Second
+  return (1000 * nodes) / std::max<std::uint64_t>(1, ms);
 }
 
 bool OnBoard(const int x, const int y) { // Slow, but only for init
@@ -1471,7 +1471,7 @@ int MgenRoot() { // Only root moves
 #define CHECKS_BONUS       17
 #define FRC_PENALTY        400
 
-// Probe Eucalyptus KPK bitbases -> true = draw -> false = not draw
+// Probe Eucalyptus KPK bitbases -> true: draw -> false: not draw
 inline bool ProbeKPK(const bool wtm) {
   return g_board->white[0] ?
     eucalyptus::IsDraw(Ctz(g_board->white[5]), Ctz(g_board->white[0]), Ctz(g_board->black[5]), wtm) :
@@ -1854,8 +1854,8 @@ void SpeakUci(const int score, const std::uint64_t ms) {
 bool Draw(const bool wtm) {
   if (g_board->fifty > 100 || EasyDraw(wtm)) return true;
 
-  const auto hash = g_r50_positions[g_board->fifty];
   // Only 2 rep
+  const auto hash = g_r50_positions[g_board->fifty];
   for (auto i = g_board->fifty - 2; i >= 0; i -= 2)
     if (g_r50_positions[i] == hash)
       return true;
@@ -2453,7 +2453,6 @@ void UciUci() {
   std::cout << "uciok" << std::endl;
 }
 
-
 // Save state (just in case) if multiple commands in a row
 struct Save {
   const bool nnue, book;
@@ -2475,6 +2474,7 @@ struct Save {
 // > p [fen = startpos]
 // > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0
 // Print board + some info (NNUE, Book, Eval (cp), Hash (entries))
+// Also used for debug in UCI mode
 void UciPrintBoard(std::string s = "") {
   const Save save{};
   if (s.length()) std::replace(s.begin(), s.end(), '_', ' '), Fen(s);
@@ -2520,21 +2520,21 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
   g_book_exist        = false; // Disable book
   g_nnue_exist        = g_nnue_exist && nnue != "0"; // Use nnue ?
   std::uint64_t nodes = 0;
-  const auto time     = (!t.length() || t == "inf") ? INF : std::max(0, std::stoi(t)); // Set time limits
-  auto n = 0, ms = 0;
+  const auto time     = !t.length() || t == "inf" ? INF : std::max(0, std::stoi(t)); // Set time limits
+  auto n = 0, total_ms = 0;
   for (const auto &fen : kBench) {
     std::cout << "[ " << (++n) << "/" << kBench.size() << " ; "  << fen << " ]" << "\n";
     Fen(fen);
     const auto now = Now();
     Think(time);
-    ms    += Now() - now;
+    total_ms    += Now() - now;
     nodes += g_nodes;
     std::cout << std::endl;
   }
   std::cout << "===========================" << "\n\n";
   std::cout << "Nodes:    " << nodes << "\n";
-  std::cout << "Time(ms): " << ms << "\n";
-  std::cout << "NPS:      " << Nps(nodes, ms) << "\n";
+  std::cout << "Time(ms): " << total_ms << "\n";
+  std::cout << "NPS:      " << Nps(nodes, total_ms) << "\n";
   std::cout << "Mode:     " << (g_nnue_exist ? "NNUE" : "HCE") << std::endl;
 }
 
@@ -2656,8 +2656,7 @@ void InitSliderMoves() {
   }
 }
 
-std::uint64_t MakeJumpMoves(const int sq, const int len,
-                            const int dy, const int *jump_vectors) {
+std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int *jump_vectors) {
   std::uint64_t moves = 0;
   const auto x_pos    = Xcoord(sq);
   const auto y_pos    = Ycoord(sq);
@@ -2737,4 +2736,4 @@ void UciLoop() {
   while (Uci());
 }
 
-} // Namespace mayhem
+} // namespace mayhem

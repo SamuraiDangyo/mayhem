@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// "Total Mayhem and destruction. Be warned"
+// "Total mayhem and destruction"
 #include "mayhem.hpp"
 
 int main() {
