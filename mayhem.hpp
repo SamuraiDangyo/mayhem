@@ -444,7 +444,6 @@ bool InputAvailable() { // See if cin has smt
 
 } // extern "C"
 
-
 inline std::uint64_t Now() { // ms since 1970
   return std::chrono::duration_cast<std::chrono::milliseconds>(
            std::chrono::system_clock::now().time_since_epoch())
@@ -600,7 +599,7 @@ const std::string Board::to_fen() const {
 // String presentation of board
 const std::string Board::to_s() const {
   std::stringstream s{};
-  s << "\n +---+---+---+---+---+---+---+---+\n";
+  s << " +---+---+---+---+---+---+---+---+\n";
   for (auto r = 7; r >= 0; --r) {
     for (auto f = 0; f <= 7; ++f)
       s << " | " << "kqrbnp PNBRQK"[this->pieces[8 * r + f] + 6];
@@ -2270,7 +2269,6 @@ bool FastMove(const int ms) {
     SpeakUci(g_last_eval, 0);
     return true;
   }
-
   return false;
 }
 
@@ -2480,7 +2478,7 @@ struct Save {
 void UciPrintBoard(std::string s = "") {
   const Save save{};
   if (s.length()) std::replace(s.begin(), s.end(), '_', ' '), Fen(s);
-  std::cout << g_board->to_s() << std::endl;
+  std::cout << "\n" << g_board->to_s() << std::endl;
 }
 
 // > perft [depth = 6] [fen = startpos]
