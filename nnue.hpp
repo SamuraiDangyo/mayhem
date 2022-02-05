@@ -1327,4 +1327,4 @@ int _CDECL nnue_evaluate(int player, int* pieces, int* squares)
 
 } // extern "C"
 
-} // Namespace
+} // namespace nnue

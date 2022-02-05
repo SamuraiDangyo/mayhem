@@ -39,10 +39,8 @@ namespace eucalyptus {
 
   bool IsDraw(const int wksq, const int wpsq, const int bksq, const int wtm) {
     return ((wpsq & 0x7) & 0x4) ?
-      kKpk[wtm * 24 * 64 + (4 * (((wpsq ^ 0x7) >> 3) - 0x1) + ((wpsq ^ 0x7) & 0x7)) *
-        64 + (wksq ^ 7)] & (0x1ULL << ((bksq ^ 0x7) & 0x3F)) :
-      kKpk[wtm * 24 * 64 + (4 * (((wpsq)       >> 3) - 0x1) + ((wpsq)       & 0x7)) *
-        64 + (wksq)    ] & (0x1ULL << ((bksq)       & 0x3F));
+      kKpk[wtm * 24 * 64 + (4 * (((wpsq ^ 0x7) >> 3) - 0x1) + ((wpsq ^ 0x7) & 0x7)) * 64 + (wksq ^ 7)] & (0x1ULL << ((bksq ^ 0x7) & 0x3F)) :
+      kKpk[wtm * 24 * 64 + (4 * (((wpsq)       >> 3) - 0x1) + ((wpsq)       & 0x7)) * 64 + (wksq)    ] & (0x1ULL << ((bksq)       & 0x3F));
   }
 
 } // namespace eucalyptus

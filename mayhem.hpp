@@ -267,7 +267,10 @@ enum class MoveType { kKiller, kGood };
 
 // Structs
 
-struct Board { // 728B
+struct Board { // 130B
+
+  // Variables
+
   std::uint64_t
     white[6],   // White bitboards
     black[6];   // Black bitboards
@@ -283,33 +286,26 @@ struct Board { // 728B
     type,       // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
     castle,     // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
     fifty;      // Rule 50 counter
+
+  // Methods
+
+  const std::string movename() const;
+  bool is_underpromo() const;
+  const std::string to_fen() const;
+  const std::string to_s() const;
 };
 
-struct HashEntry { // 80B
+struct HashEntry { // 10B
+
+  // Variables
+
   std::uint32_t killer_hash{0}, good_hash{0}; // Hash
   std::uint8_t killer{0}, good{0}; // Index
 
-  // Update hashtable sorting algorithm
-  void update(const MoveType type, const std::uint64_t hash, const std::uint8_t index) {
-    switch (type) {
-      case MoveType::kKiller:
-        this->killer_hash = static_cast<std::uint32_t>(hash >> 32);
-        this->killer      = index + 1;
-        break;
-      case MoveType::kGood:
-        this->good_hash = static_cast<std::uint32_t>(hash >> 32);
-        this->good      = index + 1;
-        break;
-    }
-  }
+  // Methods
 
-  // Best moves put first for maximum cutoffs
-  void put_hash_value_2_moves(const std::uint64_t hash, Board *moves) const {
-    if ((this->killer_hash == static_cast<std::uint32_t>(hash >> 32)) && this->killer)
-      moves[this->killer - 1].score += 10000;
-    if ((this->good_hash == static_cast<std::uint32_t>(hash >> 32)) && this->good)
-      moves[this->good - 1].score += 7000;
-  }
+  void update(const MoveType type, const std::uint64_t hash, const std::uint8_t index);
+  void put_hash_value_2_moves(const std::uint64_t hash, Board *moves) const;
 };
 
 // Variables
@@ -383,11 +379,11 @@ inline int PopCount(const std::uint64_t bb) {
 }
 
 inline int Xcoord(const int sq) {
-  return sq & 0x7; // % 8
+  return sq & 0x7; // -> x % 8
 }
 
 inline int Ycoord(const int sq) {
-  return sq >> 3; // / 8
+  return sq >> 3; // -> x / 8
 }
 
 constexpr inline std::uint64_t Bit(const int nth) {
@@ -400,10 +396,6 @@ std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
 
 bool OnBoard(const int x, const int y) { // Slow, but only for init
   return x >= 0 && x <= 7 && y >= 0 && y <= 7;
-}
-
-inline bool IsUnderpromo(const Board *b) { // =n / =b / =r
-  return b->type == 5 || b->type == 6 || b->type == 7;
 }
 
 // Mirror horizontal
@@ -509,13 +501,36 @@ void SetHashtable(int hash_mb) {
 // Hash
 
 inline std::uint64_t Hash(const bool wtm) {
-  auto ret = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[wtm] ^
-             g_zobrist_castle[g_board->castle];
+  auto ret = g_zobrist_ep[g_board->epsq + 1] ^ g_zobrist_wtm[wtm] ^ g_zobrist_castle[g_board->castle];
   for (auto both = Both(); both; ) {
     const auto sq = CtzPop(&both);
     ret ^= g_zobrist_board[g_board->pieces[sq] + 6][sq];
   }
   return ret;
+}
+
+// HashEntry
+
+// Update hashtable sorting algorithm
+void HashEntry::update(const MoveType type, const std::uint64_t hash, const std::uint8_t index) {
+  switch (type) {
+    case MoveType::kKiller:
+      this->killer_hash = static_cast<std::uint32_t>(hash >> 32);
+      this->killer      = index + 1;
+      break;
+    case MoveType::kGood:
+      this->good_hash = static_cast<std::uint32_t>(hash >> 32);
+      this->good      = index + 1;
+      break;
+  }
+}
+
+// Best moves put first for maximum cutoffs
+void HashEntry::put_hash_value_2_moves(const std::uint64_t hash, Board *moves) const {
+  if ((this->killer_hash == static_cast<std::uint32_t>(hash >> 32)) && this->killer)
+    moves[this->killer - 1].score += 10000;
+  if ((this->good_hash == static_cast<std::uint32_t>(hash >> 32)) && this->good)
+    moves[this->good - 1].score += 7000;
 }
 
 // Tokenizer
@@ -550,6 +565,10 @@ int TokenNumber(const std::uint32_t nth = 0) {
 }
 
 // Board
+
+inline bool Board::is_underpromo() const { // =n / =b / =r
+  return this->type == 5 || this->type == 6 || this->type == 7;
+}
 
 std::uint64_t Fill(int from, const int to) { // from / to -> Always good
   auto ret = Bit(from);
@@ -805,19 +824,19 @@ char PromoLetter(const std::int8_t piece) {
   return "nbrq"[std::abs(piece) - 2];
 }
 
-const std::string MoveName(const Board *move) {
-  auto from = move->from, to = move->to;
+const std::string Board::movename() const {
+  auto from2 = this->from, to2 = this->to;
 
-  switch (move->type) {
-    case 1: from = g_king_w; to = g_chess960 ? g_rook_w[0] : 6;      break;
-    case 2: from = g_king_w; to = g_chess960 ? g_rook_w[1] : 2;      break;
-    case 3: from = g_king_b; to = g_chess960 ? g_rook_b[0] : 56 + 6; break;
-    case 4: from = g_king_b; to = g_chess960 ? g_rook_b[1] : 56 + 2; break;
+  switch (this->type) {
+    case 1: from2 = g_king_w, to2 = g_chess960 ? g_rook_w[0] : 6;      break;
+    case 2: from2 = g_king_w, to2 = g_chess960 ? g_rook_w[1] : 2;      break;
+    case 3: from2 = g_king_b, to2 = g_chess960 ? g_rook_b[0] : 56 + 6; break;
+    case 4: from2 = g_king_b, to2 = g_chess960 ? g_rook_b[1] : 56 + 2; break;
     case 5: case 6: case 7: case 8:
-            return MoveStr(from, to) + PromoLetter(move->pieces[to]);
+            return MoveStr(from2, to2) + PromoLetter(this->pieces[to2]);
   }
 
-  return MoveStr(from, to);
+  return MoveStr(from2, to2);
 }
 
 // Sorting
@@ -842,7 +861,7 @@ void EvalRootMoves() {
                       // OO|OOO
                       (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) +
                       // =r / =b / =n
-                      (IsUnderpromo(g_board) ? -5000 : 0) +
+                      (g_board->is_underpromo() ? -5000 : 0) +
                       // Add noise -> Make unpredictable
                       (g_noise ? Random(-g_noise, +g_noise) : 0) +
                       // Full eval
@@ -1775,10 +1794,8 @@ int LevelNoise() { // 0 -> 10 pawns
 }
 
 int Evaluate(const bool wtm) {
-  return LevelNoise() +
-    (EasyDraw(wtm) ? 0 :
-     (g_scale[g_board->fifty] *
-      static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm))));
+  const auto score = static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm));
+  return LevelNoise() + (EasyDraw(wtm) ? 0 : g_scale[g_board->fifty] * score);
 }
 
 // Search
@@ -1789,7 +1806,7 @@ void SpeakUci(const int score, const std::uint64_t ms) {
   std::cout << " time " << ms;
   std::cout << " nps " << Nps(g_nodes, ms);
   std::cout << " score cp " << ((g_wtm ? +1 : -1) * (std::abs(score) == INF ? score / 100 : score));
-  std::cout << " pv " << MoveName(g_boards[0]) << std::endl; // flush
+  std::cout << " pv " << g_boards[0][0].movename() << std::endl; // flush
 }
 
 // g_r50_positions.pop() must contain hash !
@@ -2076,7 +2093,7 @@ int BestW() {
 
     if (score > alpha) {
       // Skip underpromos unless really good ( 3+ pawns )
-      if (IsUnderpromo(g_boards[0] + i) && ((score + (3 * 100)) < alpha))
+      if (g_boards[0][i].is_underpromo() && ((score + (3 * 100)) < alpha))
         continue;
       alpha  = score;
       best_i = i;
@@ -2105,7 +2122,7 @@ int BestB() {
     if (g_stop_search) return g_best_score;
 
     if (score < beta) {
-      if (IsUnderpromo(g_boards[0] + i) && ((score - (3 * 100)) > beta))
+      if (g_boards[0][i].is_underpromo() && ((score - (3 * 100)) > beta))
         continue;
       beta   = score;
       best_i = i;
@@ -2282,7 +2299,7 @@ void UciMakeMove() {
   const auto move = TokenNth();
   g_root_n = MgenRoot();
   for (auto i = 0; i < g_root_n; ++i)
-    if (move == MoveName(g_boards[0] + i)) {
+    if (move == g_boards[0][i].movename()) {
       UciMake(i);
       return;
     }
@@ -2338,7 +2355,7 @@ void UciSetoption() {
 
 void PrintBestMove() {
   std::cout << "bestmove ";
-  std::cout << (g_root_n <= 0 ? "0000" : MoveName(g_boards[0]));
+  std::cout << (g_root_n <= 0 ? "0000" : g_boards[0][0].movename());
   std::cout << std::endl;
 }
 
@@ -2396,13 +2413,13 @@ void UciUci() {
   std::cout << "uciok" << std::endl;
 }
 
-// Convert Board to FEN
-std::string Board2Fen() {
+// Board presentation in FEN
+const std::string Board::to_fen() const {
   std::stringstream s{};
   for (auto r = 7; r >= 0; --r) {
     auto empty = 0;
     for (auto f = 0; f <= 7; ++f)
-      if (const auto p = "kqrbnp.PNBRQK"[g_board->pieces[8 * r + f] + 6]; p == '.') {
+      if (const auto p = "kqrbnp.PNBRQK"[this->pieces[8 * r + f] + 6]; p == '.') {
         ++empty;
       } else {
         if (empty) s << empty, empty = 0;
@@ -2412,24 +2429,43 @@ std::string Board2Fen() {
     if (r != 0) s << "/";
   }
   s << (g_wtm ? " w " : " b ");
-  if (g_board->castle & 0x1) s << static_cast<char>('A' + g_rook_w[0]);
-  if (g_board->castle & 0x2) s << static_cast<char>('A' + g_rook_w[1]);
-  if (g_board->castle & 0x4) s << static_cast<char>('a' + g_rook_b[0] - 56);
-  if (g_board->castle & 0x8) s << static_cast<char>('a' + g_rook_b[1] - 56);
-  s << (g_board->castle ? " " : "- ");
-  g_board->epsq == -1 ? s << "-" :
-    s << char('a' + Xcoord(g_board->epsq)) << char('1' + Ycoord(g_board->epsq));
-  s << " " << static_cast<int>(g_board->fifty / 2);
+  if (this->castle & 0x1) s << static_cast<char>('A' + g_rook_w[0]);
+  if (this->castle & 0x2) s << static_cast<char>('A' + g_rook_w[1]);
+  if (this->castle & 0x4) s << static_cast<char>('a' + g_rook_b[0] - 56);
+  if (this->castle & 0x8) s << static_cast<char>('a' + g_rook_b[1] - 56);
+  s << (this->castle ? " " : "- ");
+  this->epsq == -1 ? s << "-" :
+    s << static_cast<char>('a' + Xcoord(this->epsq)) << static_cast<char>('1' + Ycoord(this->epsq));
+  s << " " << static_cast<int>(this->fifty / 2);
   return s.str();
 }
 
+// String presentation of board
+const std::string Board::to_s() const {
+  std::stringstream s{};
+  s << "\n +---+---+---+---+---+---+---+---+\n";
+  for (auto r = 7; r >= 0; --r) {
+    for (auto f = 0; f <= 7; ++f)
+      s << " | " << "kqrbnp PNBRQK"[this->pieces[8 * r + f] + 6];
+    s << " | " << (1 + r) << "\n +---+---+---+---+---+---+---+---+\n";
+  }
+  s << "   a   b   c   d   e   f   g   h\n\n";
+  s << "> " << this->to_fen() << "\n";
+  s << "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " / ";
+  s << "Book: " << (g_book_exist ? "OK" : "FAIL") << " / ";
+  s << "Eval: " << Evaluate(g_wtm) << " / ";
+  s << "Hash: " << g_hash_entries;
+  return s.str();
+}
+
+// Save state (just in case) if multiple commands in a row
 struct Save {
   const bool nnue, book;
   const int noise;
   const std::string fen;
 
   // Save stuff in constructor
-  Save() : nnue{g_nnue_exist}, book{g_book_exist}, noise{g_noise}, fen{Board2Fen()} { }
+  Save() : nnue{g_nnue_exist}, book{g_book_exist}, noise{g_noise}, fen{g_board->to_fen()} { }
 
   // Restore stuff in destructor
   ~Save() {
@@ -2446,18 +2482,7 @@ struct Save {
 void UciPrintBoard(std::string s = "") {
   const Save save{};
   if (s.length()) std::replace(s.begin(), s.end(), '_', ' '), Fen(s);
-  std::cout << "\n +---+---+---+---+---+---+---+---+\n";
-  for (auto r = 7; r >= 0; --r) {
-    for (auto f = 0; f <= 7; ++f)
-      std::cout << " | " << "kqrbnp PNBRQK"[g_board->pieces[8 * r + f] + 6];
-    std::cout << " | " << (1 + r) << "\n +---+---+---+---+---+---+---+---+\n";
-  }
-  std::cout << "   a   b   c   d   e   f   g   h\n\n";
-  std::cout << "> " << Board2Fen() << "\n";
-  std::cout << "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " / ";
-  std::cout << "Book: " << (g_book_exist ? "OK" : "FAIL") << " / ";
-  std::cout << "Eval: " << Evaluate(g_wtm) << " / ";
-  std::cout << "Hash: " << g_hash_entries << std::endl;
+  std::cout << g_board->to_s() << std::endl;
 }
 
 // > perft [depth = 6] [fen = startpos]
@@ -2476,7 +2501,7 @@ void UciPerft(const std::string &d, const std::string &f) {
     const auto now    = Now();
     const auto nodes2 = depth ? Perft(!g_wtm, depth - 1, 1) : 0;
     const auto ms     = Now() - now;
-    std::cout << (i + 1) << ". " << MoveName(g_boards[0] + i) << " -> " << nodes2 << " (" << ms << " ms)" << std::endl;
+    std::cout << (i + 1) << ". " << g_boards[0][i].movename() << " -> " << nodes2 << " (" << ms << " ms)" << std::endl;
     nodes    += nodes2;
     total_ms += ms;
   }
@@ -2494,7 +2519,7 @@ void UciPerft(const std::string &d, const std::string &f) {
 void UciBench(const std::string &d, const std::string &t, const std::string &h, const std::string &nnue) {
   const Save save{};
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
-  g_max_depth         = (!d.length()) ? 11 : (d == "inf" ? MAX_DEPTH : std::clamp(std::stoi(d), 0, MAX_DEPTH)); // Set depth limits
+  g_max_depth         = !d.length() ? 11 : (d == "inf" ? MAX_DEPTH : std::clamp(std::stoi(d), 0, MAX_DEPTH)); // Set depth limits
   g_noise             = 0; // Make search deterministic
   g_book_exist        = false; // Disable book
   g_nnue_exist        = g_nnue_exist && nnue != "0"; // Use nnue ?
@@ -2558,8 +2583,7 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
   return permutations & moves;
 }
 
-std::uint64_t MakeSliderMagicMoves(const int *slider_vectors,
-                                   const int sq, const std::uint64_t moves) {
+std::uint64_t MakeSliderMagicMoves(const int *slider_vectors, const int sq, const std::uint64_t moves) {
   std::uint64_t possible_moves = 0;
   const auto x_pos = Xcoord(sq);
   const auto y_pos = Ycoord(sq);
