@@ -1629,10 +1629,14 @@ struct ClassicalEval {
   }
 
   void bonus_special_4men() {
-    if (     this->wqn && (this->brn || this->bnn || this->bbn)) {this->bonus_mating_w();} // KQvK(RNB)
-    else if (this->wrn && (this->bnn || this->bbn))              {this->scale_factor = 4; this->bonus_mating_w();} // KRvK(NB) -> Drawish
-    else if (this->bqn && (this->wrn || this->wnn || this->wbn)) {this->bonus_mating_b();} // K(RNB)vKQ
-    else if (this->brn && (this->wnn || this->wbn))              {this->scale_factor = 4; this->bonus_mating_b();} // K(NB)vKR -> Drawish
+    // KQvK(RNB)
+    if (     this->wqn && (this->brn || this->bnn || this->bbn)) {this->bonus_mating_w();}
+    // KRvK(NB) -> Drawish
+    else if (this->wrn && (this->bnn || this->bbn))              {this->scale_factor = 4; this->bonus_mating_w();}
+    // K(RNB)vKQ
+    else if (this->bqn && (this->wrn || this->wnn || this->wbn)) {this->bonus_mating_b();}
+    // K(NB)vKR -> Drawish
+    else if (this->brn && (this->wnn || this->wbn))              {this->scale_factor = 4; this->bonus_mating_b();}
   }
 
   void bonus_special_5men() {
@@ -1646,9 +1650,12 @@ struct ClassicalEval {
 
   void white_is_mating() {
     if (this->white_n == 3) {
-      if (this->wbn == 1 && this->wnn == 1) {this->bonus_knbk_w(); return;} // Special mating pattern
-      if (this->wbn == 1 && this->wpn == 1) {if (IsBlindBishopW()) this->scale_factor = 2; return;} // Don't force king to corner -> Try to promote
-      if (this->wnn == 2)                   {this->scale_factor = 2;} // Can't force mate w/ 2 knights -> Scale down
+      // Special mating pattern
+      if (this->wbn == 1 && this->wnn == 1) {this->bonus_knbk_w(); return;}
+      // Don't force king to corner -> Try to promote
+      if (this->wbn == 1 && this->wpn == 1) {if (IsBlindBishopW()) this->scale_factor = 2; return;}
+      // Can't force mate w/ 2 knights -> Scale down
+      if (this->wnn == 2)                   {this->scale_factor = 2;}
     }
     this->bonus_mating_w();
   }
@@ -1756,12 +1763,13 @@ int Evaluate(const bool wtm) {
 // Search
 
 void SpeakUci(const int score, const std::uint64_t ms) {
-  std::cout << "info depth " << std::min(g_max_depth, g_depth + 1);
-  std::cout << " nodes " << g_nodes;
-  std::cout << " time " << ms;
-  std::cout << " nps " << Nps(g_nodes, ms);
-  std::cout << " score cp " << ((g_wtm ? +1 : -1) * (std::abs(score) == INF ? score / 100 : score));
-  std::cout << " pv " << g_boards[0][0].movename() << std::endl; // flush
+  std::cout <<
+    "info depth " << std::min(g_max_depth, g_depth + 1) <<
+    " nodes " << g_nodes <<
+    " time " << ms <<
+    " nps " << Nps(g_nodes, ms) <<
+    " score cp " << ((g_wtm ? +1 : -1) * (std::abs(score) == INF ? score / 100 : score)) <<
+    " pv " << g_boards[0][0].movename() << std::endl; // flush
 }
 
 // g_r50_positions.pop() must contain hash !
@@ -2313,9 +2321,7 @@ void UciSetoption() {
 }
 
 void PrintBestMove() {
-  std::cout << "bestmove ";
-  std::cout << (g_root_n <= 0 ? "0000" : g_boards[0][0].movename());
-  std::cout << std::endl;
+  std::cout << "bestmove " << (g_root_n <= 0 ? "0000" : g_boards[0][0].movename()) << std::endl;
 }
 
 void UciGoInfinite() {
@@ -2361,15 +2367,16 @@ void UciGo() {
 }
 
 void UciUci() {
-  std::cout << "id name " << VERSION << "\n";
-  std::cout << "id author Toni Helminen" << "\n";
-  std::cout << "option name UCI_Chess960 type check default false" << "\n";
-  std::cout << "option name Level type spin default 100 min 0 max 100" << "\n";
-  std::cout << "option name MoveOverhead type spin default " << MOVEOVERHEAD << " min 0 max 10000" << "\n";
-  std::cout << "option name Hash type spin default " << HASH << " min 1 max 1048576" << "\n";
-  std::cout << "option name EvalFile type string default " << EVAL_FILE << "\n";
-  std::cout << "option name BookFile type string default " << BOOK_FILE << "\n";
-  std::cout << "uciok" << std::endl;
+  std::cout <<
+    "id name " << VERSION << "\n" <<
+    "id author Toni Helminen" << "\n" <<
+    "option name UCI_Chess960 type check default false" << "\n" <<
+    "option name Level type spin default 100 min 0 max 100" << "\n" <<
+    "option name MoveOverhead type spin default " << MOVEOVERHEAD << " min 0 max 10000" << "\n" <<
+    "option name Hash type spin default " << HASH << " min 1 max 1048576" << "\n" <<
+    "option name EvalFile type string default " << EVAL_FILE << "\n" <<
+    "option name BookFile type string default " << BOOK_FILE << "\n" <<
+    "uciok" << std::endl;
 }
 
 // Save state (just in case) if multiple commands in a row
@@ -2425,10 +2432,11 @@ void UciPerft(const std::string &d, const std::string &f) {
     nodes    += nodes2;
     total_ms += ms;
   }
-  std::cout << "\n===========================" << "\n\n";
-  std::cout << "Nodes:    " << nodes << "\n";
-  std::cout << "Time(ms): " << total_ms << "\n";
-  std::cout << "NPS:      " << Nps(nodes, total_ms) << std::endl;
+  std::cout <<
+    "\n===========================\n\n" <<
+    "Nodes:    " << nodes << "\n" <<
+    "Time(ms): " << total_ms << "\n" <<
+    "NPS:      " << Nps(nodes, total_ms) << std::endl;
 }
 
 // > bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]
@@ -2447,19 +2455,20 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
   const auto time     = !t.length() || t == "inf" ? INF : std::max(0, std::stoi(t)); // Set time limits
   auto n = 0, total_ms = 0;
   for (const auto &fen : kBench) {
-    std::cout << "[ " << (++n) << "/" << kBench.size() << " ; "  << fen << " ]" << "\n";
+    std::cout << "[ " << (++n) << "/" << kBench.size() << " ; "  << fen << " ]" << std::endl;
     Fen(fen);
     const auto now = Now();
     Think(time);
-    total_ms    += Now() - now;
-    nodes += g_nodes;
+    total_ms += Now() - now;
+    nodes    += g_nodes;
     std::cout << std::endl;
   }
-  std::cout << "===========================" << "\n\n";
-  std::cout << "Nodes:    " << nodes << "\n";
-  std::cout << "Time(ms): " << total_ms << "\n";
-  std::cout << "NPS:      " << Nps(nodes, total_ms) << "\n";
-  std::cout << "Mode:     " << (g_nnue_exist ? "NNUE" : "HCE") << std::endl;
+  std::cout <<
+    "===========================\n\n" <<
+    "Nodes:    " << nodes << "\n" <<
+    "Time(ms): " << total_ms << "\n" <<
+    "NPS:      " << Nps(nodes, total_ms) << "\n" <<
+    "Mode:     " << (g_nnue_exist ? "NNUE" : "HCE") << std::endl;
 }
 
 bool UciCommands() {
