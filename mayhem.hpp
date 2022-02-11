@@ -33,6 +33,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cmath>
 #include <cstdlib>
 #include <cstdint>
+#include <iterator> // For global begin() and end()
 
 extern "C" {
 #include <unistd.h>
@@ -60,6 +61,7 @@ namespace mayhem {
 #define INF           1048576  // System max number
 #define MAX_ARR       102      // Enough space for arrays
 #define HASH          256      // MB
+#define NOISE         2        // Opening noise
 #define MOVEOVERHEAD  100      // ms
 #define BOOK_BEST     false    // Nondeterministic opening play
 #define MAX_PIECES    32       // Max pieces on board (32 normally ...)
@@ -305,7 +307,7 @@ struct HashEntry { // 10B
   // Methods
 
   void update(const MoveType type, const std::uint64_t hash, const std::uint8_t index);
-  void put_hash_value_2_moves(const std::uint64_t hash, Board *moves) const;
+  void put_hash_value_to_moves(const std::uint64_t hash, Board *moves) const;
 };
 
 // Variables
@@ -319,7 +321,7 @@ std::uint64_t g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_s
   g_zobrist_castle[16] = {}, g_zobrist_wtm[2] = {}, g_r50_positions[MAX_ARR] = {}, g_zobrist_board[13][64] = {};
 
 int g_move_overhead = MOVEOVERHEAD, g_level = 100, g_root_n = 0, g_king_w = 0, g_king_b = 0,
-  g_moves_n = 0, g_max_depth = MAX_DEPTH, g_q_depth = 0, g_depth = 0, g_best_score = 0, g_noise = 2,
+  g_moves_n = 0, g_max_depth = MAX_DEPTH, g_q_depth = 0, g_depth = 0, g_best_score = 0, g_noise = NOISE,
   g_last_eval = 0, g_rook_w[2] = {}, g_rook_b[2] = {}, g_lmr[MAX_DEPTH][MAX_MOVES] = {},
   g_nnue_pieces[64] = {}, g_nnue_squares[64] = {};
 
@@ -349,22 +351,26 @@ std::uint64_t BishopMagicMoves(const int, const std::uint64_t);
 
 // Utils
 
-inline std::uint64_t White() { // White bitboards
+// White bitboards
+inline std::uint64_t White() {
   return g_board->white[0] | g_board->white[1] | g_board->white[2] |
          g_board->white[3] | g_board->white[4] | g_board->white[5];
 }
 
-inline std::uint64_t Black() { // Black bitboards
+// Black bitboards
+inline std::uint64_t Black() {
   return g_board->black[0] | g_board->black[1] | g_board->black[2] |
          g_board->black[3] | g_board->black[4] | g_board->black[5];
 }
 
+// Both colors
 inline std::uint64_t Both() {
-  return White() | Black(); // Both colors
+  return White() | Black();
 }
 
+// Count first 0's
 inline int Ctz(const std::uint64_t bb) {
-  return __builtin_ctzll(bb); // Count first 0's
+  return __builtin_ctzll(bb);
 }
 
 // Count (return) zeros AND then pop (arg) BitBoard
@@ -374,39 +380,47 @@ inline int CtzPop(std::uint64_t *bb) {
   return ret;
 }
 
+// Count 1's in 64b
 inline int PopCount(const std::uint64_t bb) {
-  return __builtin_popcountll(bb); // Count 1's
+  return __builtin_popcountll(bb);
 }
 
+// sq % 8
 inline int Xcoord(const int sq) {
-  return sq & 0x7; // -> x % 8
+  return sq & 0x7;
 }
 
+// sq / 8
 inline int Ycoord(const int sq) {
-  return sq >> 3; // -> x / 8
+  return sq >> 3;
 }
 
+// Set bit in 1 -> 64
 constexpr inline std::uint64_t Bit(const int nth) {
-  return 0x1ULL << nth; // Set bit in 1 -> 64
+  return 0x1ULL << nth;
 }
 
-std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) { // Nodes Per Second
+// Nodes Per Second
+std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
   return (1000 * nodes) / std::max<std::uint64_t>(1, ms);
 }
 
-bool OnBoard(const int x, const int y) { // Slow, but only for init
+// Is x,y on board. Slow, but only for init
+bool OnBoard(const int x, const int y) {
   return x >= 0 && x <= 7 && y >= 0 && y <= 7;
 }
 
-char File2Char(const int f) { // X coord to char
+// X coord to char
+char File2Char(const int f) {
   return 'a' + f;
 }
 
-char Rank2Char(const int r) { // Y coord to char
+// Y coord to char
+char Rank2Char(const int r) {
   return '1' + r;
 }
 
-const std::string MoveStr(const int from, const int to) {
+const std::string Move2Str(const int from, const int to) {
   return std::string{File2Char(Xcoord(from)), Rank2Char(Ycoord(from)),
                      File2Char(Xcoord(to)),   Rank2Char(Ycoord(to))};
 }
@@ -415,7 +429,8 @@ char PromoLetter(const std::int8_t piece) {
   return "nbrq"[std::abs(piece) - 2];
 }
 
-void Ok(const bool test, const std::string &msg) { // Simple assert
+// Simple assert
+void Ok(const bool test, const std::string &msg) {
   if (!test) {
     std::cout << "info string " << msg << std::endl;
     std::exit(EXIT_FAILURE);
@@ -455,13 +470,15 @@ std::uint64_t Random64() { // Deterministic Rand()
   return MIXER(a) ^ MIXER(b) ^ MIXER(c);
 }
 
-std::uint64_t Random8x64() { // Mixer for superrandom
+// Really random for zobrist
+std::uint64_t Random8x64() {
   std::uint64_t ret = 0;
   for (auto i = 0; i < 8; ++i) ret ^= Random64() << (8 * i);
   return ret;
 }
 
-int Random(const int min, const int max) { // Nondeterministic Rand()
+// Nondeterministic Rand()
+int Random(const int min, const int max) {
   static std::uint64_t seed = 0x202c7ULL + static_cast<std::uint64_t>(std::time(nullptr));
   return min + ((seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3)) %
       static_cast<std::uint64_t>(std::max(1, std::abs(max - min) + 1)));
@@ -537,7 +554,7 @@ void HashEntry::update(const MoveType type, const std::uint64_t hash, const std:
 }
 
 // Best moves put first for maximum cutoffs
-void HashEntry::put_hash_value_2_moves(const std::uint64_t hash, Board *moves) const {
+void HashEntry::put_hash_value_to_moves(const std::uint64_t hash, Board *moves) const {
   if ((this->killer_hash == static_cast<std::uint32_t>(hash >> 32)) && this->killer)
     moves[this->killer - 1].score += 10000;
   if ((this->good_hash == static_cast<std::uint32_t>(hash >> 32)) && this->good)
@@ -559,10 +576,10 @@ const std::string Board::movename() const {
     case 3: from2 = g_king_b, to2 = g_chess960 ? g_rook_b[0] : 56 + 6; break;
     case 4: from2 = g_king_b, to2 = g_chess960 ? g_rook_b[1] : 56 + 2; break;
     case 5: case 6: case 7: case 8:
-            return MoveStr(from2, to2) + PromoLetter(this->pieces[to2]);
+            return Move2Str(from2, to2) + PromoLetter(this->pieces[to2]);
   }
 
-  return MoveStr(from2, to2);
+  return Move2Str(from2, to2);
 }
 
 // Board presentation in FEN
@@ -661,15 +678,13 @@ void BuildCastlingBitboard1W() {
   // White: O-O
   if (g_board->castle & 0x1) {
     g_castle_w[0]       = Fill(g_king_w, 6);
-    g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5)) ^
-                          (Bit(g_king_w) | Bit(g_rook_w[0]));
+    g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5)) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
   }
 
   // White: O-O-O
   if (g_board->castle & 0x2) {
     g_castle_w[1]       = Fill(g_king_w, 2);
-    g_castle_empty_w[1] = (g_castle_w[1] | Fill(g_rook_w[1], 3)) ^
-                          (Bit(g_king_w) | Bit(g_rook_w[1]));
+    g_castle_empty_w[1] = (g_castle_w[1] | Fill(g_rook_w[1], 3)) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
   }
 }
 
@@ -677,15 +692,13 @@ void BuildCastlingBitboard1B() {
   // Black: O-O
   if (g_board->castle & 0x4) {
     g_castle_b[0]       = Fill(g_king_b, 56 + 6);
-    g_castle_empty_b[0] = (g_castle_b[0] | Fill(g_rook_b[0], 56 + 5)) ^
-                          (Bit(g_king_b) | Bit(g_rook_b[0]));
+    g_castle_empty_b[0] = (g_castle_b[0] | Fill(g_rook_b[0], 56 + 5)) ^ (Bit(g_king_b) | Bit(g_rook_b[0]));
   }
 
   // Black: O-O-O
   if (g_board->castle & 0x8) {
     g_castle_b[1]       = Fill(g_king_b, 56 + 2);
-    g_castle_empty_b[1] = (g_castle_b[1] | Fill(g_rook_b[1], 56 + 3)) ^
-                          (Bit(g_king_b) | Bit(g_rook_b[1]));
+    g_castle_empty_b[1] = (g_castle_b[1] | Fill(g_rook_b[1], 56 + 3)) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
   }
 }
 
@@ -878,16 +891,22 @@ inline bool ChecksB() {
 
 // Sorting
 
+struct CompFunctor { bool operator()(const Board &a, const Board &b) const { return a.score < b.score; } };
+
 // Lazy sorting algorithm
-bool SortOneMoveOnly(const int ply, const int nth, const int total_moves) {
-  auto score = g_boards[ply][nth].score;
+// Sort only node-by-node
+inline void LazySort(const int ply, const int nth, const int total_moves) {
   for (auto i = nth + 1; i < total_moves; ++i)
-    if (g_boards[ply][i].score > score) {
-      score = g_boards[ply][i].score;
+    if (g_boards[ply][i].score > g_boards[ply][nth].score)
       std::swap(g_boards[ply][nth], g_boards[ply][i]);
-    }
-  return score != 0; // Did smt
 }
+
+// Tiny speedup since not all moves are sorted
+inline bool LazySortReport(const int ply, const int nth, const int total_moves) {
+  LazySort(ply, nth, total_moves);
+  return g_boards[ply][nth].score != 0; // Did smt
+}
+
 
 // 1. Evaluate all root moves
 void EvalRootMoves() {
@@ -905,10 +924,11 @@ void EvalRootMoves() {
                       (g_wtm ? +1 : -1) * Evaluate(g_wtm);
 }
 
+struct RootCompFunctor { bool operator()(const Board &a, const Board &b) const { return a.score > b.score; } };
+
 // 2. Then sort root moves
 void SortRootMoves() {
-  std::sort(g_boards[0] + 0, g_boards[0] + g_root_n, // 9 -> 0
-      [](const auto &a, const auto &b) {return a.score > b.score;});
+  std::sort(g_boards[0] + 0, g_boards[0] + g_root_n, RootCompFunctor()); // 9 -> 0
 }
 
 void SortRoot(const int index) {
@@ -1816,9 +1836,10 @@ int QSearchW(int alpha, const int beta, const int depth, const int ply) {
     return alpha;
 
   const auto moves_n = MgenTacticalW(g_boards[ply]);
-  auto sort = true; // Speedup -> If previous move has 0 score, stop sorting
+  //auto sort = true; // Speedup -> If previous move has 0 score, stop sorting
   for (auto i = 0; i < moves_n; ++i) {
-    if (sort) sort = SortOneMoveOnly(ply, i, moves_n);
+    LazySort(ply, i, moves_n);
+    if (i) Ok(g_boards[ply][i-1].score >= g_boards[ply][i].score, "aaa");
     g_board = g_boards[ply] + i;
     if ((alpha = std::max(alpha, QSearchB(alpha, beta, depth - 1, ply + 1))) >= beta)
       return alpha;
@@ -1837,9 +1858,9 @@ int QSearchB(const int alpha, int beta, const int depth, const int ply) {
     return beta;
 
   const auto moves_n = MgenTacticalB(g_boards[ply]);
-  auto sort = true;
   for (auto i = 0; i < moves_n; ++i) {
-    if (sort) sort = SortOneMoveOnly(ply, i, moves_n);
+    LazySort(ply, i, moves_n);
+    if (i) Ok(g_boards[ply][i-1].score >= g_boards[ply][i].score, "bbb");
     g_board = g_boards[ply] + i;
     if (alpha >= (beta = std::min(beta, QSearchW(alpha, beta, depth - 1, ply + 1))))
       return beta;
@@ -1863,11 +1884,12 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
-  entry->put_hash_value_2_moves(hash, g_boards[ply]);
+  entry->put_hash_value_to_moves(hash, g_boards[ply]);
 
   auto sort = true;
   for (auto i = 0; i < moves_n; ++i) {
-    if (sort) sort = SortOneMoveOnly(ply, i, moves_n);
+    if (sort) sort = LazySortReport(ply, i, moves_n);
+    if (i) Ok(g_boards[ply][i-1].score >= g_boards[ply][i].score, "ccc");
     g_board = g_boards[ply] + i;
     g_is_pv = i <= 1 && !g_boards[ply][i].score;
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksW()) {
@@ -1902,11 +1924,15 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
-  entry->put_hash_value_2_moves(hash, g_boards[ply]);
+  entry->put_hash_value_to_moves(hash, g_boards[ply]);
+
+  //for (auto k=0;k<moves_n;++k) std::cout << ":::" << int(k) << " : "  << int(g_boards[ply][k].index)  << " : " << int(g_boards[ply][k].score) << std::endl;
 
   auto sort = true;
   for (auto i = 0; i < moves_n; ++i) {
-    if (sort) sort = SortOneMoveOnly(ply, i, moves_n);
+    if (sort) sort = LazySortReport(ply, i, moves_n);
+    //if (i && g_boards[ply][i-1].score < g_boards[ply][i].score) for (auto k=0;k<moves_n;++k) std::cout << int(k) << " : " << int(i) << " : "  << int(g_boards[ply][k].index)  << " : " << int(g_boards[ply][k].score) << std::endl;
+    if (i) Ok(g_boards[ply][i-1].score >= g_boards[ply][i].score, "ddd");
     g_board = g_boards[ply] + i;
     g_is_pv = i <= 1 && !g_boards[ply][i].score;
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksB()) {
@@ -2385,19 +2411,17 @@ struct Save {
   // Attributes
 
   const bool nnue, book;
-  const int noise;
   const std::string fen;
 
   // Methods
 
   // Save stuff in constructor
-  Save() : nnue{g_nnue_exist}, book{g_book_exist}, noise{g_noise}, fen{g_board->to_fen()} { }
+  Save() : nnue{g_nnue_exist}, book{g_book_exist}, fen{g_board->to_fen()} { }
 
   // Restore stuff in destructor
   ~Save() {
     g_nnue_exist = this->nnue;
     g_book_exist = this->book;
-    g_noise      = this->noise;
     Fen(this->fen);
   }
 };
@@ -2426,7 +2450,7 @@ void UciPerft(const std::string &d, const std::string &f) {
   for (auto i = 0; i < g_root_n; ++i) {
     g_board = g_boards[0] + i;
     const auto now    = Now();
-    const auto nodes2 = depth ? Perft(!g_wtm, depth - 1, 1) : 0;
+    const auto nodes2 = depth >= 0 ? Perft(!g_wtm, depth - 1, 1) : 0;
     const auto ms     = Now() - now;
     std::cout << (i + 1) << ". " << g_boards[0][i].movename() << " -> " << nodes2 << " (" << ms << " ms)" << std::endl;
     nodes    += nodes2;
@@ -2463,6 +2487,8 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
     nodes    += g_nodes;
     std::cout << std::endl;
   }
+  g_noise     = NOISE;
+  g_max_depth = MAX_DEPTH;
   std::cout <<
     "===========================\n\n" <<
     "Nodes:    " << nodes << "\n" <<
@@ -2650,6 +2676,37 @@ void PrintVersion() {
   std::cout << VERSION << " by Toni Helminen" << std::endl;
 }
 
+  /*
+static bool abs_compare(const Board &a, const Board &b)
+{
+  std::cout << a.score << "\n";
+    return a.score < b.score;
+}
+
+// Lazy sorting algorithm
+bool LazySort4(const int ply, const int nth, const int total_moves) {
+  //auto score = g_boards[ply][nth].score;
+  //std::vector<Board***>::iterator result
+  //if (nth == total_moves - 1) return false;
+  const auto *r = std::max_element(g_boards[ply] + nth, g_boards[ply] + total_moves, abs_compare);
+  const auto i = r->score;/// 0*nth + ((g_boards[ply] + total_moves) - r);
+
+  for (auto j = 0; j < 20; ++j) {
+    std::cout << j << " : " << i << " : " << nth << " : " << g_boards[ply][j].score << "\n";
+  }
+  return 0;
+  //if (i == total_moves) return false;
+  if (i != nth)
+  std::swap(g_boards[ply][nth], g_boards[ply][i]);
+  //for (auto i = nth + 1; i < total_moves; ++i)
+    //if (g_boards[ply][i].score > g_boards[ply][nth].score) {
+      ////score = g_boards[ply][i].score;
+      //std::swap(g_boards[ply][nth], g_boards[ply][i]);
+    //}
+  return g_boards[ply][nth].score != 0; // Did smt
+}
+  */
+
 // Mayhem initialization (required to work)
 void Init() {
   InitBishopMagics();
@@ -2663,6 +2720,9 @@ void Init() {
   SetNNUE(EVAL_FILE);
   SetBook(BOOK_FILE);
   Fen(STARTPOS);
+
+  //g_boards[0][4].score = 11;
+  //LazySort4(0, 0, MAX_MOVES);
 }
 
 void UciLoop() {
