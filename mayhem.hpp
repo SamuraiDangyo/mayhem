@@ -420,11 +420,13 @@ char Rank2Char(const int r) {
   return '1' + r;
 }
 
+// Convert int to string
 const std::string Move2Str(const int from, const int to) {
   return std::string{File2Char(Xcoord(from)), Rank2Char(Ycoord(from)),
                      File2Char(Xcoord(to)),   Rank2Char(Ycoord(to))};
 }
 
+// =n / =b / =r / =q
 char PromoLetter(const std::int8_t piece) {
   return "nbrq"[std::abs(piece) - 2];
 }
@@ -439,7 +441,8 @@ void Ok(const bool test, const std::string &msg) {
 
 extern "C" {
 
-bool InputAvailable() { // See if cin has smt
+// See if cin has smt
+bool InputAvailable() {
 #ifdef WINDOWS
   return _kbhit();
 #else
@@ -455,13 +458,15 @@ bool InputAvailable() { // See if cin has smt
 
 } // extern "C"
 
-inline std::uint64_t Now() { // ms since 1970
+// ms since 1970
+inline std::uint64_t Now() {
   return std::chrono::duration_cast<std::chrono::milliseconds>(
            std::chrono::system_clock::now().time_since_epoch())
          .count();
 }
 
-std::uint64_t Random64() { // Deterministic Rand()
+// Deterministic Rand()
+std::uint64_t Random64() {
   static std::uint64_t a = 0X12311227ULL, b = 0X1931311ULL, c = 0X13138141ULL;
 #define MIXER(num) (((num) << 7) ^ ((num) >> 5))
   a ^= b + c;
@@ -484,6 +489,7 @@ int Random(const int min, const int max) {
       static_cast<std::uint64_t>(std::max(1, std::abs(max - min) + 1)));
 }
 
+// Split string by given str
 template <class T>
 void SplitString(const std::string &str, T &cont, const std::string &delims = " ") {
   std::size_t cur = str.find_first_of(delims), prev = 0;
@@ -495,6 +501,7 @@ void SplitString(const std::string &str, T &cont, const std::string &delims = " 
   cont.push_back(str.substr(prev, cur - prev));
 }
 
+// Read input from cin
 void ReadInput() {
   std::string line{};
   std::getline(std::cin, line);
@@ -891,8 +898,6 @@ inline bool ChecksB() {
 
 // Sorting
 
-struct CompFunctor { bool operator()(const Board &a, const Board &b) const { return a.score < b.score; } };
-
 // Lazy sorting algorithm
 // Sort only node-by-node
 inline void LazySort(const int ply, const int nth, const int total_moves) {
@@ -924,9 +929,8 @@ void EvalRootMoves() {
                       (g_wtm ? +1 : -1) * Evaluate(g_wtm);
 }
 
-struct RootCompFunctor { bool operator()(const Board &a, const Board &b) const { return a.score > b.score; } };
-
 // 2. Then sort root moves
+struct RootCompFunctor { bool operator()(const Board &a, const Board &b) const { return a.score > b.score; } };
 void SortRootMoves() {
   std::sort(g_boards[0] + 0, g_boards[0] + g_root_n, RootCompFunctor()); // 9 -> 0
 }
@@ -1626,13 +1630,13 @@ struct ClassicalEval {
 
   void bonus_knbk_w() {
     this->score += 2 * CloseBonus(this->wk, this->bk);
-    this->score += 10 * (g_board->white[2] & 0xaa55aa55aa55aa55ULL ? std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
+    this->score += 10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
         std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk)));
   }
 
   void bonus_knbk_b() {
     this->score -= 2 * CloseBonus(this->wk, this->bk);
-    this->score -= 10 * (g_board->black[2] & 0xaa55aa55aa55aa55ULL ? std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
+    this->score -= 10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
         std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk)));
   }
 
@@ -1836,10 +1840,8 @@ int QSearchW(int alpha, const int beta, const int depth, const int ply) {
     return alpha;
 
   const auto moves_n = MgenTacticalW(g_boards[ply]);
-  //auto sort = true; // Speedup -> If previous move has 0 score, stop sorting
   for (auto i = 0; i < moves_n; ++i) {
     LazySort(ply, i, moves_n);
-    if (i) Ok(g_boards[ply][i-1].score >= g_boards[ply][i].score, "aaa");
     g_board = g_boards[ply] + i;
     if ((alpha = std::max(alpha, QSearchB(alpha, beta, depth - 1, ply + 1))) >= beta)
       return alpha;
@@ -1860,7 +1862,6 @@ int QSearchB(const int alpha, int beta, const int depth, const int ply) {
   const auto moves_n = MgenTacticalB(g_boards[ply]);
   for (auto i = 0; i < moves_n; ++i) {
     LazySort(ply, i, moves_n);
-    if (i) Ok(g_boards[ply][i-1].score >= g_boards[ply][i].score, "bbb");
     g_board = g_boards[ply] + i;
     if (alpha >= (beta = std::min(beta, QSearchW(alpha, beta, depth - 1, ply + 1))))
       return beta;
@@ -1889,7 +1890,6 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   auto sort = true;
   for (auto i = 0; i < moves_n; ++i) {
     if (sort) sort = LazySortReport(ply, i, moves_n);
-    if (i) Ok(g_boards[ply][i-1].score >= g_boards[ply][i].score, "ccc");
     g_board = g_boards[ply] + i;
     g_is_pv = i <= 1 && !g_boards[ply][i].score;
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksW()) {
@@ -1926,13 +1926,9 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
   entry->put_hash_value_to_moves(hash, g_boards[ply]);
 
-  //for (auto k=0;k<moves_n;++k) std::cout << ":::" << int(k) << " : "  << int(g_boards[ply][k].index)  << " : " << int(g_boards[ply][k].score) << std::endl;
-
   auto sort = true;
   for (auto i = 0; i < moves_n; ++i) {
     if (sort) sort = LazySortReport(ply, i, moves_n);
-    //if (i && g_boards[ply][i-1].score < g_boards[ply][i].score) for (auto k=0;k<moves_n;++k) std::cout << int(k) << " : " << int(i) << " : "  << int(g_boards[ply][k].index)  << " : " << int(g_boards[ply][k].score) << std::endl;
-    if (i) Ok(g_boards[ply][i-1].score >= g_boards[ply][i].score, "ddd");
     g_board = g_boards[ply] + i;
     g_is_pv = i <= 1 && !g_boards[ply][i].score;
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksB()) {
@@ -2676,37 +2672,6 @@ void PrintVersion() {
   std::cout << VERSION << " by Toni Helminen" << std::endl;
 }
 
-  /*
-static bool abs_compare(const Board &a, const Board &b)
-{
-  std::cout << a.score << "\n";
-    return a.score < b.score;
-}
-
-// Lazy sorting algorithm
-bool LazySort4(const int ply, const int nth, const int total_moves) {
-  //auto score = g_boards[ply][nth].score;
-  //std::vector<Board***>::iterator result
-  //if (nth == total_moves - 1) return false;
-  const auto *r = std::max_element(g_boards[ply] + nth, g_boards[ply] + total_moves, abs_compare);
-  const auto i = r->score;/// 0*nth + ((g_boards[ply] + total_moves) - r);
-
-  for (auto j = 0; j < 20; ++j) {
-    std::cout << j << " : " << i << " : " << nth << " : " << g_boards[ply][j].score << "\n";
-  }
-  return 0;
-  //if (i == total_moves) return false;
-  if (i != nth)
-  std::swap(g_boards[ply][nth], g_boards[ply][i]);
-  //for (auto i = nth + 1; i < total_moves; ++i)
-    //if (g_boards[ply][i].score > g_boards[ply][nth].score) {
-      ////score = g_boards[ply][i].score;
-      //std::swap(g_boards[ply][nth], g_boards[ply][i]);
-    //}
-  return g_boards[ply][nth].score != 0; // Did smt
-}
-  */
-
 // Mayhem initialization (required to work)
 void Init() {
   InitBishopMagics();
@@ -2720,9 +2685,6 @@ void Init() {
   SetNNUE(EVAL_FILE);
   SetBook(BOOK_FILE);
   Fen(STARTPOS);
-
-  //g_boards[0][4].score = 11;
-  //LazySort4(0, 0, MAX_MOVES);
 }
 
 void UciLoop() {
