@@ -61,7 +61,7 @@ namespace mayhem {
 #define INF           1048576  // System max number
 #define MAX_ARR       102      // Enough space for arrays
 #define HASH          256      // MB
-#define NOISE         2        // Opening noise
+#define NOISE         2        // Noie for opening moves
 #define MOVEOVERHEAD  100      // ms
 #define BOOK_BEST     false    // Nondeterministic opening play
 #define MAX_PIECES    32       // Max pieces on board (32 normally ...)
@@ -415,18 +415,18 @@ char File2Char(const int f) {
   return 'a' + f;
 }
 
-// Y coord to char
+// Y coord to Char
 char Rank2Char(const int r) {
   return '1' + r;
 }
 
-// Convert int to string
+// Convert int coords to string
 const std::string Move2Str(const int from, const int to) {
   return std::string{File2Char(Xcoord(from)), Rank2Char(Ycoord(from)),
                      File2Char(Xcoord(to)),   Rank2Char(Ycoord(to))};
 }
 
-// =n / =b / =r / =q
+// =n / =b / =r / =q -> char
 char PromoLetter(const std::int8_t piece) {
   return "nbrq"[std::abs(piece) - 2];
 }
@@ -737,6 +737,7 @@ void PutPiece(const int sq, const int p) {
   else if (p < 0) g_board->black[-p - 1] |= Bit(sq);
 }
 
+// Convert piece (Char) -> Int
 int Piece2Num(const char p) {
   switch (p) {
     case 'P': return +1;
@@ -755,14 +756,17 @@ int Piece2Num(const char p) {
   }
 }
 
+// Empty cells (Char) -> Int
 int Empty2Num(const char e) {
   return e - '0';
 }
 
+// X coordinate (Char) -> Int
 int File2Num(const char f) {
   return f - 'a';
 }
 
+// Ep Y coordinate (Char) -> Int
 int Rank2Num(const char r) {
   return r == '3' ? 2 : 5; // '3' / '6'
 }
@@ -898,7 +902,7 @@ inline bool ChecksB() {
 
 // Sorting
 
-// Lazy sorting algorithm
+// Lazy sorting algorithm (See: lazy-sorting-algorithm paper)
 // Sort only node-by-node
 inline void LazySort(const int ply, const int nth, const int total_moves) {
   for (auto i = nth + 1; i < total_moves; ++i)
@@ -906,12 +910,13 @@ inline void LazySort(const int ply, const int nth, const int total_moves) {
       std::swap(g_boards[ply][nth], g_boards[ply][i]);
 }
 
-// Tiny speedup since not all moves are sorted
+// Tiny speedup since not all moves are scored (lots of pointless shuffling ...)
 inline bool LazySortReport(const int ply, const int nth, const int total_moves) {
-  LazySort(ply, nth, total_moves);
+  for (auto i = nth + 1; i < total_moves; ++i)
+    if (g_boards[ply][i].score > g_boards[ply][nth].score)
+      std::swap(g_boards[ply][nth], g_boards[ply][i]);
   return g_boards[ply][nth].score != 0; // Did smt
 }
-
 
 // 1. Evaluate all root moves
 void EvalRootMoves() {
