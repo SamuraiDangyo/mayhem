@@ -415,7 +415,7 @@ char File2Char(const int f) {
   return 'a' + f;
 }
 
-// Y coord to Char
+// Y coord to char
 char Rank2Char(const int r) {
   return '1' + r;
 }
@@ -426,7 +426,7 @@ const std::string Move2Str(const int from, const int to) {
                      File2Char(Xcoord(to)),   Rank2Char(Ycoord(to))};
 }
 
-// =n / =b / =r / =q -> char
+// =n / =b / =r / =q -> Char
 char PromoLetter(const std::int8_t piece) {
   return "nbrq"[std::abs(piece) - 2];
 }
@@ -761,12 +761,12 @@ int Empty2Num(const char e) {
   return e - '0';
 }
 
-// X coordinate (Char) -> Int
+// X-coord (Char) -> Int
 int File2Num(const char f) {
   return f - 'a';
 }
 
-// Ep Y coordinate (Char) -> Int
+// Ep Y-coord (Char) -> Int
 int Rank2Num(const char r) {
   return r == '3' ? 2 : 5; // '3' / '6'
 }
@@ -902,7 +902,7 @@ inline bool ChecksB() {
 
 // Sorting
 
-// Lazy sorting algorithm (See: lazy-sorting-algorithm paper)
+// Only when necessary (See: lazy-sorting-algorithm paper)
 // Sort only node-by-node
 inline void LazySort(const int ply, const int nth, const int total_moves) {
   for (auto i = nth + 1; i < total_moves; ++i)
@@ -1451,7 +1451,8 @@ inline void MgenReset(Board *moves) {
   g_board_orig = g_board;
 }
 
-int MgenW(Board *moves) { // Everything
+// Generate everything
+int MgenW(Board *moves) {
   MgenReset(moves);
   MgenAllW();
   return g_moves_n;
@@ -1463,7 +1464,8 @@ int MgenB(Board *moves) {
   return g_moves_n;
 }
 
-int MgenCapturesW(Board *moves) { // Only captures
+// Generate only captures
+int MgenCapturesW(Board *moves) {
   MgenReset(moves);
   MgenAllCapturesW();
   return g_moves_n;
@@ -1484,7 +1486,8 @@ int MgenTacticalB(Board *moves) {
   return ChecksW() ? MgenB(moves) : MgenCapturesB(moves);
 }
 
-int MgenRoot() { // Only root moves
+// Generate only root moves
+int MgenRoot() {
   return g_wtm ? MgenW(g_boards[0]) : MgenB(g_boards[0]);
 }
 
@@ -1563,7 +1566,8 @@ int CloseAnyCornerBonus(const int sq) {
   return std::max({CloseBonus(sq, 0),  CloseBonus(sq, 7), CloseBonus(sq, 56), CloseBonus(sq, 63)});
 }
 
-inline int FlipY(const int sq) { // Mirror horizontal
+// Mirror horizontal
+inline int FlipY(const int sq) {
   return sq ^ 56;
 }
 
@@ -1777,6 +1781,7 @@ int EvaluateNNUE(const bool wtm) {
   return NnueEval{wtm}.evaluate() / 4;
 }
 
+// Add noise to eval for different playing levels
 // 0    (Random Mover)
 // 1-99 (Levels)
 // 100  (Full Strength)
@@ -2372,6 +2377,7 @@ void UciGoDepth() {
   PrintBestMove();
 }
 
+// Calculate needed time then think
 // Make sure we never lose on time
 // Small overhead buffer to prevent time losses
 void UciGo() {
@@ -2427,6 +2433,7 @@ struct Save {
   }
 };
 
+// Print ASCII art board by 'p'
 // > p [fen = startpos]
 // > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0
 // Print board + some info (NNUE, Book, Eval (cp), Hash (entries))
@@ -2437,6 +2444,7 @@ void UciPrintBoard(std::string s = "") {
   std::cout << "\n" << g_board->to_s() << std::endl;
 }
 
+// Calculate perft split numbers
 // > perft [depth = 6] [fen = startpos]
 // > perft -> 119060324
 // > perft 7 R7/P4k2/8/8/8/8/r7/6K1_w_-_-_0 -> 245764549
@@ -2464,6 +2472,7 @@ void UciPerft(const std::string &d, const std::string &f) {
     "NPS:      " << Nps(nodes, total_ms) << std::endl;
 }
 
+// Bench signature and speed of the program
 // > bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]
 // Speed:     bench inf 5000
 // Signature: bench 11 inf
