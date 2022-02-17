@@ -1191,8 +1191,7 @@ INLINE unsigned wt_idx(unsigned r, unsigned c, unsigned dims)
 #endif
 }
 
-static const char *read_hidden_weights(weight_t *w, unsigned dims,
-    const char *d)
+static const char *read_hidden_weights(weight_t *w, unsigned dims, const char *d)
 {
   for (unsigned r = 0; r < 32; ++r)
     for (unsigned c = 0; c < dims; ++c)
@@ -1292,14 +1291,14 @@ static bool load_eval_file(const char *evalFile)
   } else
 #endif
   {
-    FD fd = open_file(evalFile);
+    const FD fd = open_file(evalFile);
     if (fd == FD_ERR) return false;
     evalData = map_file(fd, &mapping);
     size = file_size(fd);
     close_file(fd);
   }
 
-  bool success = verify_net(evalData, size);
+  const bool success = verify_net(evalData, size);
   if (success)
     init_weights(evalData);
   if (mapping) unmap_file(evalData, mapping);

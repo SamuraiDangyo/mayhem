@@ -33,12 +33,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cmath>
 #include <cstdlib>
 #include <cstdint>
-#include <iterator> // For global begin() and end()
+#include <iterator>
 
 extern "C" {
-#include <unistd.h>
 #ifdef WINDOWS
 #include <conio.h>
+#else
+#include <unistd.h>
 #endif
 } // extern "C"
 
@@ -52,7 +53,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 6.7"
+#define VERSION       "Mayhem 6.8"
 #define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0"
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
@@ -61,7 +62,7 @@ namespace mayhem {
 #define INF           1048576  // System max number
 #define MAX_ARR       102      // Enough space for arrays
 #define HASH          256      // MB
-#define NOISE         2        // Noie for opening moves
+#define NOISE         2        // Noise for opening moves
 #define MOVEOVERHEAD  100      // ms
 #define BOOK_BEST     false    // Nondeterministic opening play
 #define MAX_PIECES    32       // Max pieces on board (32 normally ...)
@@ -149,7 +150,7 @@ constexpr int kPesto[6][2][64] = {
     -12,  17,   14,   17,   17,   38,   23,   11,   -74,  -35,  -18,  -18,  -11,  15,   4,    -17}}
 };
 
-constexpr std::uint64_t kRookMagic[3][64] = {
+constexpr std::uint64_t kRookMagics[3][64] = {
   { // Magics
     0x548001400080106cULL, 0x900184000110820ULL,  0x428004200a81080ULL,  0x140088082000c40ULL,
     0x1480020800011400ULL, 0x100008804085201ULL,  0x2a40220001048140ULL, 0x50000810000482aULL,
@@ -206,7 +207,7 @@ constexpr std::uint64_t kRookMagic[3][64] = {
   }
 };
 
-constexpr std::uint64_t kBishopMagic[3][64] = {
+constexpr std::uint64_t kBishopMagics[3][64] = {
   { // Magics
     0x2890208600480830ULL, 0x324148050f087ULL,    0x1402488a86402004ULL, 0xc2210a1100044bULL,
     0x88450040b021110cULL, 0xc0407240011ULL,      0xd0246940cc101681ULL, 0x1022840c2e410060ULL,
@@ -405,17 +406,17 @@ std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
   return (1000 * nodes) / std::max<std::uint64_t>(1, ms);
 }
 
-// Is x,y on board. Slow, but only for init
+// Is (x,y) on board ? Slow, but only for init
 bool OnBoard(const int x, const int y) {
   return x >= 0 && x <= 7 && y >= 0 && y <= 7;
 }
 
-// X coord to char
+// X-coord to char
 char File2Char(const int f) {
   return 'a' + f;
 }
 
-// Y coord to char
+// Y-coord to char
 char Rank2Char(const int r) {
   return '1' + r;
 }
@@ -902,20 +903,12 @@ inline bool ChecksB() {
 
 // Sorting
 
-// Only when necessary (See: lazy-sorting-algorithm paper)
-// Sort only node-by-node
+// Only sort when necessary (See: lazy-sorting-algorithm paper)
+// Sort only node-by-node (Avoid costly n! / tons of operations)
 inline void LazySort(const int ply, const int nth, const int total_moves) {
   for (auto i = nth + 1; i < total_moves; ++i)
     if (g_boards[ply][i].score > g_boards[ply][nth].score)
       std::swap(g_boards[ply][nth], g_boards[ply][i]);
-}
-
-// Tiny speedup since not all moves are scored (lots of pointless shuffling ...)
-inline bool LazySortReport(const int ply, const int nth, const int total_moves) {
-  for (auto i = nth + 1; i < total_moves; ++i)
-    if (g_boards[ply][i].score > g_boards[ply][nth].score)
-      std::swap(g_boards[ply][nth], g_boards[ply][i]);
-  return g_boards[ply][nth].score != 0; // Did smt
 }
 
 // 1. Evaluate all root moves
@@ -957,11 +950,11 @@ void SwapMoveInRootList(const int index) {
 // Move generator
 
 inline std::uint64_t BishopMagicIndex(const int sq, const std::uint64_t mask) {
-  return ((mask & kBishopMagic[1][sq]) * kBishopMagic[0][sq]) >> 55;
+  return ((mask & kBishopMagics[1][sq]) * kBishopMagics[0][sq]) >> 55;
 }
 
 inline std::uint64_t RookMagicIndex(const int sq, const std::uint64_t mask) {
-  return ((mask & kRookMagic[1][sq]) * kRookMagic[0][sq]) >> 52;
+  return ((mask & kRookMagics[1][sq]) * kRookMagics[0][sq]) >> 52;
 }
 
 inline std::uint64_t BishopMagicMoves(const int sq, const std::uint64_t mask) {
@@ -1851,7 +1844,7 @@ int QSearchW(int alpha, const int beta, const int depth, const int ply) {
 
   const auto moves_n = MgenTacticalW(g_boards[ply]);
   for (auto i = 0; i < moves_n; ++i) {
-    LazySort(ply, i, moves_n);
+    LazySort(ply, i, moves_n); // Very few moves, sort them all
     g_board = g_boards[ply] + i;
     if ((alpha = std::max(alpha, QSearchB(alpha, beta, depth - 1, ply + 1))) >= beta)
       return alpha;
@@ -1897,9 +1890,11 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
   entry->put_hash_value_to_moves(hash, g_boards[ply]);
 
+  // Tiny speedup since not all moves are scored (lots of pointless shuffling ...)
+  // So avoid sorting useless moves
   auto sort = true;
   for (auto i = 0; i < moves_n; ++i) {
-    if (sort) sort = LazySortReport(ply, i, moves_n);
+    if (sort) LazySort(ply, i, moves_n), sort = g_boards[ply][i].score != 0;
     g_board = g_boards[ply] + i;
     g_is_pv = i <= 1 && !g_boards[ply][i].score;
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksW()) {
@@ -1938,7 +1933,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
 
   auto sort = true;
   for (auto i = 0; i < moves_n; ++i) {
-    if (sort) sort = LazySortReport(ply, i, moves_n);
+    if (sort) LazySort(ply, i, moves_n), sort = g_boards[ply][i].score != 0;
     g_board = g_boards[ply] + i;
     g_is_pv = i <= 1 && !g_boards[ply][i].score;
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksB()) {
@@ -2433,7 +2428,7 @@ struct Save {
   }
 };
 
-// Print ASCII art board by 'p'
+// Print ASCII art board
 // > p [fen = startpos]
 // > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0
 // Print board + some info (NNUE, Book, Eval (cp), Hash (entries))
@@ -2571,7 +2566,7 @@ std::uint64_t MakeSliderMagicMoves(const int *slider_vectors, const int sq, cons
 void InitBishopMagics() {
   constexpr int bishop_vectors[8] = {+1, +1, -1, -1, +1, -1, -1, +1};
   for (auto i = 0; i < 64; ++i) {
-    const auto magics = kBishopMagic[2][i] & (~Bit(i));
+    const auto magics = kBishopMagics[2][i] & (~Bit(i));
     for (auto j = 0; j < 512; ++j) {
       const auto allmoves = PermutateBb(magics, j);
       g_bishop_magic_moves[i][BishopMagicIndex(i, allmoves)] =
@@ -2584,7 +2579,7 @@ void InitRookMagics() {
   constexpr int rook_vectors[8] = {+1,  0,  0, +1,  0, -1, -1,  0};
 
   for (auto i = 0; i < 64; ++i) {
-    const auto magics = kRookMagic[2][i] & (~Bit(i));
+    const auto magics = kRookMagics[2][i] & (~Bit(i));
     for (auto j = 0; j < 4096; ++j) {
       const auto allmoves = PermutateBb(magics, j);
       g_rook_magic_moves[i][RookMagicIndex(i, allmoves)] =
