@@ -97,6 +97,7 @@ constexpr int kMvv[6][6] = {
   {8,  13, 13, 18, 23, 99}, {7, 12, 12, 17, 22, 99}, {6, 11, 11, 16, 21, 99}
 };
 
+// Piece-Square Tables
 // Material baked in
 // MG / EG -> P / N / B / R / Q / K
 constexpr int kPesto[6][2][64] = {
@@ -274,24 +275,21 @@ struct Board { // 171B
 
   // Attributes
 
-  std::uint64_t
-    white[6],   // White bitboards
-    black[6];   // Black bitboards
-  std::int32_t
-    score;      // Sorting score
-  std::int8_t
-    pieces[64], // Pieces white and black
-    epsq;       // En passant square
-  std::uint8_t
-    index,      // Sorting index
-    from,       // From square
-    to,         // To square
-    type,       // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
-    castle,     // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
-    fifty;      // Rule 50 counter
+  std::uint64_t white[6]{};  // White bitboards
+  std::uint64_t black[6]{};  // Black bitboards
+  std::int32_t score{0};     // Sorting score
+  std::int8_t pieces[64]{};  // Pieces white and black
+  std::int8_t epsq{-1};      // En passant square
+  std::uint8_t index{0};     // Sorting index
+  std::uint8_t from{0};      // From square
+  std::uint8_t to{0};        // To square
+  std::uint8_t type{0};      // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
+  std::uint8_t castle{0};    // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
+  std::uint8_t fifty{0};     // Rule 50 counter
 
   // Methods
 
+  Board() = default; // Default constructor
   const std::string movename() const;
   bool is_underpromo() const;
   const std::string to_fen() const;
@@ -303,10 +301,11 @@ struct HashEntry { // 10B
   // Attributes
 
   std::uint32_t killer_hash{0}, good_hash{0}; // Hash
-  std::uint8_t killer{0}, good{0}; // Index
+  std::uint8_t killer{0}, good{0};            // Index
 
   // Methods
 
+  HashEntry() = default;
   void update(const MoveType type, const std::uint64_t hash, const std::uint8_t index);
   void put_hash_value_to_moves(const std::uint64_t hash, Board *moves) const;
 };
@@ -1571,14 +1570,12 @@ struct ClassicalEval {
 
   const std::uint64_t white, black, both;
   const bool wtm;
-  int white_n, black_n, both_n, wk, bk, wpn, wnn, wbn, wrn, wqn, bpn, bnn, bbn, brn, bqn, score, mg, eg, scale_factor;
+  int white_n{0}, black_n{0}, both_n{0}, wk{0}, bk{0}, wpn{0}, wnn{0}, wbn{0}, wrn{0},
+      wqn{0}, bpn{0}, bnn{0}, bbn{0}, brn{0}, bqn{0}, score{0}, mg{0}, eg{0}, scale_factor{1};
 
   // Methods
 
-  // explicit -> Force curly init
-  explicit ClassicalEval(const bool wtm2) : white{White()}, black{Black()}, both{this->white | this->black},
-    wtm{wtm2}, white_n{0}, black_n{0}, both_n{0}, wk{0}, bk{0}, wpn{0}, wnn{0}, wbn{0}, wrn{0}, wqn{0},
-    bpn{0}, bnn{0}, bbn{0}, brn{0}, bqn{0}, score{0}, mg{0}, eg{0}, scale_factor{1} { }
+  explicit ClassicalEval(const bool wtm2) : white{White()}, black{Black()}, both{this->white | this->black}, wtm{wtm2} { }
 
   inline void pesto_w(const int p, const int sq) {this->mg += kPesto[p][0][sq];        this->eg += kPesto[p][1][sq];}
   inline void pesto_b(const int p, const int sq) {this->mg -= kPesto[p][0][FlipY(sq)]; this->eg -= kPesto[p][1][FlipY(sq)];}
@@ -1730,6 +1727,7 @@ struct NnueEval {
 
   // Methods
 
+  // explicit -> Force curly init
   explicit NnueEval(const bool wtm2) : wtm{wtm2} { }
 
   int probe() const {
