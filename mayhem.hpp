@@ -34,6 +34,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstdlib>
 #include <cstdint>
 #include <iterator>
+#include <numeric>
 
 extern "C" {
 #ifdef WINDOWS
@@ -275,17 +276,17 @@ struct Board { // 171B
 
   // Attributes
 
-  std::uint64_t white[6]{};  // White bitboards
-  std::uint64_t black[6]{};  // Black bitboards
-  std::int32_t score{0};     // Sorting score
-  std::int8_t pieces[64]{};  // Pieces white and black
-  std::int8_t epsq{-1};      // En passant square
-  std::uint8_t index{0};     // Sorting index
-  std::uint8_t from{0};      // From square
-  std::uint8_t to{0};        // To square
-  std::uint8_t type{0};      // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
-  std::uint8_t castle{0};    // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
-  std::uint8_t fifty{0};     // Rule 50 counter
+  std::uint64_t white[6] = {};   // White bitboards
+  std::uint64_t black[6] = {};   // Black bitboards
+  std::int32_t  score{0};        // Sorting score
+  std::int8_t   pieces[64] = {}; // Pieces white and black
+  std::int8_t   epsq{-1};        // En passant square
+  std::uint8_t  index{0};        // Sorting index
+  std::uint8_t  from{0};         // From square
+  std::uint8_t  to{0};           // To square
+  std::uint8_t  type{0};         // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
+  std::uint8_t  castle{0};       // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
+  std::uint8_t  fifty{0};        // Rule 50 counter
 
   // Methods
 
@@ -1569,140 +1570,205 @@ struct ClassicalEval {
   // Attributes
 
   const std::uint64_t white, black, both;
-  const bool wtm;
-  int white_n{0}, black_n{0}, both_n{0}, wk{0}, bk{0}, wpn{0}, wnn{0}, wbn{0}, wrn{0},
-      wqn{0}, bpn{0}, bnn{0}, bbn{0}, brn{0}, bqn{0}, score{0}, mg{0}, eg{0}, scale_factor{1};
+  const bool m_wtm; // Avoid collision w/ template wtm
+  int w_pieces[5]{}, b_pieces[5]{}, white_total{0}, black_total{0}, both_total{0}, wk{0}, bk{0}, score{0}, mg{0}, eg{0}, scale_factor{1};
 
   // Methods
 
-  explicit ClassicalEval(const bool wtm2) : white{White()}, black{Black()}, both{this->white | this->black}, wtm{wtm2} { }
+  explicit ClassicalEval(const bool wtm) : white{White()}, black{Black()}, both{this->white | this->black}, m_wtm{wtm} { }
 
-  inline void pesto_w(const int p, const int sq) {this->mg += kPesto[p][0][sq];        this->eg += kPesto[p][1][sq];}
-  inline void pesto_b(const int p, const int sq) {this->mg -= kPesto[p][0][FlipY(sq)]; this->eg -= kPesto[p][1][FlipY(sq)];}
+  template<bool wtm, int p>
+  inline void pesto(const int sq) {
+    if constexpr (wtm) {
+      this->mg += kPesto[p][0][sq];
+      this->eg += kPesto[p][1][sq];
+    } else {
+      this->mg -= kPesto[p][0][FlipY(sq)];
+      this->eg -= kPesto[p][1][FlipY(sq)];
+    }
+  }
 
-  inline void mobility_w(const int k, const std::uint64_t m) {this->score += k * PopCount(m);}
-  inline void mobility_b(const int k, const std::uint64_t m) {this->score -= k * PopCount(m);}
+  template<bool wtm, int k>
+  inline void mobility(const std::uint64_t m) {
+    if constexpr (wtm)
+      this->score += k * PopCount(m);
+    else
+      this->score -= k * PopCount(m);
+  }
 
-  void pawn_w(const int sq) {++this->wpn; this->pesto_w(0, sq);}
-  void pawn_b(const int sq) {++this->bpn; this->pesto_b(0, sq);}
+  template<bool wtm, int piece, int k>
+  inline void eval_score(const int sq, const std::uint64_t m) {
+    if constexpr (wtm) ++this->w_pieces[piece]; else ++this->b_pieces[piece];
+    this->pesto<wtm, piece>(sq);
+    this->mobility<wtm, k>(m);
+  }
 
-  void knight_w(const int sq) {++this->wnn; this->pesto_w(1, sq); this->mobility_w(2, g_knight_moves[sq] & (~this->white));}
-  void knight_b(const int sq) {++this->bnn; this->pesto_b(1, sq); this->mobility_b(2, g_knight_moves[sq] & (~this->black));}
+  template<bool wtm>
+  void pawn(const int sq) {
+    if constexpr (wtm) ++this->w_pieces[0]; else ++this->b_pieces[0];
+    this->pesto<wtm, 0>(sq);
+  }
 
-  void bishop_w(const int sq) {++this->wbn; this->pesto_w(2, sq); this->mobility_w(3, BishopMagicMoves(sq, this->both) & (~this->white));}
-  void bishop_b(const int sq) {++this->bbn; this->pesto_b(2, sq); this->mobility_b(3, BishopMagicMoves(sq, this->both) & (~this->black));}
+  template<bool wtm>
+  void knight(const int sq) {
+    this->eval_score<wtm, 1, 2>(sq, g_knight_moves[sq] & (~(wtm ? this->white : this->black)));
+  }
 
-  void rook_w(const int sq) {++this->wrn; this->pesto_w(3, sq); this->mobility_w(3, RookMagicMoves(sq, this->both) & (~this->white));}
-  void rook_b(const int sq) {++this->brn; this->pesto_b(3, sq); this->mobility_b(3, RookMagicMoves(sq, this->both) & (~this->black));}
+  template<bool wtm>
+  void bishop(const int sq) {
+    this->eval_score<wtm, 2, 3>(sq, BishopMagicMoves(sq, this->both) & (~(wtm ? this->white : this->black)));
+  }
 
-  void queen_w(const int sq) {++this->wqn; this->pesto_w(4, sq);
-    this->mobility_w(2, ((BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) & (~this->white)));}
-  void queen_b(const int sq) {++this->bqn; this->pesto_b(4, sq);
-    this->mobility_b(2, ((BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) & (~this->black)));}
+  template<bool wtm>
+  void rook(const int sq) {
+    this->eval_score<wtm, 3, 3>(sq, RookMagicMoves(sq, this->both) & (~(wtm ? this->white : this->black)));
+  }
 
-  void king_w(const int sq) {this->wk = sq; this->pesto_w(5, sq); this->mobility_w(1, g_king_moves[sq] & (~this->white));}
-  void king_b(const int sq) {this->bk = sq; this->pesto_b(5, sq); this->mobility_b(1, g_king_moves[sq] & (~this->black));}
+  template<bool wtm>
+  void queen(const int sq) {
+    this->eval_score<wtm, 4, 2>(sq, (BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) & (~(wtm ? this->white : this->black)));
+  }
+
+  template<bool wtm>
+  void king(const int sq) {
+    if constexpr (wtm) this->wk = sq; else this->bk = sq;
+    this->pesto<wtm, 5>(sq);
+    this->mobility<wtm, 1>(g_king_moves[sq] & (~(wtm ? this->white : this->black)));
+  }
 
   void eval_piece(const int sq) {
     switch (g_board->pieces[sq]) {
-      case +1: this->pawn_w(sq);   break;
-      case +2: this->knight_w(sq); break;
-      case +3: this->bishop_w(sq); break;
-      case +4: this->rook_w(sq);   break;
-      case +5: this->queen_w(sq);  break;
-      case +6: this->king_w(sq);   break;
-      case -1: this->pawn_b(sq);   break;
-      case -2: this->knight_b(sq); break;
-      case -3: this->bishop_b(sq); break;
-      case -4: this->rook_b(sq);   break;
-      case -5: this->queen_b(sq);  break;
-      case -6: this->king_b(sq);   break;
+      case +1: this->pawn<true>(sq);   break;
+      case +2: this->knight<true>(sq); break;
+      case +3: this->bishop<true>(sq); break;
+      case +4: this->rook<true>(sq);   break;
+      case +5: this->queen<true>(sq);  break;
+      case +6: this->king<true>(sq);   break;
+      case -1: this->pawn<false>(sq);   break;
+      case -2: this->knight<false>(sq); break;
+      case -3: this->bishop<false>(sq); break;
+      case -4: this->rook<false>(sq);   break;
+      case -5: this->queen<false>(sq);  break;
+      case -6: this->king<false>(sq);   break;
     }
   }
 
   void evaluate_pieces() {
     for (auto b = this->both; b; ) this->eval_piece(CtzPop(&b));
-    this->white_n = this->wpn + this->wnn + this->wbn + this->wrn + this->wqn + 1;
-    this->black_n = this->bpn + this->bnn + this->bbn + this->brn + this->bqn + 1;
-    this->both_n  = this->white_n + this->black_n;
+    this->white_total = std::accumulate(this->w_pieces + 0, this->w_pieces + 5, 0) + 1;
+    this->black_total = std::accumulate(this->b_pieces + 0, this->b_pieces + 5, 0) + 1;
+    this->both_total  = this->white_total + this->black_total;
   }
 
-  void bonus_knbk_w() {
-    this->score += 2 * CloseBonus(this->wk, this->bk);
-    this->score += 10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
-        std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk)));
+  template<bool wtm>
+  void bonus_knbk() {
+    if constexpr (wtm) {
+      this->score += 2 * CloseBonus(this->wk, this->bk);
+      this->score += 10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
+          std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk)));
+    } else {
+      this->score -= 2 * CloseBonus(this->wk, this->bk);
+      this->score -= 10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
+          std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk)));
+    }
   }
 
-  void bonus_knbk_b() {
-    this->score -= 2 * CloseBonus(this->wk, this->bk);
-    this->score -= 10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
-        std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk)));
+  void bonus_tempo() {
+    this->score += this->m_wtm ? +TEMPO_BONUS : -TEMPO_BONUS;
   }
 
-  void bonus_tempo() {this->score += this->wtm ? +TEMPO_BONUS : -TEMPO_BONUS;}
-  void bonus_checks() {if (ChecksW()) this->score += CHECKS_BONUS; else if (ChecksB()) this->score -= CHECKS_BONUS;}
+  void bonus_checks() {
+    if (     ChecksW()) this->score += CHECKS_BONUS;
+    else if (ChecksB()) this->score -= CHECKS_BONUS;
+  }
 
   // Force black king in the corner and get closer
-  void bonus_mating_w() {this->score += 6 * CloseAnyCornerBonus(this->bk) + 4 * CloseBonus(this->wk, this->bk);}
-  void bonus_mating_b() {this->score -= 6 * CloseAnyCornerBonus(this->wk) + 4 * CloseBonus(this->bk, this->wk);}
+  template<bool wtm>
+  void bonus_mating() {
+    if constexpr (wtm)
+      this->score += 6 * CloseAnyCornerBonus(this->bk) + 4 * CloseBonus(this->wk, this->bk);
+    else
+      this->score -= 6 * CloseAnyCornerBonus(this->wk) + 4 * CloseBonus(this->bk, this->wk);
+  }
 
   void bonus_bishop_pair() {
-    if (this->wbn >= 2) this->score += BISHOP_PAIR_BONUS;
-    if (this->bbn >= 2) this->score -= BISHOP_PAIR_BONUS;
+    if (this->w_pieces[2] >= 2) this->score += BISHOP_PAIR_BONUS;
+    if (this->b_pieces[2] >= 2) this->score -= BISHOP_PAIR_BONUS;
   }
 
+  // 1. KQvK(RNB)
+  // 2. KRvK(NB) -> Drawish
+  // 3. K(RNB)vKQ
+  // 4. K(NB)vKR -> Drawish
   void bonus_special_4men() {
-    // KQvK(RNB)
-    if (     this->wqn && (this->brn || this->bnn || this->bbn)) {this->bonus_mating_w();}
-    // KRvK(NB) -> Drawish
-    else if (this->wrn && (this->bnn || this->bbn))              {this->scale_factor = 4; this->bonus_mating_w();}
-    // K(RNB)vKQ
-    else if (this->bqn && (this->wrn || this->wnn || this->wbn)) {this->bonus_mating_b();}
-    // K(NB)vKR -> Drawish
-    else if (this->brn && (this->wnn || this->wbn))              {this->scale_factor = 4; this->bonus_mating_b();}
-  }
-
-  void bonus_special_5men() {
-    // KRRvKR / KR(NB)vK(NB)
-    if (     (this->wrn == 2 && this->brn) || (this->wrn && (this->wbn || this->wnn) && (this->bbn || this->bnn)))
-      this->bonus_mating_w();
-    // KRvKRR / K(NB)vKR(NB)
-    else if ((this->brn == 2 && this->wrn) || (this->brn && (this->bbn || this->bnn) && (this->wbn || this->wnn)))
-      this->bonus_mating_b();
-  }
-
-  void white_is_mating() {
-    if (this->white_n == 3) {
-      // Special mating pattern
-      if (this->wbn == 1 && this->wnn == 1) {this->bonus_knbk_w(); return;}
-      // Don't force king to corner -> Try to promote
-      if (this->wbn == 1 && this->wpn == 1) {if (IsBlindBishopW()) this->scale_factor = 2; return;}
-      // Can't force mate w/ 2 knights -> Scale down
-      if (this->wnn == 2)                   {this->scale_factor = 2;}
+    if (this->w_pieces[4] && (this->b_pieces[3] || this->b_pieces[1] || this->b_pieces[2])) {
+      this->bonus_mating<true>();
+    } else if (this->w_pieces[3] && (this->b_pieces[1] || this->b_pieces[2])) {
+      this->scale_factor = 4;
+      this->bonus_mating<true>();
+    } else if (this->b_pieces[4] && (this->w_pieces[3] || this->w_pieces[1] || this->w_pieces[2])) {
+      this->bonus_mating<false>();
+    } else if (this->b_pieces[3] && (this->w_pieces[1] || this->w_pieces[2])) {
+      this->scale_factor = 4;
+      this->bonus_mating<false>();
     }
-    this->bonus_mating_w();
+  }
+
+  // 1. KRRvKR / KR(NB)vK(NB)
+  // 2. KRvKRR / K(NB)vKR(NB)
+  void bonus_special_5men() {
+    if ((this->w_pieces[3] == 2 && this->b_pieces[3]) ||
+        (this->w_pieces[3] && (this->w_pieces[2] || this->w_pieces[1]) && (this->b_pieces[2] || this->b_pieces[1])))
+      this->bonus_mating<true>();
+    else if ((this->b_pieces[3] == 2 && this->w_pieces[3]) ||
+        (this->b_pieces[3] && (this->b_pieces[2] || this->b_pieces[1]) && (this->w_pieces[2] || this->w_pieces[1])))
+      this->bonus_mating<false>();
+  }
+
+  // 1. Special mating pattern
+  // 2. Don't force king to corner -> Try to promote
+  // 3. Can't force mate w/ 2 knights -> Scale down
+  void white_is_mating() {
+    if (this->white_total == 3) {
+      if (this->w_pieces[2] == 1 && this->w_pieces[1] == 1) {
+        this->bonus_knbk<true>();
+        return;
+      }
+      if (this->w_pieces[2] == 1 && this->w_pieces[0] == 1) {
+        if (IsBlindBishopW()) this->scale_factor = 2;
+        return;
+      }
+      if (this->w_pieces[1] == 2) this->scale_factor = 2;
+    }
+    this->bonus_mating<true>();
   }
 
   void black_is_mating() {
-    if (this->black_n == 3) {
-      if (this->bbn == 1 && this->bnn == 1) {this->bonus_knbk_b(); return;}
-      if (this->bbn == 1 && this->bpn == 1) {if (IsBlindBishopB()) this->scale_factor = 2; return;}
-      if (this->bnn == 2)                   {this->scale_factor = 2;}
+    if (this->black_total == 3) {
+      if (this->b_pieces[2] == 1 && this->b_pieces[1] == 1) {
+        this->bonus_knbk<false>();
+        return;
+      }
+      if (this->b_pieces[2] == 1 && this->b_pieces[0] == 1) {
+        if (IsBlindBishopB()) this->scale_factor = 2;
+        return;
+      }
+      if (this->b_pieces[1] == 2) this->scale_factor = 2;
     }
-    this->bonus_mating_b();
+    this->bonus_mating<false>();
   }
 
   // Special EG functions. To avoid always doing "Tabula rasa"
   void bonus_endgame() {
-    if (     this->black_n == 1) this->white_is_mating();
-    else if (this->white_n == 1) this->black_is_mating();
-    else if (this->both_n  == 4) this->bonus_special_4men();
-    else if (this->both_n  == 5) this->bonus_special_5men();
+    if (     this->black_total == 1) this->white_is_mating();
+    else if (this->white_total == 1) this->black_is_mating();
+    else if (this->both_total  == 4) this->bonus_special_4men();
+    else if (this->both_total  == 5) this->bonus_special_5men();
   }
 
   int calculate_score() const {
     // 30 phases for HCE (assume kings exist)
-    const float n = std::max<float>(this->both_n - 2, 0) / static_cast<float>(MAX_PIECES - 2);
+    const float n = std::max<float>(this->both_total - 2, 0) / static_cast<float>(MAX_PIECES - 2);
     const int s   = static_cast<int>(n * static_cast<float>(this->mg) + (1.0f - n) * static_cast<float>(this->eg));
     return (this->score + s) / this->scale_factor;
   }
@@ -2624,9 +2690,7 @@ std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int
   const auto y_pos    = Ycoord(sq);
 
   for (auto i = 0; i < len; ++i)
-    if (const auto x = x_pos + jump_vectors[2 * i],
-                   y = y_pos + dy * jump_vectors[2 * i + 1];
-        OnBoard(x, y))
+    if (const auto x = x_pos + jump_vectors[2 * i], y = y_pos + dy * jump_vectors[2 * i + 1]; OnBoard(x, y))
       moves |= Bit(8 * y + x);
 
   return moves;
