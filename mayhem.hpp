@@ -54,7 +54,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 6.8"
+#define VERSION       "Mayhem 6.9"
 #define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0"
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
@@ -276,17 +276,17 @@ struct Board { // 171B
 
   // Attributes
 
-  std::uint64_t white[6] = {};   // White bitboards
-  std::uint64_t black[6] = {};   // Black bitboards
-  std::int32_t  score{0};        // Sorting score
-  std::int8_t   pieces[64] = {}; // Pieces white and black
-  std::int8_t   epsq{-1};        // En passant square
-  std::uint8_t  index{0};        // Sorting index
-  std::uint8_t  from{0};         // From square
-  std::uint8_t  to{0};           // To square
-  std::uint8_t  type{0};         // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
-  std::uint8_t  castle{0};       // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
-  std::uint8_t  fifty{0};        // Rule 50 counter
+  std::uint64_t white[6]{};   // White bitboards
+  std::uint64_t black[6]{};   // Black bitboards
+  std::int32_t  score{0};     // Sorting score
+  std::int8_t   pieces[64]{}; // Pieces white and black
+  std::int8_t   epsq{-1};     // En passant square
+  std::uint8_t  index{0};     // Sorting index
+  std::uint8_t  from{0};      // From square
+  std::uint8_t  to{0};        // To square
+  std::uint8_t  type{0};      // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
+  std::uint8_t  castle{0};    // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
+  std::uint8_t  fifty{0};     // Rule 50 counter
 
   // Methods
 
@@ -1588,12 +1588,16 @@ struct ClassicalEval {
     }
   }
 
+  // Squares not having own pieces are reachable
+  template<bool wtm>
+  inline std::uint64_t reachable() {
+    if constexpr (wtm) return ~this->white; else return ~this->black;
+  }
+
   template<bool wtm, int k>
   inline void mobility(const std::uint64_t m) {
-    if constexpr (wtm)
-      this->score += k * PopCount(m);
-    else
-      this->score -= k * PopCount(m);
+    if constexpr (wtm) this->score += k * PopCount(m);
+    else               this->score -= k * PopCount(m);
   }
 
   template<bool wtm, int piece, int k>
@@ -1611,29 +1615,29 @@ struct ClassicalEval {
 
   template<bool wtm>
   void knight(const int sq) {
-    this->eval_score<wtm, 1, 2>(sq, g_knight_moves[sq] & (~(wtm ? this->white : this->black)));
+    this->eval_score<wtm, 1, 2>(sq, g_knight_moves[sq] & this->reachable<wtm>());
   }
 
   template<bool wtm>
   void bishop(const int sq) {
-    this->eval_score<wtm, 2, 3>(sq, BishopMagicMoves(sq, this->both) & (~(wtm ? this->white : this->black)));
+    this->eval_score<wtm, 2, 3>(sq, BishopMagicMoves(sq, this->both) & this->reachable<wtm>());
   }
 
   template<bool wtm>
   void rook(const int sq) {
-    this->eval_score<wtm, 3, 3>(sq, RookMagicMoves(sq, this->both) & (~(wtm ? this->white : this->black)));
+    this->eval_score<wtm, 3, 3>(sq, RookMagicMoves(sq, this->both) & this->reachable<wtm>());
   }
 
   template<bool wtm>
   void queen(const int sq) {
-    this->eval_score<wtm, 4, 2>(sq, (BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) & (~(wtm ? this->white : this->black)));
+    this->eval_score<wtm, 4, 2>(sq, (BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) & this->reachable<wtm>());
   }
 
   template<bool wtm>
   void king(const int sq) {
     if constexpr (wtm) this->wk = sq; else this->bk = sq;
     this->pesto<wtm, 5>(sq);
-    this->mobility<wtm, 1>(g_king_moves[sq] & (~(wtm ? this->white : this->black)));
+    this->mobility<wtm, 1>(g_king_moves[sq] & this->reachable<wtm>());
   }
 
   void eval_piece(const int sq) {
@@ -1664,12 +1668,12 @@ struct ClassicalEval {
   void bonus_knbk() {
     if constexpr (wtm) {
       this->score += 2 * CloseBonus(this->wk, this->bk);
-      this->score += 10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
-          std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk)));
+      this->score += 10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ?
+          std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) : std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk)));
     } else {
       this->score -= 2 * CloseBonus(this->wk, this->bk);
-      this->score -= 10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
-          std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk)));
+      this->score -= 10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ?
+          std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) : std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk)));
     }
   }
 
