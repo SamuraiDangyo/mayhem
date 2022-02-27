@@ -36,6 +36,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <iterator>
 #include <numeric>
 
+// Just InputAvailable() ...
 extern "C" {
 #ifdef WINDOWS
 #include <conio.h>
@@ -44,6 +45,7 @@ extern "C" {
 #endif
 } // extern "C"
 
+// Just extra strength
 #include "nnue.hpp"
 #include "eucalyptus.hpp"
 #include "polyglotbook.hpp"
@@ -290,7 +292,7 @@ struct Board { // 171B
 
   // Methods
 
-  Board() = default; // Default constructor
+  Board() = default; // Default constructor (Just this)
   const std::string movename() const;
   bool is_underpromo() const;
   const std::string to_fen() const;
@@ -314,30 +316,30 @@ struct HashEntry { // 10B
 // Variables
 
 std::uint64_t g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_stop_search_time = 0,
-  g_nodes = 0, g_pawn_sq = 0, g_pawn_1_moves_w[64] = {}, g_pawn_1_moves_b[64] = {}, g_pawn_2_moves_w[64] = {},
-  g_pawn_2_moves_b[64] = {}, g_bishop_moves[64] = {}, g_rook_moves[64] = {}, g_queen_moves[64] = {},
-  g_knight_moves[64] = {}, g_king_moves[64] = {}, g_pawn_checks_w[64] = {}, g_pawn_checks_b[64] = {},
-  g_castle_w[2] = {}, g_castle_b[2] = {}, g_castle_empty_w[2] = {}, g_castle_empty_b[2] = {},
-  g_bishop_magic_moves[64][512] = {}, g_rook_magic_moves[64][4096] = {}, g_zobrist_ep[64] = {},
-  g_zobrist_castle[16] = {}, g_zobrist_wtm[2] = {}, g_r50_positions[MAX_ARR] = {}, g_zobrist_board[13][64] = {};
+  g_nodes = 0, g_pawn_sq = 0, g_pawn_1_moves_w[64]{}, g_pawn_1_moves_b[64]{}, g_pawn_2_moves_w[64]{},
+  g_pawn_2_moves_b[64]{}, g_bishop_moves[64]{}, g_rook_moves[64]{}, g_queen_moves[64]{},
+  g_knight_moves[64]{}, g_king_moves[64]{}, g_pawn_checks_w[64]{}, g_pawn_checks_b[64]{},
+  g_castle_w[2]{}, g_castle_b[2]{}, g_castle_empty_w[2]{}, g_castle_empty_b[2]{},
+  g_bishop_magic_moves[64][512]{}, g_rook_magic_moves[64][4096]{}, g_zobrist_ep[64]{},
+  g_zobrist_castle[16]{}, g_zobrist_wtm[2]{}, g_r50_positions[MAX_ARR]{}, g_zobrist_board[13][64]{};
 
 int g_move_overhead = MOVEOVERHEAD, g_level = 100, g_root_n = 0, g_king_w = 0, g_king_b = 0,
   g_moves_n = 0, g_max_depth = MAX_DEPTH, g_q_depth = 0, g_depth = 0, g_best_score = 0, g_noise = NOISE,
-  g_last_eval = 0, g_rook_w[2] = {}, g_rook_b[2] = {}, g_lmr[MAX_DEPTH][MAX_MOVES] = {},
-  g_nnue_pieces[64] = {}, g_nnue_squares[64] = {};
+  g_last_eval = 0, g_rook_w[2]{}, g_rook_b[2]{}, g_lmr[MAX_DEPTH][MAX_MOVES]{},
+  g_nnue_pieces[64]{}, g_nnue_squares[64]{};
 
 bool g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active = false,
   g_stop_search = false, g_is_pv = false, g_book_exist = false, g_nnue_exist = false,
   g_classical = false, g_game_on = true, g_analyzing = false;
 
 Board g_board_tmp{}, *g_board = &g_board_tmp, *g_moves = nullptr, *g_board_orig = nullptr,
-  g_boards[MAX_DEPTH + MAX_Q_DEPTH + 4][MAX_MOVES] = {};
+  g_boards[MAX_DEPTH + MAX_Q_DEPTH + 4][MAX_MOVES]{};
 
 std::uint32_t g_hash_entries = 0, g_tokens_nth = 0;
 std::vector<std::string> g_tokens(300); // 300 plys init
 polyglotbook::PolyglotBook g_book{};
 std::unique_ptr<HashEntry[]> g_hash{};
-float g_scale[MAX_ARR] = {};
+float g_scale[MAX_ARR]{};
 
 // Prototypes
 
@@ -508,7 +510,7 @@ void ReadInput() {
   std::getline(std::cin, line);
   g_tokens_nth = 0;
   g_tokens.clear();
-  SplitString<std::vector<std::string>>(line, g_tokens);
+  SplitString< std::vector<std::string> >(line, g_tokens);
 }
 
 // PolyGlot Book lib
@@ -626,12 +628,12 @@ const std::string Board::to_s() const {
       s << " | " << "kqrbnp PNBRQK"[this->pieces[8 * r + f] + 6];
     s << " | " << (1 + r) << "\n +---+---+---+---+---+---+---+---+\n";
   }
-  s << "   a   b   c   d   e   f   g   h\n\n";
-  s << "> " << this->to_fen() << "\n";
-  s << "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " / ";
-  s << "Book: " << (g_book_exist ? "OK" : "FAIL") << " / ";
-  s << "Eval: " << Evaluate(g_wtm) << " / ";
-  s << "Hash: " << g_hash_entries;
+  s << "   a   b   c   d   e   f   g   h\n\n" <<
+   "> " << this->to_fen() << "\n" <<
+   "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " / " <<
+   "Book: " << (g_book_exist ? "OK" : "FAIL") << " / " <<
+   "Eval: " << Evaluate(g_wtm) << " / " <<
+   "Hash: " << g_hash_entries;
   return s.str();
 }
 
@@ -822,7 +824,7 @@ void FenRule50(const std::string &fifty) {
 
 void FenGen(const std::string &fen) {
   std::vector<std::string> tokens{};
-  SplitString<std::vector<std::string>>(fen, tokens);
+  SplitString< std::vector<std::string> >(fen, tokens);
   Ok( fen.length() >= 23 && // "8/8/8/8/8/8/8/8 w - - 0"
       tokens.size() >= 5 &&
       tokens[0].find('K') != std::string::npos &&
@@ -1551,8 +1553,12 @@ bool IsBlindBishopB() {
   return (!color && bpx == 7) || (color && bpx == 0);
 }
 
+int Square(const int x) {
+  return x * x;
+}
+
 int CloseBonus(const int a, const int b) {
-  return std::pow(7 - std::abs(Xcoord(a) - Xcoord(b)), 2) + std::pow(7 - std::abs(Ycoord(a) - Ycoord(b)), 2);
+  return Square(7 - std::abs(Xcoord(a) - Xcoord(b))) + Square(7 - std::abs(Ycoord(a) - Ycoord(b)));
 }
 
 int CloseAnyCornerBonus(const int sq) {
