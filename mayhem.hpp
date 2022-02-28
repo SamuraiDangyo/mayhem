@@ -629,11 +629,11 @@ const std::string Board::to_s() const {
     s << " | " << (1 + r) << "\n +---+---+---+---+---+---+---+---+\n";
   }
   s << "   a   b   c   d   e   f   g   h\n\n" <<
-   "> " << this->to_fen() << "\n" <<
-   "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " / " <<
-   "Book: " << (g_book_exist ? "OK" : "FAIL") << " / " <<
-   "Eval: " << Evaluate(g_wtm) << " / " <<
-   "Hash: " << g_hash_entries;
+    "> " << this->to_fen() << "\n" <<
+    "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " / " <<
+    "Book: " << (g_book_exist ? "OK" : "FAIL") << " / " <<
+    "Eval: " << Evaluate(g_wtm) << " / " <<
+    "Hash: " << g_hash_entries;
   return s.str();
 }
 
@@ -1538,39 +1538,9 @@ int FixFRC() {
   return s;
 }
 
-// Classical Eval
+// Classical evaluation (HCE)
 
-// Blind KBPvK ( Not perfect, just a hint ) -> Drawish ?
-bool IsBlindBishopW() {
-  const auto wpx   = Xcoord(Ctz(g_board->white[0]));
-  const auto color = g_board->white[2] & 0x55aa55aa55aa55aaULL;
-  return (color && wpx == 7) || (!color && wpx == 0);
-}
-
-bool IsBlindBishopB() {
-  const auto bpx   = Xcoord(Ctz(g_board->black[0]));
-  const auto color = g_board->black[2] & 0x55aa55aa55aa55aaULL;
-  return (!color && bpx == 7) || (color && bpx == 0);
-}
-
-int Square(const int x) {
-  return x * x;
-}
-
-int CloseBonus(const int a, const int b) {
-  return Square(7 - std::abs(Xcoord(a) - Xcoord(b))) + Square(7 - std::abs(Ycoord(a) - Ycoord(b)));
-}
-
-int CloseAnyCornerBonus(const int sq) {
-  return std::max({CloseBonus(sq, 0),  CloseBonus(sq, 7), CloseBonus(sq, 56), CloseBonus(sq, 63)});
-}
-
-// Mirror horizontal
-inline int FlipY(const int sq) {
-  return sq ^ 56;
-}
-
-// Classical evaluation. To finish the game or no NNUE
+// Finish the game or no NNUE
 struct ClassicalEval {
 
   // Attributes
@@ -1582,6 +1552,30 @@ struct ClassicalEval {
   // Methods
 
   explicit ClassicalEval(const bool wtm) : white{White()}, black{Black()}, both{this->white | this->black}, m_wtm{wtm} { }
+
+  static int Square(const int x) { return x * x; }
+  static inline int FlipY(const int sq) { return sq ^ 56; } // Mirror horizontal
+
+  static int close_bonus(const int a, const int b) {
+    return Square(7 - std::abs(Xcoord(a) - Xcoord(b))) + Square(7 - std::abs(Ycoord(a) - Ycoord(b)));
+  }
+
+  int close_any_corner_bonus(const int sq) {
+    return std::max({this->close_bonus(sq, 0),  this->close_bonus(sq, 7), this->close_bonus(sq, 56), this->close_bonus(sq, 63)});
+  }
+
+  template<bool wtm>
+  void check_blind_bishop() {
+    if constexpr (wtm) {
+      const auto wpx   = Xcoord(Ctz(g_board->white[0]));
+      const auto color = g_board->white[2] & 0x55aa55aa55aa55aaULL;
+      if ((color && wpx == 7) || (!color && wpx == 0)) this->scale_factor = 2;
+    } else {
+      const auto bpx   = Xcoord(Ctz(g_board->black[0]));
+      const auto color = g_board->black[2] & 0x55aa55aa55aa55aaULL;
+      if ((!color && bpx == 7) || (color && bpx == 0)) this->scale_factor = 2;
+    }
+  }
 
   template<bool wtm, int p>
   inline void pesto(const int sq) {
@@ -1673,13 +1667,13 @@ struct ClassicalEval {
   template<bool wtm>
   void bonus_knbk() {
     if constexpr (wtm) {
-      this->score += 2 * CloseBonus(this->wk, this->bk);
+      this->score += 2 * this->close_bonus(this->wk, this->bk);
       this->score += 10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ?
-          std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) : std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk)));
+          std::max(this->close_bonus(0, this->bk), this->close_bonus(63, this->bk)) : std::max(this->close_bonus(7, this->bk), this->close_bonus(56, this->bk)));
     } else {
-      this->score -= 2 * CloseBonus(this->wk, this->bk);
+      this->score -= 2 * this->close_bonus(this->wk, this->bk);
       this->score -= 10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ?
-          std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) : std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk)));
+          std::max(this->close_bonus(0, this->wk), this->close_bonus(63, this->wk)) : std::max(this->close_bonus(7, this->wk), this->close_bonus(56, this->wk)));
     }
   }
 
@@ -1696,9 +1690,9 @@ struct ClassicalEval {
   template<bool wtm>
   void bonus_mating() {
     if constexpr (wtm)
-      this->score += 6 * CloseAnyCornerBonus(this->bk) + 4 * CloseBonus(this->wk, this->bk);
+      this->score += 6 * this->close_any_corner_bonus(this->bk) + 4 * this->close_bonus(this->wk, this->bk);
     else
-      this->score -= 6 * CloseAnyCornerBonus(this->wk) + 4 * CloseBonus(this->bk, this->wk);
+      this->score -= 6 * this->close_any_corner_bonus(this->wk) + 4 * this->close_bonus(this->bk, this->wk);
   }
 
   void bonus_bishop_pair() {
@@ -1745,7 +1739,7 @@ struct ClassicalEval {
         return;
       }
       if (this->w_pieces[2] == 1 && this->w_pieces[0] == 1) {
-        if (IsBlindBishopW()) this->scale_factor = 2;
+        this->check_blind_bishop<true>();
         return;
       }
       if (this->w_pieces[1] == 2) this->scale_factor = 2;
@@ -1760,7 +1754,7 @@ struct ClassicalEval {
         return;
       }
       if (this->b_pieces[2] == 1 && this->b_pieces[0] == 1) {
-        if (IsBlindBishopB()) this->scale_factor = 2;
+        this->check_blind_bishop<false>();
         return;
       }
       if (this->b_pieces[1] == 2) this->scale_factor = 2;
