@@ -1632,12 +1632,12 @@ struct ClassicalEval {
 
   void eval_piece(const int sq) {
     switch (g_board->pieces[sq]) {
-      case +1: this->pawn<true>(sq);   break;
-      case +2: this->knight<true>(sq); break;
-      case +3: this->bishop<true>(sq); break;
-      case +4: this->rook<true>(sq);   break;
-      case +5: this->queen<true>(sq);  break;
-      case +6: this->king<true>(sq);   break;
+      case +1: this->pawn<true>(sq);    break;
+      case +2: this->knight<true>(sq);  break;
+      case +3: this->bishop<true>(sq);  break;
+      case +4: this->rook<true>(sq);    break;
+      case +5: this->queen<true>(sq);   break;
+      case +6: this->king<true>(sq);    break;
       case -1: this->pawn<false>(sq);   break;
       case -2: this->knight<false>(sq); break;
       case -3: this->bishop<false>(sq); break;
