@@ -56,8 +56,8 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 6.9"
-#define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0"
+#define VERSION       "Mayhem 6.9" // Version
+#define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0" // startpos
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
 #define MAX_Q_DEPTH   12       // Max Qsearch depth
@@ -388,13 +388,13 @@ inline int PopCount(const std::uint64_t bb) {
   return __builtin_popcountll(bb);
 }
 
-// sq % 8
-inline int Xcoord(const int sq) {
+// sq % 8 - X axle of board
+inline int Xaxl(const int sq) {
   return sq & 0x7;
 }
 
-// sq / 8
-inline int Ycoord(const int sq) {
+// sq / 8 - Y axle of board
+inline int Yaxl(const int sq) {
   return sq >> 3;
 }
 
@@ -425,8 +425,8 @@ char Rank2Char(const int r) {
 
 // Convert int coords to string
 const std::string Move2Str(const int from, const int to) {
-  return std::string{File2Char(Xcoord(from)), Rank2Char(Ycoord(from)),
-                     File2Char(Xcoord(to)),   Rank2Char(Ycoord(to))};
+  return std::string{File2Char(Xaxl(from)), Rank2Char(Yaxl(from)),
+                     File2Char(Xaxl(to)),   Rank2Char(Yaxl(to))};
 }
 
 // =n / =b / =r / =q -> Char
@@ -614,7 +614,7 @@ const std::string Board::to_fen() const {
   if (this->castle & 0x8) s << static_cast<char>('a' + g_rook_b[1] - 56);
   s << (this->castle ? " " : "- ");
   this->epsq == -1 ? s << "-" :
-    s << static_cast<char>('a' + Xcoord(this->epsq)) << static_cast<char>('1' + Ycoord(this->epsq));
+    s << static_cast<char>('a' + Xaxl(this->epsq)) << static_cast<char>('1' + Yaxl(this->epsq));
   s << " " << static_cast<int>(this->fifty / 2);
   return s.str();
 }
@@ -1104,10 +1104,10 @@ void ModifyPawnStuffW(const int from, const int to) {
     g_board->score          = 10; // PxP
     g_board->pieces[to - 8] = 0;
     g_board->black[0]      ^= Bit(to - 8);
-  } else if (Ycoord(from) == 1 && Ycoord(to) == 3) { // e2e4 ...
+  } else if (Yaxl(from) == 1 && Yaxl(to) == 3) { // e2e4 ...
     g_board->epsq = to - 8;
-  } else if (Ycoord(to) == 6) { // Bonus for 7th ranks
-    g_board->score = 85 + Ycoord(to);
+  } else if (Yaxl(to) == 6) { // Bonus for 7th ranks
+    g_board->score = 85 + Yaxl(to);
   }
 }
 
@@ -1119,10 +1119,10 @@ void ModifyPawnStuffB(const int from, const int to) {
     g_board->score          = 10;
     g_board->pieces[to + 8] = 0;
     g_board->white[0]      ^= Bit(to + 8);
-  } else if (Ycoord(from) == 6 && Ycoord(to) == 4) {
+  } else if (Yaxl(from) == 6 && Yaxl(to) == 4) {
     g_board->epsq = to + 8;
-  } else if (Ycoord(to) == 1) {
-    g_board->score = 85 + 7 - Ycoord(to);
+  } else if (Yaxl(to) == 1) {
+    g_board->score = 85 + 7 - Yaxl(to);
   }
 }
 
@@ -1264,32 +1264,30 @@ void AddNormalStuffB(const int from, const int to) {
 }
 
 void AddW(const int from, const int to) {
-  g_board->pieces[from] == +1 && Ycoord(from) == 6 ?
+  g_board->pieces[from] == +1 && Yaxl(from) == 6 ?
     AddPromotionStuffW(from, to) : AddNormalStuffW(from, to);
   g_board = g_board_orig; // Back to old board
 }
 
 void AddB(const int from, const int to) {
-  g_board->pieces[from] == -1 && Ycoord(from) == 1 ?
+  g_board->pieces[from] == -1 && Yaxl(from) == 1 ?
     AddPromotionStuffB(from, to) : AddNormalStuffB(from, to);
   g_board = g_board_orig;
 }
 
 void AddMovesW(const int from, std::uint64_t moves) {
-  while (moves)
-    AddW(from, CtzPop(&moves));
+  while (moves) AddW(from, CtzPop(&moves));
 }
 
 void AddMovesB(const int from, std::uint64_t moves) {
-  while (moves)
-    AddB(from, CtzPop(&moves));
+  while (moves) AddB(from, CtzPop(&moves));
 }
 
 void MgenPawnsW() {
   for (auto p = g_board->white[0]; p; ) {
     const auto sq = CtzPop(&p);
     AddMovesW(sq, g_pawn_checks_w[sq] & g_pawn_sq);
-    if (Ycoord(sq) == 1) {
+    if (Yaxl(sq) == 1) {
       if (g_pawn_1_moves_w[sq] & g_empty)
         AddMovesW(sq, g_pawn_2_moves_w[sq] & g_empty);
     } else {
@@ -1302,7 +1300,7 @@ void MgenPawnsB() {
   for (auto p = g_board->black[0]; p; ) {
     const auto sq = CtzPop(&p);
     AddMovesB(sq, g_pawn_checks_b[sq] & g_pawn_sq);
-    if (Ycoord(sq) == 6) {
+    if (Yaxl(sq) == 6) {
       if (g_pawn_1_moves_b[sq] & g_empty)
         AddMovesB(sq, g_pawn_2_moves_b[sq] & g_empty);
     } else {
@@ -1314,18 +1312,16 @@ void MgenPawnsB() {
 void MgenPawnsOnlyCapturesW() {
   for (auto p = g_board->white[0]; p; ) {
     const auto sq = CtzPop(&p);
-    AddMovesW(sq, Ycoord(sq) == 6 ?
-      g_pawn_1_moves_w[sq] & (~g_both) :
-      g_pawn_checks_w[sq] & g_pawn_sq);
+    AddMovesW(sq, Yaxl(sq) == 6 ?
+      g_pawn_1_moves_w[sq] & (~g_both) : g_pawn_checks_w[sq] & g_pawn_sq);
   }
 }
 
 void MgenPawnsOnlyCapturesB() {
   for (auto p = g_board->black[0]; p; ) {
     const auto sq = CtzPop(&p);
-    AddMovesB(sq, Ycoord(sq) == 1 ?
-      g_pawn_1_moves_b[sq] & (~g_both) :
-      g_pawn_checks_b[sq] & g_pawn_sq);
+    AddMovesB(sq, Yaxl(sq) == 1 ?
+      g_pawn_1_moves_b[sq] & (~g_both) : g_pawn_checks_b[sq] & g_pawn_sq);
   }
 }
 
@@ -1555,23 +1551,17 @@ struct ClassicalEval {
 
   static int Square(const int x) { return x * x; }
   static inline int FlipY(const int sq) { return sq ^ 56; } // Mirror horizontal
-
-  static int close_bonus(const int a, const int b) {
-    return Square(7 - std::abs(Xcoord(a) - Xcoord(b))) + Square(7 - std::abs(Ycoord(a) - Ycoord(b)));
-  }
-
-  int close_any_corner_bonus(const int sq) {
-    return std::max({this->close_bonus(sq, 0),  this->close_bonus(sq, 7), this->close_bonus(sq, 56), this->close_bonus(sq, 63)});
-  }
+  static int CloseBonus(const int a, const int b) { return Square(7 - std::abs(Xaxl(a) - Xaxl(b))) + Square(7 - std::abs(Yaxl(a) - Yaxl(b))); }
+  static int CloseAnyCornerBonus(const int sq) { return std::max({CloseBonus(sq, 0), CloseBonus(sq, 7), CloseBonus(sq, 56), CloseBonus(sq, 63)}); }
 
   template<bool wtm>
   void check_blind_bishop() {
     if constexpr (wtm) {
-      const auto wpx   = Xcoord(Ctz(g_board->white[0]));
+      const auto wpx   = Xaxl(Ctz(g_board->white[0]));
       const auto color = g_board->white[2] & 0x55aa55aa55aa55aaULL;
       if ((color && wpx == 7) || (!color && wpx == 0)) this->scale_factor = 2;
     } else {
-      const auto bpx   = Xcoord(Ctz(g_board->black[0]));
+      const auto bpx   = Xaxl(Ctz(g_board->black[0]));
       const auto color = g_board->black[2] & 0x55aa55aa55aa55aaULL;
       if ((!color && bpx == 7) || (color && bpx == 0)) this->scale_factor = 2;
     }
@@ -1667,13 +1657,13 @@ struct ClassicalEval {
   template<bool wtm>
   void bonus_knbk() {
     if constexpr (wtm) {
-      this->score += 2 * this->close_bonus(this->wk, this->bk);
+      this->score += 2 * CloseBonus(this->wk, this->bk);
       this->score += 10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ?
-          std::max(this->close_bonus(0, this->bk), this->close_bonus(63, this->bk)) : std::max(this->close_bonus(7, this->bk), this->close_bonus(56, this->bk)));
+          std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) : std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk)));
     } else {
-      this->score -= 2 * this->close_bonus(this->wk, this->bk);
+      this->score -= 2 * CloseBonus(this->wk, this->bk);
       this->score -= 10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ?
-          std::max(this->close_bonus(0, this->wk), this->close_bonus(63, this->wk)) : std::max(this->close_bonus(7, this->wk), this->close_bonus(56, this->wk)));
+          std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) : std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk)));
     }
   }
 
@@ -1690,9 +1680,9 @@ struct ClassicalEval {
   template<bool wtm>
   void bonus_mating() {
     if constexpr (wtm)
-      this->score += 6 * this->close_any_corner_bonus(this->bk) + 4 * this->close_bonus(this->wk, this->bk);
+      this->score += 6 * CloseAnyCornerBonus(this->bk) + 4 * CloseBonus(this->wk, this->bk);
     else
-      this->score -= 6 * this->close_any_corner_bonus(this->wk) + 4 * this->close_bonus(this->bk, this->wk);
+      this->score -= 6 * CloseAnyCornerBonus(this->wk) + 4 * CloseBonus(this->bk, this->wk);
   }
 
   void bonus_bishop_pair() {
@@ -2613,8 +2603,8 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
 
 std::uint64_t MakeSliderMagicMoves(const int *slider_vectors, const int sq, const std::uint64_t moves) {
   std::uint64_t possible_moves = 0;
-  const auto x_pos = Xcoord(sq);
-  const auto y_pos = Ycoord(sq);
+  const auto x_pos = Xaxl(sq);
+  const auto y_pos = Yaxl(sq);
 
   for (auto i = 0; i < 4; ++i)
     for (auto j = 1; j < 8; ++j) {
@@ -2658,8 +2648,8 @@ void InitRookMagics() {
 
 std::uint64_t MakeSliderMoves(const int sq, const int *slider_vectors) {
   std::uint64_t moves = 0;
-  const auto x_pos    = Xcoord(sq);
-  const auto y_pos    = Ycoord(sq);
+  const auto x_pos    = Xaxl(sq);
+  const auto y_pos    = Yaxl(sq);
 
   for (auto i = 0; i < 4; ++i) {
     const auto dx     = slider_vectors[2 * i];
@@ -2690,8 +2680,8 @@ void InitSliderMoves() {
 
 std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int *jump_vectors) {
   std::uint64_t moves = 0;
-  const auto x_pos    = Xcoord(sq);
-  const auto y_pos    = Ycoord(sq);
+  const auto x_pos    = Xaxl(sq);
+  const auto y_pos    = Yaxl(sq);
 
   for (auto i = 0; i < len; ++i)
     if (const auto x = x_pos + jump_vectors[2 * i], y = y_pos + dy * jump_vectors[2 * i + 1]; OnBoard(x, y))
