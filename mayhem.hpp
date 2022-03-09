@@ -564,9 +564,9 @@ void HashEntry::update(const MoveType type, const std::uint64_t hash, const std:
 
 // Best moves put first for maximum cutoffs
 void HashEntry::put_hash_value_to_moves(const std::uint64_t hash, Board *moves) const {
-  if ((this->killer_hash == static_cast<std::uint32_t>(hash >> 32)) && this->killer)
+  if (this->killer && (this->killer_hash == static_cast<std::uint32_t>(hash >> 32)))
     moves[this->killer - 1].score += 10000;
-  if ((this->good_hash == static_cast<std::uint32_t>(hash >> 32)) && this->good)
+  if (this->good && (this->good_hash == static_cast<std::uint32_t>(hash >> 32)))
     moves[this->good - 1].score += 7000;
 }
 
@@ -1579,8 +1579,9 @@ struct ClassicalEval {
 
   // Squares not having own pieces are reachable
   template<bool wtm>
-  inline std::uint64_t reachable() {
-    if constexpr (wtm) return ~this->white; else return ~this->black;
+  inline std::uint64_t reachable() const {
+    if constexpr (wtm) return ~this->white;
+    else               return ~this->black;
   }
 
   template<bool wtm, int k>
@@ -1591,14 +1592,16 @@ struct ClassicalEval {
 
   template<bool wtm, int piece, int k>
   inline void eval_score(const int sq, const std::uint64_t m) {
-    if constexpr (wtm) ++this->w_pieces[piece]; else ++this->b_pieces[piece];
+    if constexpr (wtm) ++this->w_pieces[piece];
+    else               ++this->b_pieces[piece];
     this->pesto<wtm, piece>(sq);
     this->mobility<wtm, k>(m);
   }
 
   template<bool wtm>
   void pawn(const int sq) {
-    if constexpr (wtm) ++this->w_pieces[0]; else ++this->b_pieces[0];
+    if constexpr (wtm) ++this->w_pieces[0];
+    else               ++this->b_pieces[0];
     this->pesto<wtm, 0>(sq);
   }
 
@@ -1624,7 +1627,8 @@ struct ClassicalEval {
 
   template<bool wtm>
   void king(const int sq) {
-    if constexpr (wtm) this->wk = sq; else this->bk = sq;
+    if constexpr (wtm) this->wk = sq;
+    else               this->bk = sq;
     this->pesto<wtm, 5>(sq);
     this->mobility<wtm, 1>(g_king_moves[sq] & this->reachable<wtm>());
   }
@@ -1687,10 +1691,10 @@ struct ClassicalEval {
     if (this->b_pieces[2] >= 2) this->score -= BISHOP_PAIR_BONUS;
   }
 
-  // 1. KQvK(RNB)
-  // 2. KRvK(NB) -> Drawish
-  // 3. K(RNB)vKQ
-  // 4. K(NB)vKR -> Drawish
+  // 1. KQvK(RNB) -> Checkmate
+  // 2. KRvK(NB)  -> Drawish (Try to checkmate)
+  // 3. K(RNB)vKQ -> Checkmate
+  // 4. K(NB)vKR  -> Drawish (Try to checkmate)
   void bonus_special_4men() {
     if (this->w_pieces[4] && (this->b_pieces[3] || this->b_pieces[1] || this->b_pieces[2])) {
       this->bonus_mating<true>();
@@ -1705,8 +1709,8 @@ struct ClassicalEval {
     }
   }
 
-  // 1. KRRvKR / KR(NB)vK(NB)
-  // 2. KRvKRR / K(NB)vKR(NB)
+  // 1. KRRvKR / KR(NB)vK(NB) -> Checkmate
+  // 2. KRvKRR / K(NB)vKR(NB) -> Checkmate
   void bonus_special_5men() {
     if ((this->w_pieces[3] == 2 && this->b_pieces[3]) ||
         (this->w_pieces[3] && (this->w_pieces[2] || this->w_pieces[1]) && (this->b_pieces[2] || this->b_pieces[1])))
@@ -1717,34 +1721,22 @@ struct ClassicalEval {
   }
 
   // 1. Special mating pattern
-  // 2. Don't force king to corner -> Try to promote
+  // 2. Don't force king to corner    -> Try to promote
   // 3. Can't force mate w/ 2 knights -> Scale down
   void white_is_mating() {
     if (this->white_total == 3) {
-      if (this->w_pieces[2] == 1 && this->w_pieces[1] == 1) {
-        this->bonus_knbk<true>();
-        return;
-      }
-      if (this->w_pieces[2] == 1 && this->w_pieces[0] == 1) {
-        this->check_blind_bishop<true>();
-        return;
-      }
-      if (this->w_pieces[1] == 2) this->scale_factor = 2;
+      if (this->w_pieces[2] == 1 && this->w_pieces[1] == 1) { this->bonus_knbk<true>();         return; }
+      if (this->w_pieces[2] == 1 && this->w_pieces[0] == 1) { this->check_blind_bishop<true>(); return; }
+      if (this->w_pieces[1] == 2)                           { this->scale_factor = 2; }
     }
     this->bonus_mating<true>();
   }
 
   void black_is_mating() {
     if (this->black_total == 3) {
-      if (this->b_pieces[2] == 1 && this->b_pieces[1] == 1) {
-        this->bonus_knbk<false>();
-        return;
-      }
-      if (this->b_pieces[2] == 1 && this->b_pieces[0] == 1) {
-        this->check_blind_bishop<false>();
-        return;
-      }
-      if (this->b_pieces[1] == 2) this->scale_factor = 2;
+      if (this->b_pieces[2] == 1 && this->b_pieces[1] == 1) { this->bonus_knbk<false>();         return; }
+      if (this->b_pieces[2] == 1 && this->b_pieces[0] == 1) { this->check_blind_bishop<false>(); return; }
+      if (this->b_pieces[1] == 2)                           { this->scale_factor = 2; }
     }
     this->bonus_mating<false>();
   }
