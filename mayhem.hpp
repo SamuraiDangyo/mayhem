@@ -408,7 +408,7 @@ std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
   return (1000 * nodes) / std::max<std::uint64_t>(1, ms);
 }
 
-// Is (x,y) on board ? Slow, but only for init
+// Is (x, y) on board ? Slow, but only for init
 bool OnBoard(const int x, const int y) {
   return x >= 0 && x <= 7 && y >= 0 && y <= 7;
 }
@@ -450,10 +450,9 @@ bool InputAvailable() {
   return _kbhit();
 #else
   fd_set fd;
-  struct timeval tv;
+  struct timeval tv = {0, 0};
   FD_ZERO(&fd);
   FD_SET(STDIN_FILENO, &fd);
-  tv.tv_sec = tv.tv_usec = 0;
   select(STDIN_FILENO + 1, &fd, nullptr, nullptr, &tv);
   return FD_ISSET(STDIN_FILENO, &fd) > 0;
 #endif
@@ -1549,8 +1548,8 @@ struct ClassicalEval {
 
   explicit ClassicalEval(const bool wtm) : white{White()}, black{Black()}, both{this->white | this->black}, m_wtm{wtm} { }
 
-  static int Square(const int x) { return x * x; }
   static inline int FlipY(const int sq) { return sq ^ 56; } // Mirror horizontal
+  static int Square(const int x) { return x * x; }
   static int CloseBonus(const int a, const int b) { return Square(7 - std::abs(Xaxl(a) - Xaxl(b))) + Square(7 - std::abs(Yaxl(a) - Yaxl(b))); }
   static int CloseAnyCornerBonus(const int sq) { return std::max({CloseBonus(sq, 0), CloseBonus(sq, 7), CloseBonus(sq, 56), CloseBonus(sq, 63)}); }
 
@@ -1649,8 +1648,8 @@ struct ClassicalEval {
 
   void evaluate_pieces() {
     for (auto b = this->both; b; ) this->eval_piece(CtzPop(&b));
-    this->white_total = std::accumulate(this->w_pieces + 0, this->w_pieces + 5, 0) + 1;
-    this->black_total = std::accumulate(this->b_pieces + 0, this->b_pieces + 5, 0) + 1;
+    this->white_total = std::accumulate(this->w_pieces + 0, this->w_pieces + 5, 1); // Start from 1 (king)
+    this->black_total = std::accumulate(this->b_pieces + 0, this->b_pieces + 5, 1);
     this->both_total  = this->white_total + this->black_total;
   }
 
@@ -1679,10 +1678,8 @@ struct ClassicalEval {
   // Force black king in the corner and get closer
   template<bool wtm>
   void bonus_mating() {
-    if constexpr (wtm)
-      this->score += 6 * CloseAnyCornerBonus(this->bk) + 4 * CloseBonus(this->wk, this->bk);
-    else
-      this->score -= 6 * CloseAnyCornerBonus(this->wk) + 4 * CloseBonus(this->bk, this->wk);
+    if constexpr (wtm) this->score += 6 * CloseAnyCornerBonus(this->bk) + 4 * CloseBonus(this->wk, this->bk);
+    else               this->score -= 6 * CloseAnyCornerBonus(this->wk) + 4 * CloseBonus(this->bk, this->wk);
   }
 
   void bonus_bishop_pair() {
@@ -2319,7 +2316,7 @@ void Think(const int ms) {
   EvalRootMoves();
   SortRootMoves();
 
-  // Only =q / =n are allowed for gameplay
+  // Only =q + =n are allowed for gameplay
   g_underpromos = g_analyzing; // Can be removed ...
   SearchRootMoves(m.is_endgame());
   g_underpromos = true;
