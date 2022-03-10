@@ -906,6 +906,7 @@ inline bool ChecksB() {
 
 // Only sort when necessary (See: lazy-sorting-algorithm paper)
 // Sort only node-by-node (Avoid costly n! / tons of operations)
+// Swap every found node. Finding index isn't faster ?
 inline void LazySort(const int ply, const int nth, const int total_moves) {
   for (auto i = nth + 1; i < total_moves; ++i)
     if (g_boards[ply][i].score > g_boards[ply][nth].score)
@@ -1577,6 +1578,12 @@ struct ClassicalEval {
     }
   }
 
+  template<bool wtm, int piece>
+  inline void add_piece_count() {
+    if constexpr (wtm) ++this->w_pieces[piece];
+    else               ++this->b_pieces[piece];
+  }
+
   // Squares not having own pieces are reachable
   template<bool wtm>
   inline std::uint64_t reachable() const {
@@ -1592,16 +1599,14 @@ struct ClassicalEval {
 
   template<bool wtm, int piece, int k>
   inline void eval_score(const int sq, const std::uint64_t m) {
-    if constexpr (wtm) ++this->w_pieces[piece];
-    else               ++this->b_pieces[piece];
+    this->add_piece_count<wtm, piece>();
     this->pesto<wtm, piece>(sq);
     this->mobility<wtm, k>(m);
   }
 
   template<bool wtm>
   void pawn(const int sq) {
-    if constexpr (wtm) ++this->w_pieces[0];
-    else               ++this->b_pieces[0];
+    this->add_piece_count<wtm, 0>();
     this->pesto<wtm, 0>(sq);
   }
 
@@ -1629,6 +1634,7 @@ struct ClassicalEval {
   void king(const int sq) {
     if constexpr (wtm) this->wk = sq;
     else               this->bk = sq;
+
     this->pesto<wtm, 5>(sq);
     this->mobility<wtm, 1>(g_king_moves[sq] & this->reachable<wtm>());
   }
