@@ -1522,7 +1522,7 @@ bool EasyDraw(const bool wtm) {
 // Bishop on a1/h1/a8/h8 blocked by own pawn
 int FixFRC() {
   // No bishop in corner -> Speedup
-  constexpr std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
+  static constexpr std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
   if (!((g_board->white[2] | g_board->black[2]) & corners))
     return 0;
 
@@ -1579,7 +1579,7 @@ struct ClassicalEval {
   }
 
   template<bool wtm, int piece>
-  inline void add_piece_count() {
+  inline void inc_piece_count() {
     if constexpr (wtm) ++this->w_pieces[piece];
     else               ++this->b_pieces[piece];
   }
@@ -1599,14 +1599,14 @@ struct ClassicalEval {
 
   template<bool wtm, int piece, int k>
   inline void eval_score(const int sq, const std::uint64_t m) {
-    this->add_piece_count<wtm, piece>();
+    this->inc_piece_count<wtm, piece>();
     this->pesto<wtm, piece>(sq);
     this->mobility<wtm, k>(m);
   }
 
   template<bool wtm>
   void pawn(const int sq) {
-    this->add_piece_count<wtm, 0>();
+    this->inc_piece_count<wtm, 0>();
     this->pesto<wtm, 0>(sq);
   }
 
@@ -1665,15 +1665,12 @@ struct ClassicalEval {
 
   template<bool wtm>
   void bonus_knbk() {
-    if constexpr (wtm) {
-      this->score += 2 * CloseBonus(this->wk, this->bk);
-      this->score += 10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ?
-          std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) : std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk)));
-    } else {
-      this->score -= 2 * CloseBonus(this->wk, this->bk);
-      this->score -= 10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ?
-          std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) : std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk)));
-    }
+    if constexpr (wtm) this->score += (2 * CloseBonus(this->wk, this->bk)) +
+                                      (10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
+                                                                                           std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk))));
+    else               this->score -= (2 * CloseBonus(this->wk, this->bk)) +
+                                      (10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
+                                                                                           std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk))));
   }
 
   void bonus_tempo() {
