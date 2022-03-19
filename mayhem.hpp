@@ -56,8 +56,8 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 6.9" // Version
-#define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0" // startpos
+#define VERSION       "Mayhem 7.0" // Version
+#define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0" // uci startpos
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
 #define MAX_Q_DEPTH   12       // Max Qsearch depth
@@ -77,21 +77,21 @@ namespace mayhem {
 
 // Tactical fens to pressure search
 const std::array<const std::string, 15> kBench = {
-  "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 ; Rh8",
-  "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 ; Nxa7+",
-  "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 ; Rxh7+",
-  "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0 ; Qxh3",
-  "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0 ; g3",
-  "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0 ; Nb5",
-  "8/6pp/4p3/1p1n4/1NbkN1P1/P4P1P/1PR3K1/r7 w - - 0 ; Rxc4+",
-  "2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0 ; Nxd4+",
-  "nrq4r/2k1p3/1p1pPnp1/pRpP1p2/P1P2P2/2P1BB2/1R2Q1P1/6K1 w - - 0 ; Bxc5",
-  "3r2k1/5p2/6p1/4b3/1P2P3/1R2P2p/P1K1N3/8 b - - 0 ; Rd1",
-  "1k1r4/pp1r1pp1/4n1p1/2R5/2Pp1qP1/3P2QP/P4PB1/1R4K1 w - - 0 ; Bxb7",
-  "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0 ; Rxg7",
-  "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0 ; Qxc6",
-  "5bk1/1rQ4p/5pp1/2pP4/3n1PP1/7P/1q3BB1/4R1K1 w - - 0 ; d6",
-  "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 ; Ne3"
+  "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 ; bm Rh8",
+  "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 ; bm Nxa7+",
+  "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 ; bm Rxh7+",
+  "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0 ; bm Qxh3",
+  "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0 ; bm g3",
+  "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0 ; bm Nb5",
+  "8/6pp/4p3/1p1n4/1NbkN1P1/P4P1P/1PR3K1/r7 w - - 0 ; bm Rxc4+",
+  "2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0 ; bm Nxd4+",
+  "nrq4r/2k1p3/1p1pPnp1/pRpP1p2/P1P2P2/2P1BB2/1R2Q1P1/6K1 w - - 0 ; bm Bxc5",
+  "3r2k1/5p2/6p1/4b3/1P2P3/1R2P2p/P1K1N3/8 b - - 0 ; bm Rd1",
+  "1k1r4/pp1r1pp1/4n1p1/2R5/2Pp1qP1/3P2QP/P4PB1/1R4K1 w - - 0 ; bm Bxb7",
+  "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0 ; bm Rxg7",
+  "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0 ; bm Qxc6",
+  "5bk1/1rQ4p/5pp1/2pP4/3n1PP1/7P/1q3BB1/4R1K1 w - - 0 ; bm d6",
+  "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 ; bm Ne3"
 };
 
 // [Attacker][Captured] / [PNBRQK][pnbrqk]
@@ -399,7 +399,7 @@ inline int Yaxl(const int sq) {
 }
 
 // Set bit in 1 -> 64
-constexpr inline std::uint64_t Bit(const int nth) {
+inline std::uint64_t Bit(const int nth) {
   return 0x1ULL << nth;
 }
 
@@ -906,7 +906,7 @@ inline bool ChecksB() {
 
 // Only sort when necessary (See: lazy-sorting-algorithm paper)
 // Sort only node-by-node (Avoid costly n! / tons of operations)
-// Swap every found node. Finding index isn't faster ?
+// Swap every found node. Finding index might not be faster ?
 inline void LazySort(const int ply, const int nth, const int total_moves) {
   for (auto i = nth + 1; i < total_moves; ++i)
     if (g_boards[ply][i].score > g_boards[ply][nth].score)
@@ -1129,17 +1129,17 @@ void ModifyPawnStuffB(const int from, const int to) {
 void AddPromotionW(const int from, const int to, const int piece) {
   const auto eat = g_board->pieces[to];
 
-  g_moves[g_moves_n]    = *g_board;
-  g_board               = &g_moves[g_moves_n];
-  g_board->from         = from;
-  g_board->to           = to;
-  g_board->score        = 110 + piece; // Highest priority
-  g_board->type         = 3 + piece;
-  g_board->epsq         = -1;
-  g_board->fifty        = 0;
-  g_board->pieces[to]   = piece;
-  g_board->pieces[from] = 0;
-  g_board->white[0]    ^= Bit(from);
+  g_moves[g_moves_n]        = *g_board;
+  g_board                   = &g_moves[g_moves_n];
+  g_board->from             = from;
+  g_board->to               = to;
+  g_board->score            = 110 + piece; // Highest priority
+  g_board->type             = 3 + piece;
+  g_board->epsq             = -1;
+  g_board->fifty            = 0;
+  g_board->pieces[to]       = piece;
+  g_board->pieces[from]     = 0;
+  g_board->white[0]         ^= Bit(from);
   g_board->white[piece - 1] |= Bit(to);
 
   if (eat <= -1)
@@ -1264,14 +1264,12 @@ void AddNormalStuffB(const int from, const int to) {
 }
 
 void AddW(const int from, const int to) {
-  g_board->pieces[from] == +1 && Yaxl(from) == 6 ?
-    AddPromotionStuffW(from, to) : AddNormalStuffW(from, to);
+  g_board->pieces[from] == +1 && Yaxl(from) == 6 ? AddPromotionStuffW(from, to) : AddNormalStuffW(from, to);
   g_board = g_board_orig; // Back to old board
 }
 
 void AddB(const int from, const int to) {
-  g_board->pieces[from] == -1 && Yaxl(from) == 1 ?
-    AddPromotionStuffB(from, to) : AddNormalStuffB(from, to);
+  g_board->pieces[from] == -1 && Yaxl(from) == 1 ? AddPromotionStuffB(from, to) : AddNormalStuffB(from, to);
   g_board = g_board_orig;
 }
 
@@ -1312,16 +1310,14 @@ void MgenPawnsB() {
 void MgenPawnsOnlyCapturesW() {
   for (auto p = g_board->white[0]; p; ) {
     const auto sq = CtzPop(&p);
-    AddMovesW(sq, Yaxl(sq) == 6 ?
-      g_pawn_1_moves_w[sq] & (~g_both) : g_pawn_checks_w[sq] & g_pawn_sq);
+    AddMovesW(sq, Yaxl(sq) == 6 ? g_pawn_1_moves_w[sq] & (~g_both) : g_pawn_checks_w[sq] & g_pawn_sq);
   }
 }
 
 void MgenPawnsOnlyCapturesB() {
   for (auto p = g_board->black[0]; p; ) {
     const auto sq = CtzPop(&p);
-    AddMovesB(sq, Yaxl(sq) == 1 ?
-      g_pawn_1_moves_b[sq] & (~g_both) : g_pawn_checks_b[sq] & g_pawn_sq);
+    AddMovesB(sq, Yaxl(sq) == 1 ? g_pawn_1_moves_b[sq] & (~g_both) : g_pawn_checks_b[sq] & g_pawn_sq);
   }
 }
 
@@ -1522,7 +1518,7 @@ bool EasyDraw(const bool wtm) {
 // Bishop on a1/h1/a8/h8 blocked by own pawn
 int FixFRC() {
   // No bishop in corner -> Speedup
-  static constexpr std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
+  static const std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
   if (!((g_board->white[2] | g_board->black[2]) & corners))
     return 0;
 
@@ -1536,8 +1532,7 @@ int FixFRC() {
 
 // Classical evaluation (HCE)
 
-// Finish the game or no NNUE
-struct ClassicalEval {
+struct ClassicalEval { // Finish the game or no NNUE
 
   // Attributes
 
@@ -2424,7 +2419,7 @@ void UciGoDepth() {
 
 // Calculate needed time then think
 // Make sure we never lose on time
-// Small overhead buffer to prevent time losses
+// Thus small overhead buffer to prevent time losses
 void UciGo() {
   auto wtime = 0, btime = 0, winc = 0, binc = 0, mtg = 26;
 
@@ -2619,21 +2614,18 @@ void InitBishopMagics() {
     const auto magics = kBishopMagics[2][i] & (~Bit(i));
     for (auto j = 0; j < 512; ++j) {
       const auto allmoves = PermutateBb(magics, j);
-      g_bishop_magic_moves[i][BishopMagicIndex(i, allmoves)] =
-        MakeSliderMagicMoves(bishop_vectors, i, allmoves);
+      g_bishop_magic_moves[i][BishopMagicIndex(i, allmoves)] = MakeSliderMagicMoves(bishop_vectors, i, allmoves);
     }
   }
 }
 
 void InitRookMagics() {
   constexpr int rook_vectors[8] = {+1,  0,  0, +1,  0, -1, -1,  0};
-
   for (auto i = 0; i < 64; ++i) {
     const auto magics = kRookMagics[2][i] & (~Bit(i));
     for (auto j = 0; j < 4096; ++j) {
       const auto allmoves = PermutateBb(magics, j);
-      g_rook_magic_moves[i][RookMagicIndex(i, allmoves)] =
-        MakeSliderMagicMoves(rook_vectors, i, allmoves);
+      g_rook_magic_moves[i][RookMagicIndex(i, allmoves)] = MakeSliderMagicMoves(rook_vectors, i, allmoves);
     }
   }
 }
@@ -2706,8 +2698,7 @@ void InitJumpMoves() {
 }
 
 void InitZobrist() {
-  for (auto i = 0; i < 13; ++i)
-    for (auto j = 0; j < 64; ++j) g_zobrist_board[i][j] = Random8x64();
+  for (auto i = 0; i < 13; ++i) for (auto j = 0; j < 64; ++j) g_zobrist_board[i][j] = Random8x64();
   for (auto i = 0; i < 64; ++i) g_zobrist_ep[i]     = Random8x64();
   for (auto i = 0; i < 16; ++i) g_zobrist_castle[i] = Random8x64();
   for (auto i = 0; i <  2; ++i) g_zobrist_wtm[i]    = Random8x64();
