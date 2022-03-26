@@ -57,7 +57,7 @@ namespace mayhem {
 // Macros
 
 #define VERSION       "Mayhem 7.0" // Version
-#define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0" // uci startpos
+#define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // uci startpos
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
 #define MAX_Q_DEPTH   12       // Max Qsearch depth
@@ -822,11 +822,12 @@ void FenFullMoves(const std::string &fullmoves) {
   if (fullmoves.length() != 0) g_fullmoves = std::max(std::stoi(fullmoves), 1);
 }
 
+// Fully legal FEN expected: https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation
 void FenGen(const std::string &fen) {
   std::vector<std::string> tokens{};
   SplitString< std::vector<std::string> >(fen, tokens);
-  Ok( fen.length() >= 23 && // "8/8/8/8/8/8/8/8 w - - 0"
-      tokens.size() >= 5 &&
+  Ok( fen.length() >= 23 && // "8/8/8/8/8/8/8/8 w - - 0 1"
+      tokens.size() >= 6 &&
       tokens[0].find('K') != std::string::npos &&
       tokens[0].find('k') != std::string::npos,
     "Bad fen");
@@ -836,7 +837,7 @@ void FenGen(const std::string &fen) {
   FenKQkq(tokens[2]);
   FenEp(tokens[3]);
   FenRule50(tokens[4]);
-  if (tokens.size() >= 6) FenFullMoves(tokens[5]);
+  FenFullMoves(tokens[5]);
   BuildCastlingBitboards();
 }
 
@@ -846,7 +847,8 @@ void FenReset() {
   g_board       = &g_board_tmp;
   g_wtm         = true;
   g_board->epsq = -1;
-  g_king_w      = g_king_b = g_fullmoves = 0;
+  g_king_w      = g_king_b = 0;
+  g_fullmoves   = 1;
 
   for (const auto i : {0, 1}) {
     g_castle_w[i] = g_castle_empty_w[i] = g_castle_b[i] = g_castle_empty_b[i] = 0;
@@ -908,7 +910,7 @@ inline bool ChecksB() {
 
 // Only sort when necessary (See: lazy-sorting-algorithm paper)
 // Sort only node-by-node (Avoid costly n! / tons of operations)
-// Swap every found node. Finding index might not be faster ?
+// Swap every found node for simplicity.
 inline void LazySort(const int ply, const int nth, const int total_moves) {
   for (auto i = nth + 1; i < total_moves; ++i)
     if (g_boards[ply][i].score > g_boards[ply][nth].score)
@@ -970,8 +972,8 @@ inline std::uint64_t RookMagicMoves(const int sq, const std::uint64_t mask) {
 }
 
 void HandleCastlingW(const int mtype, const int from, const int to) {
-  g_moves[g_moves_n] = *g_board; // copy
-  g_board            = &g_moves[g_moves_n]; // pointer
+  g_moves[g_moves_n] = *g_board; // Copy
+  g_board            = &g_moves[g_moves_n]; // Pointer
   g_board->score     = 0;
   g_board->epsq      = -1;
   g_board->from      = from;
@@ -1236,7 +1238,7 @@ void AddNormalStuffW(const int from, const int to) {
   g_board->pieces[from]  = 0;
   g_board->pieces[to]    = me;
   g_board->white[me - 1] = (g_board->white[me - 1] ^ Bit(from)) | Bit(to);
-  ++g_board->fifty;
+  ++g_board->fifty; // Rule50 counter increased after decisive move
 
   CheckNormalCapturesW(me, eat, to);
   ModifyPawnStuffW(from, to);
@@ -2328,11 +2330,11 @@ std::uint64_t Perft(const bool wtm, const int depth, const int ply) {
 // UCI
 
 void UciMake(const int root_i) {
+  if (!g_wtm) ++g_fullmoves; // Increase fullmoves only after black move
   g_r50_positions[g_board->fifty] = Hash(g_wtm); // Set hash
   g_board_tmp = g_boards[0][root_i]; // Copy current board
   g_board     = &g_board_tmp; // Set pointer
   g_wtm       = !g_wtm; // Flip the board
-  ++g_fullmoves;
 }
 
 void UciMakeMove() {
@@ -2476,7 +2478,7 @@ struct Save {
 
 // Print ASCII art board
 // > p [fen = startpos]
-// > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0
+// > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0_1
 // Print board + some info (NNUE, Book, Eval (cp), Hash (entries))
 // Also used for debug in UCI mode
 void UciPrintBoard(std::string s = "") {
@@ -2488,7 +2490,7 @@ void UciPrintBoard(std::string s = "") {
 // Calculate perft split numbers
 // > perft [depth = 6] [fen = startpos]
 // > perft -> 119060324
-// > perft 7 R7/P4k2/8/8/8/8/r7/6K1_w_-_-_0 -> 245764549
+// > perft 7 R7/P4k2/8/8/8/8/r7/6K1_w_-_-_0_1 -> 245764549
 void UciPerft(const std::string &d, const std::string &f) {
   const Save save{};
   const auto depth = d.length() ? std::max(0, std::stoi(d)) : 6;
@@ -2506,8 +2508,7 @@ void UciPerft(const std::string &d, const std::string &f) {
     nodes    += nodes2;
     total_ms += ms;
   }
-  std::cout <<
-    "\n===========================\n\n" <<
+  std::cout << "\n===========================\n\n" <<
     "Nodes:    " << nodes << "\n" <<
     "Time(ms): " << total_ms << "\n" <<
     "NPS:      " << Nps(nodes, total_ms) << std::endl;
@@ -2540,8 +2541,7 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
   }
   g_noise     = NOISE;
   g_max_depth = MAX_DEPTH;
-  std::cout <<
-    "===========================\n\n" <<
+  std::cout << "===========================\n\n" <<
     "Nodes:    " << nodes << "\n" <<
     "Time(ms): " << total_ms << "\n" <<
     "NPS:      " << Nps(nodes, total_ms) << "\n" <<
@@ -2636,13 +2636,11 @@ std::uint64_t MakeSliderMoves(const int sq, const std::array<int, 8> &slider_vec
   for (auto i = 0; i < 4; ++i) {
     const auto dx = slider_vectors[2 * i], dy = slider_vectors[2 * i + 1];
     std::uint64_t tmp = 0;
-
     for (auto j = 1; j < 8; ++j)
       if (const auto x = x_pos + j * dx, y = y_pos + j * dy; OnBoard(x, y))
         tmp |= Bit(8 * y + x);
       else
         break;
-
     moves |= tmp;
   }
 
@@ -2663,11 +2661,9 @@ template <int k>
 std::uint64_t MakeJumpMoves(const int sq, const int dy, const std::array<int, k> &jump_vectors) {
   std::uint64_t moves = 0;
   const auto x_pos = Xaxl(sq), y_pos = Yaxl(sq);
-
   for (std::size_t i = 0; i < jump_vectors.size() / 2; ++i)
     if (const auto x = x_pos + jump_vectors[2 * i], y = y_pos + dy * jump_vectors[2 * i + 1]; OnBoard(x, y))
       moves |= Bit(8 * y + x);
-
   return moves;
 }
 
@@ -2675,7 +2671,7 @@ void InitJumpMoves() {
   constexpr std::array<int, 16> king_vectors      = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1};
   constexpr std::array<int, 16> knight_vectors    = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2};
   constexpr std::array<int, 4> pawn_check_vectors = {-1, +1, +1, +1};
-  constexpr std::array<int, 2> pawn_1_vectors     = {0, +1};
+  constexpr std::array<int, 2> pawn_1_vectors     = { 0, +1};
 
   for (auto i = 0; i < 64; ++i) {
     g_king_moves[i]     = MakeJumpMoves<16>(i, +1, king_vectors);
