@@ -77,21 +77,21 @@ namespace mayhem {
 
 // Tactical fens to pressure search
 const std::array<const std::string, 15> kBench = {
-  "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 ; bm Rh8",
-  "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 ; bm Nxa7+",
-  "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 ; bm Rxh7+",
-  "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0 ; bm Qxh3",
-  "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0 ; bm g3",
-  "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0 ; bm Nb5",
-  "8/6pp/4p3/1p1n4/1NbkN1P1/P4P1P/1PR3K1/r7 w - - 0 ; bm Rxc4+",
-  "2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0 ; bm Nxd4+",
-  "nrq4r/2k1p3/1p1pPnp1/pRpP1p2/P1P2P2/2P1BB2/1R2Q1P1/6K1 w - - 0 ; bm Bxc5",
-  "3r2k1/5p2/6p1/4b3/1P2P3/1R2P2p/P1K1N3/8 b - - 0 ; bm Rd1",
-  "1k1r4/pp1r1pp1/4n1p1/2R5/2Pp1qP1/3P2QP/P4PB1/1R4K1 w - - 0 ; bm Bxb7",
-  "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0 ; bm Rxg7",
-  "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0 ; bm Qxc6",
-  "5bk1/1rQ4p/5pp1/2pP4/3n1PP1/7P/1q3BB1/4R1K1 w - - 0 ; bm d6",
-  "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 ; bm Ne3"
+  "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 1 ; bm Rh8",
+  "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 1 ; bm Nxa7+",
+  "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 1 ; bm Rxh7+",
+  "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0 1 ; bm Qxh3",
+  "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0 1 ; bm g3",
+  "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0 1 ; bm Nb5",
+  "8/6pp/4p3/1p1n4/1NbkN1P1/P4P1P/1PR3K1/r7 w - - 0 1 ; bm Rxc4+",
+  "2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0 1 ; bm Nxd4+",
+  "nrq4r/2k1p3/1p1pPnp1/pRpP1p2/P1P2P2/2P1BB2/1R2Q1P1/6K1 w - - 0 1 ; bm Bxc5",
+  "3r2k1/5p2/6p1/4b3/1P2P3/1R2P2p/P1K1N3/8 b - - 0 1 ; bm Rd1",
+  "1k1r4/pp1r1pp1/4n1p1/2R5/2Pp1qP1/3P2QP/P4PB1/1R4K1 w - - 0 1 ; bm Bxb7",
+  "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0 1 ; bm Rxg7",
+  "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0 1 ; bm Qxc6",
+  "5bk1/1rQ4p/5pp1/2pP4/3n1PP1/7P/1q3BB1/4R1K1 w - - 0 1 ; bm d6",
+  "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 1 ; bm Ne3"
 };
 
 // [Attacker][Captured] / [PNBRQK][pnbrqk]
@@ -325,7 +325,7 @@ std::uint64_t g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_s
 
 int g_move_overhead = MOVEOVERHEAD, g_level = 100, g_root_n = 0, g_king_w = 0, g_king_b = 0,
   g_moves_n = 0, g_max_depth = MAX_DEPTH, g_q_depth = 0, g_depth = 0, g_best_score = 0, g_noise = NOISE,
-  g_last_eval = 0, g_rook_w[2]{}, g_rook_b[2]{}, g_lmr[MAX_DEPTH][MAX_MOVES]{},
+  g_last_eval = 0, g_rook_w[2]{}, g_rook_b[2]{}, g_lmr[MAX_DEPTH][MAX_MOVES]{}, g_fullmoves = 1,
   g_nnue_pieces[64]{}, g_nnue_squares[64]{};
 
 bool g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active = false,
@@ -612,9 +612,8 @@ const std::string Board::to_fen() const {
   if (this->castle & 0x4) s << static_cast<char>('a' + g_rook_b[0] - 56);
   if (this->castle & 0x8) s << static_cast<char>('a' + g_rook_b[1] - 56);
   s << (this->castle ? " " : "- ");
-  this->epsq == -1 ? s << "-" :
-    s << static_cast<char>('a' + Xaxl(this->epsq)) << static_cast<char>('1' + Yaxl(this->epsq));
-  s << " " << static_cast<int>(this->fifty / 2);
+  this->epsq == -1 ? s << "-" : s << static_cast<char>('a' + Xaxl(this->epsq)) << static_cast<char>('1' + Yaxl(this->epsq));
+  s << " " << static_cast<int>(this->fifty) << " " << static_cast<int>(std::max(1, g_fullmoves));
   return s.str();
 }
 
@@ -812,13 +811,15 @@ void FenKQkq(const std::string &KQkq) {
 }
 
 void FenEp(const std::string &ep) {
-  if (ep.length() == 2)
-    g_board->epsq = 8 * Rank2Num(ep[1]) + File2Num(ep[0]);
+  if (ep.length() == 2) g_board->epsq = 8 * Rank2Num(ep[1]) + File2Num(ep[0]);
 }
 
 void FenRule50(const std::string &fifty) {
-  if (fifty.length() != 0 && fifty[0] != '-')
-    g_board->fifty = std::clamp(2 * std::stoi(fifty), 0, 100);
+  if (fifty.length() != 0 && fifty[0] != '-') g_board->fifty = std::clamp(std::stoi(fifty), 0, 100);
+}
+
+void FenFullMoves(const std::string &fullmoves) {
+  if (fullmoves.length() != 0) g_fullmoves = std::max(std::stoi(fullmoves), 1);
 }
 
 void FenGen(const std::string &fen) {
@@ -835,6 +836,7 @@ void FenGen(const std::string &fen) {
   FenKQkq(tokens[2]);
   FenEp(tokens[3]);
   FenRule50(tokens[4]);
+  if (tokens.size() >= 6) FenFullMoves(tokens[5]);
   BuildCastlingBitboards();
 }
 
@@ -844,11 +846,11 @@ void FenReset() {
   g_board       = &g_board_tmp;
   g_wtm         = true;
   g_board->epsq = -1;
-  g_king_w = g_king_b = 0;
+  g_king_w      = g_king_b = g_fullmoves = 0;
 
   for (const auto i : {0, 1}) {
     g_castle_w[i] = g_castle_empty_w[i] = g_castle_b[i] = g_castle_empty_b[i] = 0;
-    g_rook_w[i] = g_rook_b[i] = 0;
+    g_rook_w[i]   = g_rook_b[i] = 0;
   }
 
   for (auto i = 0; i < 6; ++i)
@@ -1222,8 +1224,7 @@ inline void AddMoveIfOkB() {
 }
 
 void AddNormalStuffW(const int from, const int to) {
-  const auto me  = g_board->pieces[from];
-  const auto eat = g_board->pieces[to];
+  const auto me = g_board->pieces[from], eat = g_board->pieces[to];
 
   g_moves[g_moves_n]     = *g_board;
   g_board                = &g_moves[g_moves_n];
@@ -1243,8 +1244,7 @@ void AddNormalStuffW(const int from, const int to) {
 }
 
 void AddNormalStuffB(const int from, const int to) {
-  const auto me  = g_board->pieces[from];
-  const auto eat = g_board->pieces[to];
+  const auto me = g_board->pieces[from], eat = g_board->pieces[to];
 
   g_moves[g_moves_n]      = *g_board;
   g_board                 = &g_moves[g_moves_n];
@@ -2332,6 +2332,7 @@ void UciMake(const int root_i) {
   g_board_tmp = g_boards[0][root_i]; // Copy current board
   g_board     = &g_board_tmp; // Set pointer
   g_wtm       = !g_wtm; // Flip the board
+  ++g_fullmoves;
 }
 
 void UciMakeMove() {
@@ -2372,7 +2373,7 @@ void UciSetoption() {
   if (TokenPeek("name") && TokenPeek("value", 2)) {
     if (TokenPeek("UCI_Chess960", 1)) {
       g_chess960 = TokenPeek("true", 3);
-      TokenPop(4);
+      TokenPop(4); // Just in case
     } else if (TokenPeek("Hash", 1)) {
       SetHashtable(TokenNumber(3));
       TokenPop(4);
@@ -2588,15 +2589,13 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
   return permutations & moves;
 }
 
-std::uint64_t MakeSliderMagicMoves(const int *slider_vectors, const int sq, const std::uint64_t moves) {
+std::uint64_t MakeSliderMagicMoves(const std::array<int, 8> &slider_vectors, const int sq, const std::uint64_t moves) {
   std::uint64_t possible_moves = 0;
-  const auto x_pos = Xaxl(sq);
-  const auto y_pos = Yaxl(sq);
+  const auto x_pos = Xaxl(sq), y_pos = Yaxl(sq);
 
   for (auto i = 0; i < 4; ++i)
     for (auto j = 1; j < 8; ++j) {
-      const auto x = x_pos + j * slider_vectors[2 * i];
-      const auto y = y_pos + j * slider_vectors[2 * i + 1];
+      const auto x = x_pos + j * slider_vectors[2 * i], y = y_pos + j * slider_vectors[2 * i + 1];
       if (!OnBoard(x, y))
         break;
       const auto tmp  = Bit(8 * y + x);
@@ -2609,7 +2608,7 @@ std::uint64_t MakeSliderMagicMoves(const int *slider_vectors, const int sq, cons
 }
 
 void InitBishopMagics() {
-  constexpr int bishop_vectors[8] = {+1, +1, -1, -1, +1, -1, -1, +1};
+  constexpr std::array<int, 8> bishop_vectors = {+1, +1, -1, -1, +1, -1, -1, +1};
   for (auto i = 0; i < 64; ++i) {
     const auto magics = kBishopMagics[2][i] & (~Bit(i));
     for (auto j = 0; j < 512; ++j) {
@@ -2620,7 +2619,7 @@ void InitBishopMagics() {
 }
 
 void InitRookMagics() {
-  constexpr int rook_vectors[8] = {+1,  0,  0, +1,  0, -1, -1,  0};
+  constexpr std::array<int, 8> rook_vectors = {+1,  0,  0, +1,  0, -1, -1,  0};
   for (auto i = 0; i < 64; ++i) {
     const auto magics = kRookMagics[2][i] & (~Bit(i));
     for (auto j = 0; j < 4096; ++j) {
@@ -2630,14 +2629,12 @@ void InitRookMagics() {
   }
 }
 
-std::uint64_t MakeSliderMoves(const int sq, const int *slider_vectors) {
+std::uint64_t MakeSliderMoves(const int sq, const std::array<int, 8> &slider_vectors) {
   std::uint64_t moves = 0;
-  const auto x_pos    = Xaxl(sq);
-  const auto y_pos    = Yaxl(sq);
+  const auto x_pos = Xaxl(sq), y_pos = Yaxl(sq);
 
   for (auto i = 0; i < 4; ++i) {
-    const auto dx     = slider_vectors[2 * i];
-    const auto dy     = slider_vectors[2 * i + 1];
+    const auto dx = slider_vectors[2 * i], dy = slider_vectors[2 * i + 1];
     std::uint64_t tmp = 0;
 
     for (auto j = 1; j < 8; ++j)
@@ -2653,8 +2650,8 @@ std::uint64_t MakeSliderMoves(const int sq, const int *slider_vectors) {
 }
 
 void InitSliderMoves() {
-  constexpr int bishop_vectors[8] = {+1, +1, -1, -1, +1, -1, -1, +1};
-  constexpr int rook_vectors[8]   = {+1,  0,  0, +1,  0, -1, -1,  0};
+  constexpr std::array<int, 8> bishop_vectors = {+1, +1, -1, -1, +1, -1, -1, +1};
+  constexpr std::array<int, 8> rook_vectors   = {+1,  0,  0, +1,  0, -1, -1,  0};
   for (auto i = 0; i < 64; ++i) {
     g_rook_moves[i]   = MakeSliderMoves(i, rook_vectors);
     g_bishop_moves[i] = MakeSliderMoves(i, bishop_vectors);
@@ -2662,12 +2659,12 @@ void InitSliderMoves() {
   }
 }
 
-std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int *jump_vectors) {
+template <int k>
+std::uint64_t MakeJumpMoves(const int sq, const int dy, const std::array<int, k> &jump_vectors) {
   std::uint64_t moves = 0;
-  const auto x_pos    = Xaxl(sq);
-  const auto y_pos    = Yaxl(sq);
+  const auto x_pos = Xaxl(sq), y_pos = Yaxl(sq);
 
-  for (auto i = 0; i < len; ++i)
+  for (std::size_t i = 0; i < jump_vectors.size() / 2; ++i)
     if (const auto x = x_pos + jump_vectors[2 * i], y = y_pos + dy * jump_vectors[2 * i + 1]; OnBoard(x, y))
       moves |= Bit(8 * y + x);
 
@@ -2675,25 +2672,23 @@ std::uint64_t MakeJumpMoves(const int sq, const int len, const int dy, const int
 }
 
 void InitJumpMoves() {
-  constexpr int king_vectors[16]   = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1};
-  constexpr int knight_vectors[16] = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2};
-  constexpr int pawn_check_vectors[2 * 2] = {-1, +1, +1, +1};
-  constexpr int pawn_1_vectors[1 * 2] = {0, +1};
+  constexpr std::array<int, 16> king_vectors      = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1};
+  constexpr std::array<int, 16> knight_vectors    = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2};
+  constexpr std::array<int, 4> pawn_check_vectors = {-1, +1, +1, +1};
+  constexpr std::array<int, 2> pawn_1_vectors     = {0, +1};
 
   for (auto i = 0; i < 64; ++i) {
-    g_king_moves[i]     = MakeJumpMoves(i, 8, +1, king_vectors);
-    g_knight_moves[i]   = MakeJumpMoves(i, 8, +1, knight_vectors);
-    g_pawn_checks_w[i]  = MakeJumpMoves(i, 2, +1, pawn_check_vectors);
-    g_pawn_checks_b[i]  = MakeJumpMoves(i, 2, -1, pawn_check_vectors);
-    g_pawn_1_moves_w[i] = MakeJumpMoves(i, 1, +1, pawn_1_vectors);
-    g_pawn_1_moves_b[i] = MakeJumpMoves(i, 1, -1, pawn_1_vectors);
+    g_king_moves[i]     = MakeJumpMoves<16>(i, +1, king_vectors);
+    g_knight_moves[i]   = MakeJumpMoves<16>(i, +1, knight_vectors);
+    g_pawn_checks_w[i]  = MakeJumpMoves<4>(i, +1, pawn_check_vectors);
+    g_pawn_checks_b[i]  = MakeJumpMoves<4>(i, -1, pawn_check_vectors);
+    g_pawn_1_moves_w[i] = MakeJumpMoves<2>(i, +1, pawn_1_vectors);
+    g_pawn_1_moves_b[i] = MakeJumpMoves<2>(i, -1, pawn_1_vectors);
   }
 
   for (auto i = 0; i < 8; ++i) {
-    g_pawn_2_moves_w[ 8 + i] = MakeJumpMoves( 8 + i, 1, +1, pawn_1_vectors) |
-                               MakeJumpMoves( 8 + i, 1, +2, pawn_1_vectors);
-    g_pawn_2_moves_b[48 + i] = MakeJumpMoves(48 + i, 1, -1, pawn_1_vectors) |
-                               MakeJumpMoves(48 + i, 1, -2, pawn_1_vectors);
+    g_pawn_2_moves_w[ 8 + i] = MakeJumpMoves<2>( 8 + i, +1, pawn_1_vectors) | MakeJumpMoves<2>( 8 + i, +2, pawn_1_vectors);
+    g_pawn_2_moves_b[48 + i] = MakeJumpMoves<2>(48 + i, -1, pawn_1_vectors) | MakeJumpMoves<2>(48 + i, -2, pawn_1_vectors);
   }
 }
 
