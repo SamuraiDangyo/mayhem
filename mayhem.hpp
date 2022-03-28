@@ -591,7 +591,7 @@ const std::string Board::movename() const {
   return Move2Str(from2, to2);
 }
 
-// Board presentation in FEN
+// Board presentation in FEN ( Forsyth–Edwards Notation )
 const std::string Board::to_fen() const {
   std::stringstream s{};
   for (auto r = 7; r >= 0; --r) {
@@ -822,7 +822,7 @@ void FenFullMoves(const std::string &fullmoves) {
   if (fullmoves.length() != 0) g_fullmoves = std::max(std::stoi(fullmoves), 1);
 }
 
-// Fully legal FEN expected: https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation
+// Fully legal FEN expected
 void FenGen(const std::string &fen) {
   std::vector<std::string> tokens{};
   SplitString< std::vector<std::string> >(fen, tokens);
@@ -1238,7 +1238,7 @@ void AddNormalStuffW(const int from, const int to) {
   g_board->pieces[from]  = 0;
   g_board->pieces[to]    = me;
   g_board->white[me - 1] = (g_board->white[me - 1] ^ Bit(from)) | Bit(to);
-  ++g_board->fifty; // Rule50 counter increased after decisive move
+  ++g_board->fifty; // Rule50 counter increased after non-decisive move
 
   CheckNormalCapturesW(me, eat, to);
   ModifyPawnStuffW(from, to);
