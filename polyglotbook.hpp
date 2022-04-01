@@ -82,10 +82,9 @@ private:
   bool open(const std::string&);
   std::size_t find_first(const std::uint64_t);
   bool is_ep_legal() const;
-
-  static inline int Ctz(const std::uint64_t bb) { return __builtin_ctzll(bb); }
-  static inline int CtzPop(std::uint64_t *bb) { const auto ret = Ctz(*bb); *bb = *bb & (*bb - 0x1ULL); return ret; }
-  static bool OnBoard(const int x) { return x >= 0 && x <= 7; }
+  inline int ctz(const std::uint64_t bb) const { return __builtin_ctzll(bb); }
+  inline int ctz_pop(std::uint64_t *bb) const { const auto ret = this->ctz(*bb); *bb = *bb & (*bb - 0x1ULL); return ret; }
+  bool on_board(const int x) const { return x >= 0 && x <= 7; }
 
 };
 
@@ -408,7 +407,7 @@ std::uint64_t PolyglotBook::polyglot_key() const {
 
   // Board
   for (auto both{this->polyboard.both}; both; )
-    switch (const auto sq = CtzPop(&both); this->polyboard.pieces[sq]) {
+    switch (const auto sq = this->ctz_pop(&both); this->polyboard.pieces[sq]) {
       case +1: key ^= kZobrist.PG.psq[1][sq];  break;
       case +2: key ^= kZobrist.PG.psq[3][sq];  break;
       case +3: key ^= kZobrist.PG.psq[5][sq];  break;
@@ -478,11 +477,11 @@ bool PolyglotBook::is_ep_legal() const {
   const auto y = this->polyboard.epsq / 8;
 
   return this->polyboard.wtm ?
-      (OnBoard(x - 1) && this->polyboard.pieces[8 * y + x - 1] == -1) ||
-      (OnBoard(x + 1) && this->polyboard.pieces[8 * y + x + 1] == -1)
+      (this->on_board(x - 1) && this->polyboard.pieces[8 * y + x - 1] == -1) ||
+      (this->on_board(x + 1) && this->polyboard.pieces[8 * y + x + 1] == -1)
         :
-      (OnBoard(x - 1) && this->polyboard.pieces[8 * y + x - 1] == +1) ||
-      (OnBoard(x + 1) && this->polyboard.pieces[8 * y + x + 1] == +1);
+      (this->on_board(x - 1) && this->polyboard.pieces[8 * y + x - 1] == +1) ||
+      (this->on_board(x + 1) && this->polyboard.pieces[8 * y + x + 1] == +1);
 
 }
 

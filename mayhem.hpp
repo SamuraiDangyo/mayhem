@@ -56,7 +56,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 7.0" // Version
+#define VERSION       "Mayhem 7.1" // Version
 #define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // uci startpos
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
@@ -317,11 +317,10 @@ struct HashEntry { // 10B
 
 std::uint64_t g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_stop_search_time = 0,
   g_nodes = 0, g_pawn_sq = 0, g_pawn_1_moves_w[64]{}, g_pawn_1_moves_b[64]{}, g_pawn_2_moves_w[64]{},
-  g_pawn_2_moves_b[64]{}, g_bishop_moves[64]{}, g_rook_moves[64]{}, g_queen_moves[64]{},
-  g_knight_moves[64]{}, g_king_moves[64]{}, g_pawn_checks_w[64]{}, g_pawn_checks_b[64]{},
-  g_castle_w[2]{}, g_castle_b[2]{}, g_castle_empty_w[2]{}, g_castle_empty_b[2]{},
-  g_bishop_magic_moves[64][512]{}, g_rook_magic_moves[64][4096]{}, g_zobrist_ep[64]{},
-  g_zobrist_castle[16]{}, g_zobrist_wtm[2]{}, g_r50_positions[MAX_ARR]{}, g_zobrist_board[13][64]{};
+  g_pawn_2_moves_b[64]{}, g_knight_moves[64]{}, g_king_moves[64]{}, g_pawn_checks_w[64]{}, g_pawn_checks_b[64]{},
+  g_castle_w[2]{}, g_castle_b[2]{}, g_castle_empty_w[2]{}, g_castle_empty_b[2]{}, g_bishop_magic_moves[64][512]{},
+  g_rook_magic_moves[64][4096]{}, g_zobrist_ep[64]{}, g_zobrist_castle[16]{}, g_zobrist_wtm[2]{},
+  g_r50_positions[MAX_ARR]{}, g_zobrist_board[13][64]{};
 
 int g_move_overhead = MOVEOVERHEAD, g_level = 100, g_root_n = 0, g_king_w = 0, g_king_b = 0,
   g_moves_n = 0, g_max_depth = MAX_DEPTH, g_q_depth = 0, g_depth = 0, g_best_score = 0, g_noise = NOISE,
@@ -487,8 +486,7 @@ std::uint64_t Random8x64() {
 // Nondeterministic Rand()
 int Random(const int min, const int max) {
   static std::uint64_t seed = 0x202c7ULL + static_cast<std::uint64_t>(std::time(nullptr));
-  return min + ((seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3)) %
-      static_cast<std::uint64_t>(std::max(1, std::abs(max - min) + 1)));
+  return min + ((seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3)) % std::max<std::uint64_t>(1, std::abs(max - min) + 1));
 }
 
 // Split string by given str
@@ -670,14 +668,15 @@ int TokenNumber(const std::uint32_t nth = 0) {
 
 std::uint64_t Fill(int from, const int to) { // from / to -> Always good
   auto ret = Bit(from);
-  if (from == to)
-    return ret;
+  for (const auto diff = from > to ? -1 : +1; from != to; from += diff) ret |= Bit(from);
+  //if (from == to)
+    //return ret;
 
-  const auto diff = from > to ? -1 : +1;
-  do {
-    from += diff;
-    ret  |= Bit(from);
-  } while (from != to);
+  //const auto diff = from > to ? -1 : +1;
+  //do {
+    //from += diff;
+    //ret  |= Bit(from);
+  //} while (from != to);
 
   return ret;
 }
@@ -1146,11 +1145,8 @@ void AddPromotionW(const int from, const int to, const int piece) {
   g_board->white[0]         ^= Bit(from);
   g_board->white[piece - 1] |= Bit(to);
 
-  if (eat <= -1)
-    g_board->black[-eat - 1] ^= Bit(to);
-
-  if (!ChecksB())
-    HandleCastlingRights(), g_board->index = g_moves_n++;
+  if (eat <= -1)  g_board->black[-eat - 1] ^= Bit(to);
+  if (!ChecksB()) HandleCastlingRights(), g_board->index = g_moves_n++;
 }
 
 void AddPromotionB(const int from, const int to, const int piece) {
@@ -1160,7 +1156,7 @@ void AddPromotionB(const int from, const int to, const int piece) {
   g_board               = &g_moves[g_moves_n];
   g_board->from         = from;
   g_board->to           = to;
-  g_board->score        = 110 + piece;
+  g_board->score        = 110 + (-piece);
   g_board->type         = 3 + (-piece);
   g_board->epsq         = -1;
   g_board->fifty        = 0;
@@ -1169,33 +1165,18 @@ void AddPromotionB(const int from, const int to, const int piece) {
   g_board->black[0]    ^= Bit(from);
   g_board->black[-piece - 1] |= Bit(to);
 
-  if (eat >= +1)
-    g_board->white[eat - 1] ^= Bit(to);
-
-  if (!ChecksW())
-    HandleCastlingRights(), g_board->index = g_moves_n++;
+  if (eat >= +1)  g_board->white[eat - 1] ^= Bit(to);
+  if (!ChecksW()) HandleCastlingRights(), g_board->index = g_moves_n++;
 }
 
 void AddPromotionStuffW(const int from, const int to) {
-  auto *tmp = g_board;
-  if (g_underpromos) {
-    for (const auto p : {+5, +4, +3, +2}) // QRBN
-      AddPromotionW(from, to, p), g_board = tmp;
-  } else {
-    for (const auto p : {+5, +2}) // QN
-      AddPromotionW(from, to, p), g_board = tmp;
-  }
+  if (g_underpromos) { for (const auto p : {+5, +4, +3, +2}) AddPromotionW(from, to, p), g_board = g_board_orig; } // QRBN
+  else {               for (const auto p : {+5, +2})         AddPromotionW(from, to, p), g_board = g_board_orig; } // QN
 }
 
 void AddPromotionStuffB(const int from, const int to) {
-  auto *tmp = g_board;
-  if (g_underpromos) {
-    for (const auto p : {-5, -4, -3, -2})
-      AddPromotionB(from, to, p), g_board = tmp;
-  } else {
-    for (const auto p : {-5, -2})
-      AddPromotionB(from, to, p), g_board = tmp;
-  }
+  if (g_underpromos) { for (const auto p : {-5, -4, -3, -2}) AddPromotionB(from, to, p), g_board = g_board_orig; }
+  else {               for (const auto p : {-5, -2})         AddPromotionB(from, to, p), g_board = g_board_orig; }
 }
 
 inline void CheckNormalCapturesW(const int me, const int eat, const int to) {
@@ -1243,6 +1224,7 @@ void AddNormalStuffW(const int from, const int to) {
   CheckNormalCapturesW(me, eat, to);
   ModifyPawnStuffW(from, to);
   AddMoveIfOkW();
+  g_board = g_board_orig; // Back to old board
 }
 
 void AddNormalStuffB(const int from, const int to) {
@@ -1263,16 +1245,15 @@ void AddNormalStuffB(const int from, const int to) {
   CheckNormalCapturesB(me, eat, to);
   ModifyPawnStuffB(from, to);
   AddMoveIfOkB();
+  g_board = g_board_orig;
 }
 
 void AddW(const int from, const int to) {
   g_board->pieces[from] == +1 && Yaxl(from) == 6 ? AddPromotionStuffW(from, to) : AddNormalStuffW(from, to);
-  g_board = g_board_orig; // Back to old board
 }
 
 void AddB(const int from, const int to) {
   g_board->pieces[from] == -1 && Yaxl(from) == 1 ? AddPromotionStuffB(from, to) : AddNormalStuffB(from, to);
-  g_board = g_board_orig;
 }
 
 void AddMovesW(const int from, std::uint64_t moves) {
@@ -1546,10 +1527,10 @@ struct ClassicalEval { // Finish the game or no NNUE
 
   explicit ClassicalEval(const bool wtm) : white{White()}, black{Black()}, both{this->white | this->black}, m_wtm{wtm} { }
 
-  static inline int FlipY(const int sq) { return sq ^ 56; } // Mirror horizontal
-  static int Square(const int x) { return x * x; }
-  static int CloseBonus(const int a, const int b) { return Square(7 - std::abs(Xaxl(a) - Xaxl(b))) + Square(7 - std::abs(Yaxl(a) - Yaxl(b))); }
-  static int CloseAnyCornerBonus(const int sq) { return std::max({CloseBonus(sq, 0), CloseBonus(sq, 7), CloseBonus(sq, 56), CloseBonus(sq, 63)}); }
+  inline int flip_y(const int sq) const { return sq ^ 56; } // Mirror horizontal
+  int square(const int x) const { return x * x; }
+  int close_bonus(const int a, const int b) const { return this->square(7 - std::abs(Xaxl(a) - Xaxl(b))) + this->square(7 - std::abs(Yaxl(a) - Yaxl(b))); }
+  int close_any_corner_bonus(const int sq) const { return std::max({this->close_bonus(sq, 0), this->close_bonus(sq, 7), this->close_bonus(sq, 56), this->close_bonus(sq, 63)}); }
 
   template<bool wtm>
   void check_blind_bishop() {
@@ -1570,8 +1551,8 @@ struct ClassicalEval { // Finish the game or no NNUE
       this->mg += kPesto[p][0][sq];
       this->eg += kPesto[p][1][sq];
     } else {
-      this->mg -= kPesto[p][0][FlipY(sq)];
-      this->eg -= kPesto[p][1][FlipY(sq)];
+      this->mg -= kPesto[p][0][this->flip_y(sq)];
+      this->eg -= kPesto[p][1][this->flip_y(sq)];
     }
   }
 
@@ -1662,12 +1643,12 @@ struct ClassicalEval { // Finish the game or no NNUE
 
   template<bool wtm>
   void bonus_knbk() {
-    if constexpr (wtm) this->score += (2 * CloseBonus(this->wk, this->bk)) +
-                                      (10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
-                                                                                           std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk))));
-    else               this->score -= (2 * CloseBonus(this->wk, this->bk)) +
-                                      (10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
-                                                                                           std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk))));
+    if constexpr (wtm) this->score += (2 * this->close_bonus(this->wk, this->bk)) +
+                                      (10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(this->close_bonus(0, this->bk), this->close_bonus(63, this->bk)) :
+                                                                                           std::max(this->close_bonus(7, this->bk), this->close_bonus(56, this->bk))));
+    else               this->score -= (2 * this->close_bonus(this->wk, this->bk)) +
+                                      (10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(this->close_bonus(0, this->wk), this->close_bonus(63, this->wk)) :
+                                                                                           std::max(this->close_bonus(7, this->wk), this->close_bonus(56, this->wk))));
   }
 
   void bonus_tempo() {
@@ -1682,8 +1663,8 @@ struct ClassicalEval { // Finish the game or no NNUE
   // Force black king in the corner and get closer
   template<bool wtm>
   void bonus_mating() {
-    if constexpr (wtm) this->score += 6 * CloseAnyCornerBonus(this->bk) + 4 * CloseBonus(this->wk, this->bk);
-    else               this->score -= 6 * CloseAnyCornerBonus(this->wk) + 4 * CloseBonus(this->bk, this->wk);
+    if constexpr (wtm) this->score += 6 * this->close_any_corner_bonus(this->bk) + 4 * this->close_bonus(this->wk, this->bk);
+    else               this->score -= 6 * this->close_any_corner_bonus(this->wk) + 4 * this->close_bonus(this->bk, this->wk);
   }
 
   void bonus_bishop_pair() {
@@ -1814,11 +1795,13 @@ struct NnueEval {
 };
 
 int EvaluateClassical(const bool wtm) {
-  return ClassicalEval{wtm}.evaluate();
+  ClassicalEval e{wtm};
+  return e.evaluate();
 }
 
 int EvaluateNNUE(const bool wtm) {
-  return NnueEval{wtm}.evaluate() / 4;
+  NnueEval e{wtm};
+  return e.evaluate() / 4;
 }
 
 // Add noise to eval for different playing levels
@@ -2373,25 +2356,12 @@ void UciPosition() {
 
 void UciSetoption() {
   if (TokenPeek("name") && TokenPeek("value", 2)) {
-    if (TokenPeek("UCI_Chess960", 1)) {
-      g_chess960 = TokenPeek("true", 3);
-      TokenPop(4); // Just in case
-    } else if (TokenPeek("Hash", 1)) {
-      SetHashtable(TokenNumber(3));
-      TokenPop(4);
-    } else if (TokenPeek("Level", 1)) {
-      g_level = std::clamp(TokenNumber(3), 0, 100);
-      TokenPop(4);
-    } else if (TokenPeek("MoveOverhead", 1)) {
-      g_move_overhead = std::clamp(TokenNumber(3), 0, 10000);
-      TokenPop(4);
-    } else if (TokenPeek("EvalFile", 1)) {
-      SetNNUE(TokenNth(3));
-      TokenPop(4);
-    } else if (TokenPeek("BookFile", 1)) {
-      SetBook(TokenNth(3));
-      TokenPop(4);
-    }
+    if (     TokenPeek("UCI_Chess960", 1)) { g_chess960 = TokenPeek("true", 3); }
+    else if (TokenPeek("Hash", 1))         { SetHashtable(TokenNumber(3)); }
+    else if (TokenPeek("Level", 1))        { g_level = std::clamp(TokenNumber(3), 0, 100); }
+    else if (TokenPeek("MoveOverhead", 1)) { g_move_overhead = std::clamp(TokenNumber(3), 0, 10000); }
+    else if (TokenPeek("EvalFile", 1))     { SetNNUE(TokenNth(3)); }
+    else if (TokenPeek("BookFile", 1))     { SetBook(TokenNth(3)); }
   }
 }
 
@@ -2518,8 +2488,8 @@ void UciPerft(const std::string &d, const std::string &f) {
 // > bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]
 // Speed:     bench inf 5000
 // Signature: bench 11 inf
-// > bench              -> 15794542
-// > bench 11 inf 256 0 -> 15126764
+// > bench              -> 15771529
+// > bench 11 inf 256 0 -> 14997118
 void UciBench(const std::string &d, const std::string &t, const std::string &h, const std::string &nnue) {
   const Save save{};
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
@@ -2637,24 +2607,12 @@ std::uint64_t MakeSliderMoves(const int sq, const std::array<int, 8> &slider_vec
     const auto dx = slider_vectors[2 * i], dy = slider_vectors[2 * i + 1];
     std::uint64_t tmp = 0;
     for (auto j = 1; j < 8; ++j)
-      if (const auto x = x_pos + j * dx, y = y_pos + j * dy; OnBoard(x, y))
-        tmp |= Bit(8 * y + x);
-      else
-        break;
+      if (const auto x = x_pos + j * dx, y = y_pos + j * dy; OnBoard(x, y)) tmp |= Bit(8 * y + x);
+      else                                                                  break;
     moves |= tmp;
   }
 
   return moves;
-}
-
-void InitSliderMoves() {
-  constexpr std::array<int, 8> bishop_vectors = {+1, +1, -1, -1, +1, -1, -1, +1};
-  constexpr std::array<int, 8> rook_vectors   = {+1,  0,  0, +1,  0, -1, -1,  0};
-  for (auto i = 0; i < 64; ++i) {
-    g_rook_moves[i]   = MakeSliderMoves(i, rook_vectors);
-    g_bishop_moves[i] = MakeSliderMoves(i, bishop_vectors);
-    g_queen_moves[i]  = g_rook_moves[i] | g_bishop_moves[i];
-  }
 }
 
 template <int k>
@@ -2715,9 +2673,8 @@ void PrintVersion() {
 void Init() {
   InitBishopMagics();
   InitRookMagics();
-  InitZobrist();
-  InitSliderMoves();
   InitJumpMoves();
+  InitZobrist();
   InitScale();
   InitLMR();
   SetHashtable(HASH);
