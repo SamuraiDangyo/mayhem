@@ -424,8 +424,7 @@ char Rank2Char(const int r) {
 
 // Convert int coords to string
 const std::string Move2Str(const int from, const int to) {
-  return std::string{File2Char(Xaxl(from)), Rank2Char(Yaxl(from)),
-                     File2Char(Xaxl(to)),   Rank2Char(Yaxl(to))};
+  return std::string{File2Char(Xaxl(from)), Rank2Char(Yaxl(from)), File2Char(Xaxl(to)), Rank2Char(Yaxl(to))};
 }
 
 // =n / =b / =r / =q -> Char
@@ -442,7 +441,6 @@ void Ok(const bool test, const std::string &msg) {
 }
 
 extern "C" {
-
 // See if cin has smt
 bool InputAvailable() {
 #ifdef WINDOWS
@@ -456,7 +454,6 @@ bool InputAvailable() {
   return FD_ISSET(STDIN_FILENO, &fd) > 0;
 #endif
 }
-
 } // extern "C"
 
 // ms since 1970
@@ -1522,8 +1519,10 @@ struct ClassicalEval { // Finish the game or no NNUE
 
   inline int flip_y(const int sq) const { return sq ^ 56; } // Mirror horizontal
   int square(const int x) const { return x * x; }
-  int close_bonus(const int a, const int b) const { return this->square(7 - std::abs(Xaxl(a) - Xaxl(b))) + this->square(7 - std::abs(Yaxl(a) - Yaxl(b))); }
-  int close_any_corner_bonus(const int sq) const { return std::max({this->close_bonus(sq, 0), this->close_bonus(sq, 7), this->close_bonus(sq, 56), this->close_bonus(sq, 63)}); }
+  int close_bonus(const int a, const int b) const { return this->square(7 - std::abs(Xaxl(a) - Xaxl(b))) +
+                                                           this->square(7 - std::abs(Yaxl(a) - Yaxl(b))); }
+  int close_any_corner_bonus(const int sq) const { return std::max({this->close_bonus(sq, 0), this->close_bonus(sq, 7),
+                                                                    this->close_bonus(sq, 56), this->close_bonus(sq, 63)}); }
 
   template<bool wtm>
   void check_blind_bishop() {
@@ -1813,8 +1812,7 @@ int Evaluate(const bool wtm) {
 // Search
 
 void SpeakUci(const int score, const std::uint64_t ms) {
-  std::cout <<
-    "info depth " << std::min(g_max_depth, g_depth + 1) <<
+  std::cout << "info depth " << std::min(g_max_depth, g_depth + 1) <<
     " nodes " << g_nodes <<
     " time " << ms <<
     " nps " << Nps(g_nodes, ms) <<
@@ -1903,11 +1901,8 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   const auto checks  = ChecksB();
   const auto moves_n = MgenW(g_boards[ply]);
 
-  if (!moves_n)
-    return checks ? -INF : 0; // Checkmate or stalemate
-
-  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8)))
-    ++depth; // Extend interesting path (SRE / CE / PPE)
+  if (!moves_n) return checks ? -INF : 0; // Checkmate or stalemate
+  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8))) ++depth; // Extend interesting path (SRE / CE / PPE)
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
@@ -1944,11 +1939,8 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   const auto checks  = ChecksW();
   const auto moves_n = MgenB(g_boards[ply]);
 
-  if (!moves_n)
-    return checks ? +INF : 0;
-
-  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8)))
-    ++depth;
+  if (!moves_n) return checks ? +INF : 0;
+  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8))) ++depth;
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
@@ -1992,16 +1984,14 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
       (!ChecksB()) &&
       // Looks good ?
       (Evaluate(true) >= beta)) {
-    const auto ep = g_board->epsq;
-    auto *tmp     = g_board;
-    g_board->epsq = -1;
-
+    const auto ep     = g_board->epsq;
+    auto *tmp         = g_board;
+    g_board->epsq     = -1;
     g_nullmove_active = true;
     const auto score  = SearchB(*alpha, beta, depth - static_cast<int>(depth / 4 + 3), ply);
     g_nullmove_active = false;
-
-    g_board       = tmp;
-    g_board->epsq = ep;
+    g_board           = tmp;
+    g_board->epsq     = ep;
 
     if (score >= beta) {
       *alpha = score;
@@ -2020,16 +2010,14 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
         (PopCount(g_board->black[0]) >= 2)) &&
       (!ChecksW()) &&
       (alpha >= Evaluate(false))) {
-    const auto ep = g_board->epsq;
-    auto *tmp     = g_board;
-    g_board->epsq = -1;
-
+    const auto ep     = g_board->epsq;
+    auto *tmp         = g_board;
+    g_board->epsq     = -1;
     g_nullmove_active = true;
     const auto score  = SearchW(alpha, *beta, depth - static_cast<int>(depth / 4 + 3), ply);
     g_nullmove_active = false;
-
-    g_board       = tmp;
-    g_board->epsq = ep;
+    g_board           = tmp;
+    g_board->epsq     = ep;
 
     if (alpha >= score) {
       *beta = score;
@@ -2044,11 +2032,8 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
 int SearchW(int alpha, const int beta, const int depth, const int ply) {
   ++g_nodes;
 
-  if (g_stop_search || (g_stop_search = CheckTime()))
-    return 0;
-
-  if (depth <= 0 || ply >= MAX_DEPTH)
-    return QSearchW(alpha, beta, g_q_depth, ply);
+  if (g_stop_search || (g_stop_search = CheckTime())) return 0;
+  if (depth <= 0 || ply >= MAX_DEPTH) return QSearchW(alpha, beta, g_q_depth, ply);
 
   const auto fifty = g_board->fifty;
   const auto tmp   = g_r50_positions[fifty];
@@ -2066,11 +2051,8 @@ int SearchW(int alpha, const int beta, const int depth, const int ply) {
 int SearchB(const int alpha, int beta, const int depth, const int ply) {
   ++g_nodes;
 
-  if (g_stop_search)
-    return 0;
-
-  if (depth <= 0 || ply >= MAX_DEPTH)
-    return QSearchB(alpha, beta, g_q_depth, ply);
+  if (g_stop_search) return 0;
+  if (depth <= 0 || ply >= MAX_DEPTH) return QSearchB(alpha, beta, g_q_depth, ply);
 
   const auto fifty = g_board->fifty;
   const auto tmp   = g_r50_positions[fifty];
@@ -2406,8 +2388,7 @@ void UciGo() {
 }
 
 void UciUci() {
-  std::cout <<
-    "id name " << VERSION << "\n" <<
+  std::cout << "id name " << VERSION << "\n" <<
     "id author Toni Helminen" << "\n" <<
     "option name UCI_Chess960 type check default false" << "\n" <<
     "option name Level type spin default 100 min 0 max 100" << "\n" <<
