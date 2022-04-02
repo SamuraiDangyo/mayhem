@@ -2133,7 +2133,7 @@ struct Material {
   }
 };
 
-bool HCEActivation(const Material &m) { // Active HCE when ...
+bool HCEActivation(const Material &m) { // Activate HCE when ...
   return (!g_nnue_exist)    || // No NNUE
          m.is_easy()        || // Easy
          m.is_rook_ending() || // Rook ending
