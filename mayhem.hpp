@@ -309,8 +309,8 @@ struct HashEntry { // 10B
   // Methods
 
   HashEntry() = default;
-  void update(const MoveType type, const std::uint64_t hash, const std::uint8_t index);
-  void put_hash_value_to_moves(const std::uint64_t hash, Board *moves) const;
+  void update(const MoveType type, const std::uint64_t, const std::uint8_t);
+  void put_hash_value_to_moves(const std::uint64_t, Board*) const;
 };
 
 // Variables
@@ -331,7 +331,7 @@ bool g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active 
   g_stop_search = false, g_is_pv = false, g_book_exist = false, g_nnue_exist = false,
   g_classical = false, g_game_on = true, g_analyzing = false;
 
-Board g_board_tmp{}, *g_board = &g_board_tmp, *g_moves = nullptr, *g_board_orig = nullptr,
+Board g_board_empty{}, *g_board = &g_board_empty, *g_moves = nullptr, *g_board_orig = nullptr,
   g_boards[MAX_DEPTH + MAX_Q_DEPTH + 4][MAX_MOVES]{};
 
 std::uint32_t g_hash_entries = 0, g_tokens_nth = 0;
@@ -668,16 +668,9 @@ int TokenNumber(const std::uint32_t nth = 0) {
 
 std::uint64_t Fill(int from, const int to) { // from / to -> Always good
   auto ret = Bit(from);
-  for (const auto diff = from > to ? -1 : +1; from != to; from += diff) ret |= Bit(from);
-  //if (from == to)
-    //return ret;
-
-  //const auto diff = from > to ? -1 : +1;
-  //do {
-    //from += diff;
-    //ret  |= Bit(from);
-  //} while (from != to);
-
+  if (from == to) return ret;
+  const auto diff = from > to ? -1 : +1;
+  do { from += diff; ret |= Bit(from); } while (from != to);
   return ret;
 }
 
@@ -842,8 +835,8 @@ void FenGen(const std::string &fen) {
 
 // Reset board
 void FenReset() {
-  g_board_tmp   = {};
-  g_board       = &g_board_tmp;
+  g_board_empty = {};
+  g_board       = &g_board_empty;
   g_wtm         = true;
   g_board->epsq = -1;
   g_king_w      = g_king_b = 0;
@@ -2315,9 +2308,9 @@ std::uint64_t Perft(const bool wtm, const int depth, const int ply) {
 void UciMake(const int root_i) {
   if (!g_wtm) ++g_fullmoves; // Increase fullmoves only after black move
   g_r50_positions[g_board->fifty] = Hash(g_wtm); // Set hash
-  g_board_tmp = g_boards[0][root_i]; // Copy current board
-  g_board     = &g_board_tmp; // Set pointer
-  g_wtm       = !g_wtm; // Flip the board
+  g_board_empty                   = g_boards[0][root_i]; // Copy current board
+  g_board                         = &g_board_empty; // Set pointer
+  g_wtm                           = !g_wtm; // Flip the board
 }
 
 void UciMakeMove() {
@@ -2662,7 +2655,7 @@ void InitScale() {
 void InitLMR() {
   for (auto d = 0; d < MAX_DEPTH; ++d)
     for (auto m = 0; m < MAX_MOVES; ++m)
-      g_lmr[d][m] = std::clamp(static_cast<int>(0.25 * std::log(d) * std::log(m)), 1, 6);
+      g_lmr[d][m] = std::clamp<int>(0.25 * std::log(d) * std::log(m), 1, 6);
 }
 
 void PrintVersion() {
