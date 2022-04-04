@@ -20,7 +20,7 @@ CXX       = clang++
 EXE       = mayhem
 FILES     = main.cpp
 
-BFLAGS    = -std=c++17 -flto -O3 -march=native -fno-exceptions
+BFLAGS    = -std=c++17 -flto -O3 -march=native
 WFLAGS    = -Wall -Wextra -Wshadow -Wcast-qual -pedantic -DNDEBUG
 NFLAGS    = -DUSE_AVX2 -mavx2
 CXXFLAGS += $(BFLAGS) $(WFLAGS) $(NFLAGS)
