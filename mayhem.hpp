@@ -2496,12 +2496,10 @@ std::uint64_t MakeSliderMagicMoves(const std::array<int, 8> &slider_vectors, con
   for (auto i = 0; i < 4; ++i)
     for (auto j = 1; j < 8; ++j) {
       const auto x = x_pos + j * slider_vectors[2 * i], y = y_pos + j * slider_vectors[2 * i + 1];
-      if (!OnBoard(x, y))
-        break;
+      if (!OnBoard(x, y)) break;
       const auto tmp  = Bit(8 * y + x);
       possible_moves |= tmp;
-      if (tmp & moves)
-        break;
+      if (tmp & moves) break;
     }
 
   return possible_moves & (~Bit(sq));
@@ -2599,7 +2597,7 @@ void PrintVersion() {
   std::cout << VERSION << " by Toni Helminen" << std::endl;
 }
 
-// Mayhem initialization (required to work)
+// Mayhem initialization (required)
 void Init() {
   InitBishopMagics();
   InitRookMagics();
