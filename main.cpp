@@ -24,9 +24,9 @@ int main() {
     mayhem::PrintVersion();
     mayhem::Init();
     mayhem::UciLoop();
-    return EXIT_SUCCESS;
-  } catch (...) {
-    std::cerr << "Mayhem error: Unknown exception ..." << std::endl;
+  } catch (std::exception &e) {
+    std::cerr << "Exception: " << e.what() << std::endl;
     return EXIT_FAILURE;
   }
+  return EXIT_SUCCESS;
 }

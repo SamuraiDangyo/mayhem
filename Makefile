@@ -18,24 +18,20 @@
 
 CXX       = clang++
 EXE       = mayhem
-FILES     = main.cpp
-
 BFLAGS    = -std=c++17 -flto -O3 -march=native
-WFLAGS    = -Wall -Wextra -Wshadow -Wcast-qual -pedantic -DNDEBUG
+WFLAGS    = -Wall -Wextra -Wshadow -Wcast-qual -pedantic
 NFLAGS    = -DUSE_AVX2 -mavx2
-CXXFLAGS += $(BFLAGS) $(WFLAGS) $(NFLAGS)
+CXXFLAGS += -DNDEBUG
 
 # Targets
 
-all:
-	$(CXX) $(CXXFLAGS) -o $(EXE) $(FILES)
+# make -j CXX="g++" NFLAGS="-DUSE_SSE2 -msse2"
+# make -j CXX="g++" CXXFLAGS=""
 
-# For old CPUs
-oldcpu:
-	g++ $(BFLAGS) $(WFLAGS) -DUSE_SSE2 -msse2 -o $(EXE) $(FILES)
+all:
+	$(CXX) $(BFLAGS) $(WFLAGS) $(NFLAGS) $(CXXFLAGS) -o $(EXE) main.cpp
 
 clean:
 	rm -f $(EXE)
 
-# If this file exists
-.PHONY: all oldcpu clean
+.PHONY: all clean

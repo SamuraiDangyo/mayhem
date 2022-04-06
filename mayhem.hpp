@@ -56,7 +56,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 7.1" // Version
+#define VERSION       "Mayhem 7.2" // Version
 #define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // uci startpos
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
@@ -1795,10 +1795,9 @@ void SpeakUci(const int score, const std::uint64_t ms) {
 bool Draw(const bool wtm) {
   if (g_board->fifty > 100 || EasyDraw(wtm)) return true;
 
-  // Only 2 rep
   const auto hash = g_r50_positions[g_board->fifty]; // g_r50_positions.pop() must contain hash !
   for (auto i = g_board->fifty - 2; i >= 0; i -= 2)
-    if (g_r50_positions[i] == hash)
+    if (g_r50_positions[i] == hash) // Only 2 rep
       return true;
 
   return false;
@@ -1997,8 +1996,7 @@ int SearchW(int alpha, const int beta, const int depth, const int ply) {
   const auto fifty = g_board->fifty;
   const auto tmp   = g_r50_positions[fifty];
 
-  if (TryNullMoveW(&alpha, beta, depth, ply))
-    return alpha;
+  if (TryNullMoveW(&alpha, beta, depth, ply)) return alpha;
 
   g_r50_positions[fifty] = Hash(true);
   alpha                  = Draw(true) ? 0 : SearchMovesW(alpha, beta, depth, ply);
@@ -2016,8 +2014,7 @@ int SearchB(const int alpha, int beta, const int depth, const int ply) {
   const auto fifty = g_board->fifty;
   const auto tmp   = g_r50_positions[fifty];
 
-  if (TryNullMoveB(alpha, &beta, depth, ply))
-    return beta;
+  if (TryNullMoveB(alpha, &beta, depth, ply)) return beta;
 
   g_r50_positions[fifty] = Hash(false);
   beta                   = Draw(false) ? 0 : SearchMovesB(alpha, beta, depth, ply);
@@ -2047,8 +2044,7 @@ int BestW() {
 
     if (score > alpha) {
       // Skip underpromos unless really good ( 3+ pawns )
-      if (g_boards[0][i].is_underpromo() && ((score + (3 * 100)) < alpha))
-        continue;
+      if (g_boards[0][i].is_underpromo() && ((score + (3 * 100)) < alpha)) continue;
       alpha  = score;
       best_i = i;
     }
@@ -2076,8 +2072,7 @@ int BestB() {
     if (g_stop_search) return g_best_score;
 
     if (score < beta) {
-      if (g_boards[0][i].is_underpromo() && ((score - (3 * 100)) > beta))
-        continue;
+      if (g_boards[0][i].is_underpromo() && ((score - (3 * 100)) > beta)) continue;
       beta   = score;
       best_i = i;
     }
