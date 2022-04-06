@@ -14,19 +14,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+# Examples
+
+# make -j CXX="g++" EXE="mayhem-gcc"
+# make -j CXX="g++" NFLAGS="-DUSE_SSE2 -msse2"
+
 # Definitions
 
-CXX       = clang++
-EXE       = mayhem
-BFLAGS    = -std=c++17 -flto -O3 -march=native
-WFLAGS    = -Wall -Wextra -Wshadow -Wcast-qual -pedantic
-NFLAGS    = -DUSE_AVX2 -mavx2
-CXXFLAGS += -DNDEBUG
+CXX    = clang++
+EXE    = mayhem
+BFLAGS = -std=c++17 -flto -O3 -march=native -DNDEBUG
+WFLAGS = -Wall -Wextra -Wshadow -Wcast-qual -pedantic
+NFLAGS = -DUSE_AVX2 -mavx2
 
 # Targets
-
-# make -j CXX="g++" NFLAGS="-DUSE_SSE2 -msse2"
-# make -j CXX="g++" CXXFLAGS=""
 
 all:
 	$(CXX) $(BFLAGS) $(WFLAGS) $(NFLAGS) $(CXXFLAGS) -o $(EXE) main.cpp

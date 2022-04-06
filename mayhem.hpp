@@ -47,8 +47,8 @@ extern "C" {
 
 // Just extra strength
 #include "nnue.hpp"
-#include "eucalyptus.hpp"
 #include "polyglotbook.hpp"
+#include "eucalyptus.hpp"
 
 // Namespace
 
@@ -429,7 +429,8 @@ bool InputAvailable() {
   select(STDIN_FILENO + 1, &fd, nullptr, nullptr, &tv);
   return FD_ISSET(STDIN_FILENO, &fd) > 0;
 #endif
-} } // extern "C"
+}
+} // extern "C"
 
 // ms since 1970
 inline std::uint64_t Now() {
@@ -829,8 +830,8 @@ void Fen(const std::string &fen) {
 
 inline bool ChecksHereW(const int sq) {
   const auto both = Both();
-  return (g_pawn_checks_b[sq]        &  g_board->white[0])                      |
-         (g_knight_moves[sq]         &  g_board->white[1])                      |
+  return (g_pawn_checks_b[sq]        &  g_board->white[0]) |
+         (g_knight_moves[sq]         &  g_board->white[1]) |
          (BishopMagicMoves(sq, both) & (g_board->white[2] | g_board->white[4])) |
          (RookMagicMoves(sq, both)   & (g_board->white[3] | g_board->white[4])) |
          (g_king_moves[sq]           &  g_board->white[5]);
@@ -838,8 +839,8 @@ inline bool ChecksHereW(const int sq) {
 
 inline bool ChecksHereB(const int sq) {
   const auto both = Both();
-  return (g_pawn_checks_w[sq]        &  g_board->black[0])                      |
-         (g_knight_moves[sq]         &  g_board->black[1])                      |
+  return (g_pawn_checks_w[sq]        &  g_board->black[0]) |
+         (g_knight_moves[sq]         &  g_board->black[1]) |
          (BishopMagicMoves(sq, both) & (g_board->black[2] | g_board->black[4])) |
          (RookMagicMoves(sq, both)   & (g_board->black[3] | g_board->black[4])) |
          (g_king_moves[sq]           &  g_board->black[5]);
@@ -929,7 +930,7 @@ inline std::uint64_t RookMagicMoves(const int sq, const std::uint64_t mask) {
 
 void HandleCastlingW(const int mtype, const int from, const int to) {
   g_moves[g_moves_n] = *g_board; // Copy
-  g_board            = &g_moves[g_moves_n]; // Pointer
+  g_board            = &g_moves[g_moves_n]; // Set pointer
   g_board->score     = 0;
   g_board->epsq      = -1;
   g_board->from      = from;
@@ -1486,10 +1487,14 @@ struct ClassicalEval { // Finish the game or no NNUE
 
   inline int flip_y(const int sq) const { return sq ^ 56; } // Mirror horizontal
   int square(const int x) const { return x * x; }
-  int close_bonus(const int a, const int b) const { return this->square(7 - std::abs(Xaxl(a) - Xaxl(b))) +
-                                                           this->square(7 - std::abs(Yaxl(a) - Yaxl(b))); }
-  int close_any_corner_bonus(const int sq) const { return std::max({this->close_bonus(sq, 0),  this->close_bonus(sq, 7),
-                                                                    this->close_bonus(sq, 56), this->close_bonus(sq, 63)}); }
+
+  int close_bonus(const int a, const int b) const {
+    return this->square(7 - std::abs(Xaxl(a) - Xaxl(b))) + this->square(7 - std::abs(Yaxl(a) - Yaxl(b)));
+  }
+
+  int close_any_corner_bonus(const int sq) const {
+    return std::max({this->close_bonus(sq, 0),  this->close_bonus(sq, 7), this->close_bonus(sq, 56), this->close_bonus(sq, 63)});
+  }
 
   template<bool wtm>
   void check_blind_bishop() {
@@ -1760,7 +1765,7 @@ int EvaluateClassical(const bool wtm) {
 
 int EvaluateNNUE(const bool wtm) {
   NnueEval e{wtm};
-  return e.evaluate() / 4;
+  return e.evaluate() / 4; // NNUE evals are 4x
 }
 
 // Add noise to eval for different playing levels
@@ -1811,8 +1816,7 @@ bool UserStop() {
   return Token("quit") ? !(g_game_on = false) : Token("stop");
 }
 
-// Time checking
-inline bool CheckTime() {
+inline bool CheckTime() { // Time checking
   static std::uint64_t ticks = 0;
   return ((++ticks) & READ_CLOCK) ? false : ((Now() >= g_stop_search_time) || UserStop());
 }
@@ -1829,8 +1833,7 @@ int QSearchW(int alpha, const int beta, const int depth, const int ply) {
   for (auto i = 0; i < moves_n; ++i) {
     LazySort(ply, i, moves_n); // Very few moves, sort them all
     g_board = g_boards[ply] + i;
-    if ((alpha = std::max(alpha, QSearchB(alpha, beta, depth - 1, ply + 1))) >= beta)
-      return alpha;
+    if ((alpha = std::max(alpha, QSearchB(alpha, beta, depth - 1, ply + 1))) >= beta) return alpha;
   }
 
   return alpha;
@@ -1846,8 +1849,7 @@ int QSearchB(const int alpha, int beta, const int depth, const int ply) {
   for (auto i = 0; i < moves_n; ++i) {
     LazySort(ply, i, moves_n);
     g_board = g_boards[ply] + i;
-    if (alpha >= (beta = std::min(beta, QSearchW(alpha, beta, depth - 1, ply + 1))))
-      return beta;
+    if (alpha >= (beta = std::min(beta, QSearchW(alpha, beta, depth - 1, ply + 1)))) return beta;
   }
 
   return beta;
@@ -1875,8 +1877,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
     g_board = g_boards[ply] + i;
     g_is_pv = i <= 1 && !g_boards[ply][i].score;
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksW()) {
-      if (SearchB(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) <= alpha)
-        continue;
+      if (SearchB(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) <= alpha) continue;
       g_board = g_boards[ply] + i;
     }
 
@@ -1911,8 +1912,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
     g_board = g_boards[ply] + i;
     g_is_pv = i <= 1 && !g_boards[ply][i].score;
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksB()) {
-      if (SearchW(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) >= beta)
-        continue;
+      if (SearchW(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) >= beta) continue;
       g_board = g_boards[ply] + i;
     }
 
@@ -2024,8 +2024,7 @@ int BestW() {
 
   for (auto i = 0; i < g_root_n; ++i) {
     g_board = g_boards[0] + i;
-    // 1 / 2 moves too good and not tactical -> pv
-    g_is_pv = i <= 1 && !g_boards[0][i].score;
+    g_is_pv = i <= 1 && !g_boards[0][i].score; // 1 / 2 moves too good and not tactical -> pv
 
     int score;
     if (g_depth >= 1 && i >= 1) { // Null window search for bad moves
@@ -2146,8 +2145,7 @@ int BookSolveType(const int from, const int to, const int move) {
   return 0;
 }
 
-// Probe PolyGlot book
-bool ProbeBook() {
+bool ProbeBook() { // Probe PolyGlot book
   if (const auto move = g_book.setup(g_board->pieces, Both(), g_board->castle, g_board->epsq, g_wtm)
                               .probe(BOOK_BEST)) {
     const auto from = 8 * ((move >> 9) & 0x7) + ((move >> 6) & 0x7);
@@ -2158,7 +2156,7 @@ bool ProbeBook() {
   return false;
 }
 
-bool RandomMove() { // In level 0 we simply play a random move
+bool RandomMove() { // At level 0 we simply play a random move
   if (g_level == 0) {
     SwapMoveInRootList(Random(0, g_root_n - 1));
     return true;
@@ -2200,8 +2198,7 @@ void ThinkReset() { // Reset search status
 }
 
 void Think(const int ms) {
-  // Start clock early
-  g_stop_search_time = Now() + static_cast<std::uint64_t>(ms);
+  g_stop_search_time = Now() + static_cast<std::uint64_t>(ms); // Start clock early
   ThinkReset();
   g_root_n = MgenRoot();
   if (FastMove(ms)) return;
@@ -2212,7 +2209,7 @@ void Think(const int ms) {
   EvalRootMoves();
   SortRootMoves();
 
-  // Only =q + =n are allowed for gameplay
+  // Only =q and =n are allowed for gameplay
   g_underpromos = g_analyzing; // Can be removed ...
   SearchRootMoves(m.is_endgame());
   g_underpromos = true;
@@ -2265,14 +2262,12 @@ void UciFen() {
 }
 
 void UciMoves() {
-  for ( ; TokenOk(); TokenPop())
-    UciMakeMove();
+  for ( ; TokenOk(); TokenPop()) UciMakeMove();
 }
 
 void UciPosition() {
   UciFen();
-  if (Token("moves"))
-    UciMoves();
+  if (Token("moves")) UciMoves();
 }
 
 void UciSetoption() {
@@ -2390,7 +2385,7 @@ void UciPerft(const std::string &d, const std::string &f) {
   Fen(fen);
   g_root_n = MgenRoot();
   for (auto i = 0; i < g_root_n; ++i) {
-    g_board = g_boards[0] + i;
+    g_board           = g_boards[0] + i;
     const auto now    = Now();
     const auto nodes2 = depth >= 0 ? Perft(!g_wtm, depth - 1, 1) : 0;
     const auto ms     = Now() - now;
