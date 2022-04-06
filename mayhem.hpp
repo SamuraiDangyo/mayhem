@@ -2249,7 +2249,7 @@ void UciMakeMove() {
       UciMake(i);
       return;
     }
-  throw std::runtime_error("infor string Bad move"); // No move found -> Quit
+  throw std::runtime_error("info string Bad move"); // No move found -> Quit
 }
 
 void UciTakeSpecialFen() {
