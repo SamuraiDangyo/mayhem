@@ -791,7 +791,7 @@ void FenGen(const std::string &fen) {
       tokens.size() < 6 ||
       tokens[0].find('K') == std::string::npos ||
       tokens[0].find('k') == std::string::npos)
-    throw std::runtime_error("info string Bad fen");
+    throw std::runtime_error("info string Bad fen: " + fen);
 
   FenBoard(tokens[0]);
   g_wtm = tokens[1][0] == 'w';
@@ -2249,7 +2249,7 @@ void UciMakeMove() {
       UciMake(i);
       return;
     }
-  throw std::runtime_error("info string Bad move"); // No move found -> Quit
+  throw std::runtime_error("info string Bad move: " + move); // No move found -> Quit
 }
 
 void UciTakeSpecialFen() {
