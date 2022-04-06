@@ -416,11 +416,6 @@ char PromoLetter(const std::int8_t piece) {
   return "nbrq"[std::abs(piece) - 2];
 }
 
-// Bad test -> Throw error and quit the program
-void Ok(const bool test, const std::string &msg) {
-  if (!test) throw std::runtime_error(msg);
-}
-
 extern "C" {
 // See if cin has smt
 bool InputAvailable() {
@@ -792,11 +787,11 @@ void FenFullMoves(const std::string &fullmoves) {
 void FenGen(const std::string &fen) {
   std::vector<std::string> tokens{};
   SplitString< std::vector<std::string> >(fen, tokens);
-  Ok( fen.length() >= 23 && // "8/8/8/8/8/8/8/8 w - - 0 1"
-      tokens.size() >= 6 &&
-      tokens[0].find('K') != std::string::npos &&
-      tokens[0].find('k') != std::string::npos,
-    "Bad fen");
+  if (fen.length() < 23 || // "8/8/8/8/8/8/8/8 w - - 0 1"
+      tokens.size() < 6 ||
+      tokens[0].find('K') == std::string::npos ||
+      tokens[0].find('k') == std::string::npos)
+    throw std::runtime_error("info string Bad fen");
 
   FenBoard(tokens[0]);
   g_wtm = tokens[1][0] == 'w';
@@ -2254,7 +2249,7 @@ void UciMakeMove() {
       UciMake(i);
       return;
     }
-  Ok(false, "Bad move"); // No move found -> Quit
+  throw std::runtime_error("infor string Bad move"); // No move found -> Quit
 }
 
 void UciTakeSpecialFen() {
