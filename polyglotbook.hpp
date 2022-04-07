@@ -45,9 +45,7 @@ namespace polyglotbook {
 // Class PolyglotBook
 
 class PolyglotBook : private std::ifstream {
-
 public:
-
   PolyglotBook();
  ~PolyglotBook();
   int probe(const bool);
@@ -55,7 +53,6 @@ public:
   bool open_book(const std::string&);
 
 private:
-
   template<typename T>
     PolyglotBook& operator>>(T&);
 

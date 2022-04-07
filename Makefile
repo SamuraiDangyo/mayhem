@@ -16,8 +16,8 @@
 
 # Examples
 
-# make -j CXX="g++" EXE="mayhem-gcc"
-# make -j CXX="g++" NFLAGS="-DUSE_SSE2 -msse2"
+# make -j CXX="g++"
+# make -j CXX="g++" NFLAGS="-DUSE_SSE2 -msse2" EXE="mayhem-sse2"
 
 # Definitions
 

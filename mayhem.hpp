@@ -35,6 +35,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstdint>
 #include <iterator>
 #include <numeric>
+#include <utility>
 
 // Just for InputAvailable() ...
 extern "C" {
@@ -258,9 +259,6 @@ enum class MoveType { kKiller, kGood };
 // Structs
 
 struct Board { // 171B
-
-  // Attributes
-
   std::uint64_t white[6]{};   // White bitboards
   std::uint64_t black[6]{};   // Black bitboards
   std::int32_t  score{0};     // Sorting score
@@ -273,8 +271,6 @@ struct Board { // 171B
   std::uint8_t  castle{0};    // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
   std::uint8_t  fifty{0};     // Rule 50 counter
 
-  // Methods
-
   Board() = default; // Default constructor (Just this)
   const std::string movename() const;
   bool is_underpromo() const;
@@ -283,13 +279,8 @@ struct Board { // 171B
 };
 
 struct HashEntry { // 10B
-
-  // Attributes
-
   std::uint32_t killer_hash{0}, good_hash{0}; // Hash
   std::uint8_t killer{0}, good{0};            // Index
-
-  // Methods
 
   HashEntry() = default;
   template <MoveType>
@@ -1435,24 +1426,17 @@ inline bool ProbeKPK(const bool wtm) {
 
 // Detect trivial draws really fast
 bool EasyDraw(const bool wtm) {
-  // R/Q/r/q -> No draw
-  if (g_board->white[3] | g_board->white[4] | g_board->black[3] | g_board->black[4])
+  if (g_board->white[3] | g_board->white[4] | g_board->black[3] | g_board->black[4]) // R/Q/r/q -> No draw
     return false;
 
-  // N/B/n/b -> Drawish ?
-  if (g_board->white[1] | g_board->white[2] | g_board->black[1] | g_board->black[2])
+  if (g_board->white[1] | g_board->white[2] | g_board->black[1] | g_board->black[2]) // N/B/n/b -> Drawish ?
     return (g_board->white[0] | g_board->black[0]) ?
-      // Pawns ? -> No draw
-      false :
-      // Max 1 N/B per side -> Draw
-      PopCount(g_board->white[1] | g_board->white[2]) <= 1 &&
+      false : // Pawns ? -> No draw
+      PopCount(g_board->white[1] | g_board->white[2]) <= 1 && // Max 1 N/B per side -> Draw
       PopCount(g_board->black[1] | g_board->black[2]) <= 1;
 
-  // No N/B/R/Q/n/b/r/q -> Pawns ?
-  const auto pawns_n = PopCount(g_board->white[0] | g_board->black[0]);
-
-  // Check KPK ? / Bare kings ? -> Draw
-  return pawns_n == 1 ? ProbeKPK(wtm) : (pawns_n == 0);
+  const auto pawns_n = PopCount(g_board->white[0] | g_board->black[0]); // No N/B/R/Q/n/b/r/q -> Pawns ?
+  return pawns_n == 1 ? ProbeKPK(wtm) : (pawns_n == 0); // Check KPK ? / Bare kings ? -> Draw
 }
 
 // Cornered bishop penalty in FRC
@@ -1474,14 +1458,10 @@ int FixFRC() {
 // Classical evaluation (HCE)
 
 struct ClassicalEval { // Finish the game or no NNUE
-
-  // Attributes
-
   const std::uint64_t white, black, both;
   const bool m_wtm; // Avoid collision w/ template wtm
-  int w_pieces[5]{}, b_pieces[5]{}, white_total{0}, black_total{0}, both_total{0}, wk{0}, bk{0}, score{0}, mg{0}, eg{0}, scale_factor{1};
-
-  // Methods
+  int w_pieces[5]{}, b_pieces[5]{}, white_total{0}, black_total{0}, both_total{0},
+      wk{0}, bk{0}, score{0}, mg{0}, eg{0}, scale_factor{1};
 
   explicit ClassicalEval(const bool wtm) : white{White()}, black{Black()}, both{this->white | this->black}, m_wtm{wtm} { }
 
@@ -1606,12 +1586,10 @@ struct ClassicalEval { // Finish the game or no NNUE
 
   template<bool wtm>
   void bonus_knbk() {
-    if constexpr (wtm) this->score +=
-      (2 * this->close_bonus(this->wk, this->bk)) +
+    if constexpr (wtm) this->score += (2 * this->close_bonus(this->wk, this->bk)) +
       (10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(this->close_bonus(0, this->bk), this->close_bonus(63, this->bk)) :
                                                            std::max(this->close_bonus(7, this->bk), this->close_bonus(56, this->bk))));
-    else               this->score -=
-      (2 * this->close_bonus(this->wk, this->bk)) +
+    else               this->score -= (2 * this->close_bonus(this->wk, this->bk)) +
       (10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(this->close_bonus(0, this->wk), this->close_bonus(63, this->wk)) :
                                                            std::max(this->close_bonus(7, this->wk), this->close_bonus(56, this->wk))));
   }
@@ -1632,57 +1610,52 @@ struct ClassicalEval { // Finish the game or no NNUE
     else               this->score -= 6 * this->close_any_corner_bonus(this->wk) + 4 * this->close_bonus(this->bk, this->wk);
   }
 
+#define WP(x) this->w_pieces[(x)]
+#define BP(x) this->b_pieces[(x)]
+
   void bonus_bishop_pair() {
-    if (this->w_pieces[2] >= 2) this->score += BISHOP_PAIR_BONUS;
-    if (this->b_pieces[2] >= 2) this->score -= BISHOP_PAIR_BONUS;
+    if (WP(2) >= 2) this->score += BISHOP_PAIR_BONUS;
+    if (BP(2) >= 2) this->score -= BISHOP_PAIR_BONUS;
   }
 
-  // 1. KQvK(RNB) -> Checkmate
-  // 2. KRvK(NB)  -> Drawish (Try to checkmate)
-  // 3. K(RNB)vKQ -> Checkmate
-  // 4. K(NB)vKR  -> Drawish (Try to checkmate)
+  // 1. KQvK(PNBR) -> White Checkmate
+  // 2. K(PNBR)vKQ -> Black Checkmate
+  // 3. KRvK(NB)   -> Drawish (Try to checkmate)
+  // 4. K(NB)vKR   -> Drawish (Try to checkmate)
   void bonus_special_4men() {
-    if (this->w_pieces[4] && (this->b_pieces[3] || this->b_pieces[1] || this->b_pieces[2])) {
-      this->bonus_mating<true>();
-    } else if (this->w_pieces[3] && (this->b_pieces[1] || this->b_pieces[2])) {
-      this->scale_factor = 4;
-      this->bonus_mating<true>();
-    } else if (this->b_pieces[4] && (this->w_pieces[3] || this->w_pieces[1] || this->w_pieces[2])) {
-      this->bonus_mating<false>();
-    } else if (this->b_pieces[3] && (this->w_pieces[1] || this->w_pieces[2])) {
-      this->scale_factor = 4;
-      this->bonus_mating<false>();
-    }
+    if (     WP(4) && (!BP(4)))         { this->bonus_mating<true>(); }
+    else if (BP(4) && (!WP(4)))         { this->bonus_mating<false>(); }
+    else if (WP(3) && (BP(1) || BP(2))) { this->scale_factor = 4; this->bonus_mating<true>(); }
+    else if (BP(3) && (WP(1) || WP(2))) { this->scale_factor = 4; this->bonus_mating<false>(); }
   }
 
-  // 1. KRRvKR / KR(NB)vK(NB) -> Checkmate
-  // 2. KRvKRR / K(NB)vKR(NB) -> Checkmate
+  // 1. KRRvKR / KR(NB)vK(NB)              -> White Checkmate
+  // 2. KRvKRR / K(NB)vKR(NB)              -> Black Checkmate
+  // 3. K(QR)(PNB)vK(QR) / K(QR)vK(QR)(PNB)-> Drawish
   void bonus_special_5men() {
-    if ((this->w_pieces[3] == 2 && this->b_pieces[3]) ||
-        (this->w_pieces[3] && (this->w_pieces[2] || this->w_pieces[1]) && (this->b_pieces[2] || this->b_pieces[1])))
-      this->bonus_mating<true>();
-    else if ((this->b_pieces[3] == 2 && this->w_pieces[3]) ||
-        (this->b_pieces[3] && (this->b_pieces[2] || this->b_pieces[1]) && (this->w_pieces[2] || this->w_pieces[1])))
-      this->bonus_mating<false>();
+    if (     (WP(3) == 2 && BP(3)) || (WP(3) && (WP(2) || WP(1)) && (BP(2) || BP(1)))) this->bonus_mating<true>();
+    else if ((BP(3) == 2 && WP(3)) || (BP(3) && (BP(2) || BP(1)) && (WP(2) || WP(1)))) this->bonus_mating<false>();
+    else if (((WP(3) && BP(3)) || (WP(4) && BP(4))) && ((WP(0) || WP(1) || WP(2)) || (BP(0) || BP(1) || BP(2))))
+      this->scale_factor = 4;
   }
 
-  // 1. Special mating pattern
+  // 1. Special mating pattern (knbk)
   // 2. Don't force king to corner    -> Try to promote
-  // 3. Can't force mate w/ 2 knights -> Scale down
+  // 3. Can't force mate w/ 2 knights -> Drawish
   void white_is_mating() {
     if (this->white_total == 3) {
-      if (this->w_pieces[2] == 1 && this->w_pieces[1] == 1) { this->bonus_knbk<true>();         return; }
-      if (this->w_pieces[2] == 1 && this->w_pieces[0] == 1) { this->check_blind_bishop<true>(); return; }
-      if (this->w_pieces[1] == 2)                           { this->scale_factor = 2; }
+      if (WP(2) == 1 && WP(1) == 1) { this->bonus_knbk<true>();         return; }
+      if (WP(2) == 1 && WP(0) == 1) { this->check_blind_bishop<true>(); return; }
+      if (WP(1) == 2)               { this->scale_factor = 4; }
     }
     this->bonus_mating<true>();
   }
 
   void black_is_mating() {
     if (this->black_total == 3) {
-      if (this->b_pieces[2] == 1 && this->b_pieces[1] == 1) { this->bonus_knbk<false>();         return; }
-      if (this->b_pieces[2] == 1 && this->b_pieces[0] == 1) { this->check_blind_bishop<false>(); return; }
-      if (this->b_pieces[1] == 2)                           { this->scale_factor = 2; }
+      if (BP(2) == 1 && BP(1) == 1) { this->bonus_knbk<false>();         return; }
+      if (BP(2) == 1 && BP(0) == 1) { this->check_blind_bishop<false>(); return; }
+      if (BP(1) == 2)               { this->scale_factor = 4; }
     }
     this->bonus_mating<false>();
   }
@@ -1715,12 +1688,7 @@ struct ClassicalEval { // Finish the game or no NNUE
 // NNUE Eval
 
 struct NnueEval {
-
-  // Attributes
-
   const bool wtm;
-
-  // Methods
 
   explicit NnueEval(const bool wtm2) : wtm{wtm2} { } // explicit -> Force curly init
 
@@ -1880,9 +1848,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
       if (SearchB(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) <= alpha) continue;
       g_board = g_boards[ply] + i;
     }
-
-    // Improved scope
-    if (const auto score = SearchB(alpha, beta, depth - 1, ply + 1); score > alpha) {
+    if (const auto score = SearchB(alpha, beta, depth - 1, ply + 1); score > alpha) { // Improved scope
       if ((alpha = score) >= beta) {
         entry->update<MoveType::kKiller>(hash, g_boards[ply][i].index);
         return alpha;
@@ -1915,7 +1881,6 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
       if (SearchW(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) >= beta) continue;
       g_board = g_boards[ply] + i;
     }
-
     if (const auto score = SearchW(alpha, beta, depth - 1, ply + 1); score < beta) {
       if (alpha >= (beta = score)) {
         entry->update<MoveType::kKiller>(hash, g_boards[ply][i].index);
@@ -1945,7 +1910,6 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
     g_nullmove_active = false;
     g_board           = tmp;
     g_board->epsq     = ep;
-
     if (score >= beta) {
       *alpha = score;
       return true;
@@ -1971,7 +1935,6 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
     g_nullmove_active = false;
     g_board           = tmp;
     g_board->epsq     = ep;
-
     if (alpha >= score) {
       *beta = score;
       return true;
@@ -2025,7 +1988,6 @@ int BestW() {
   for (auto i = 0; i < g_root_n; ++i) {
     g_board = g_boards[0] + i;
     g_is_pv = i <= 1 && !g_boards[0][i].score; // 1 / 2 moves too good and not tactical -> pv
-
     int score;
     if (g_depth >= 1 && i >= 1) { // Null window search for bad moves
       if ((score = SearchB(alpha, alpha + 1, g_depth, 1)) > alpha)
@@ -2033,9 +1995,7 @@ int BestW() {
     } else {
       score = SearchB(alpha, +INF, g_depth, 1);
     }
-
     if (g_stop_search) return g_best_score;
-
     if (score > alpha) {
       // Skip underpromos unless really good ( 3+ pawns )
       if (g_boards[0][i].is_underpromo() && ((score + (3 * 100)) < alpha)) continue;
@@ -2054,7 +2014,6 @@ int BestB() {
   for (auto i = 0; i < g_root_n; ++i) {
     g_board = g_boards[0] + i;
     g_is_pv = i <= 1 && !g_boards[0][i].score;
-
     int score;
     if (g_depth >= 1 && i >= 1) {
       if ((score = SearchW(beta - 1, beta, g_depth, 1)) < beta)
@@ -2062,9 +2021,7 @@ int BestB() {
     } else {
       score = SearchW(-INF, beta, g_depth, 1);
     }
-
     if (g_stop_search) return g_best_score;
-
     if (score < beta) {
       if (g_boards[0][i].is_underpromo() && ((score - (3 * 100)) > beta)) continue;
       beta   = score;
@@ -2078,17 +2035,12 @@ int BestB() {
 
 // Material detection for classical activation
 struct Material {
-
-  // Attributes
-
   const int white_n, black_n, both_n;
-
-  // Methods
 
   Material() : white_n{PopCount(White())}, black_n{PopCount(Black())}, both_n{this->white_n + this->black_n} { }
 
   bool is_rook_ending() const { // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
-    return this->both_n == 5 && PopCount(g_board->white[3] | g_board->black[3]) == 3;
+    return this->both_n == 5 && (PopCount(g_board->white[3] | g_board->black[3]) == 3);
   }
 
   bool is_easy() const { // Vs king + (PNBRQ) ?
@@ -2122,7 +2074,6 @@ bool FindBookMove(const int from, const int to, const int type) {
         return true;
       }
   }
-
   return false;
 }
 
@@ -2342,19 +2293,13 @@ void UciUci() {
 
 // Save state (just in case) if multiple commands in a row
 struct Save {
-
-  // Attributes
-
   const bool nnue, book;
   const std::string fen;
-
-  // Methods
 
   // Save stuff in constructor
   Save() : nnue{g_nnue_exist}, book{g_book_exist}, fen{g_board->to_fen()} { }
 
-  // Restore stuff in destructor
-  ~Save() {
+  ~Save() { // Restore stuff in destructor
     g_nnue_exist = this->nnue;
     g_book_exist = this->book;
     Fen(this->fen);
@@ -2403,8 +2348,8 @@ void UciPerft(const std::string &d, const std::string &f) {
 // > bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]
 // Speed:     bench inf 5000
 // Signature: bench 11 inf
-// > bench              -> 15771529
-// > bench 11 inf 256 0 -> 14997118
+// > bench              -> 15932209
+// > bench 11 inf 256 0 -> 15157798
 void UciBench(const std::string &d, const std::string &t, const std::string &h, const std::string &nnue) {
   const Save save{};
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
@@ -2477,7 +2422,6 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
 std::uint64_t MakeSliderMagicMoves(const std::array<int, 8> &slider_vectors, const int sq, const std::uint64_t moves) {
   std::uint64_t possible_moves = 0;
   const auto x_pos = Xaxl(sq), y_pos = Yaxl(sq);
-
   for (auto i = 0; i < 4; ++i)
     for (auto j = 1; j < 8; ++j) {
       const auto x = x_pos + j * slider_vectors[2 * i], y = y_pos + j * slider_vectors[2 * i + 1];
@@ -2486,7 +2430,6 @@ std::uint64_t MakeSliderMagicMoves(const std::array<int, 8> &slider_vectors, con
       possible_moves |= tmp;
       if (tmp & moves) break;
     }
-
   return possible_moves & (~Bit(sq));
 }
 
@@ -2515,7 +2458,6 @@ void InitRookMagics() {
 std::uint64_t MakeSliderMoves(const int sq, const std::array<int, 8> &slider_vectors) {
   std::uint64_t moves = 0;
   const auto x_pos = Xaxl(sq), y_pos = Yaxl(sq);
-
   for (auto i = 0; i < 4; ++i) {
     const auto dx = slider_vectors[2 * i], dy = slider_vectors[2 * i + 1];
     std::uint64_t tmp = 0;
@@ -2524,7 +2466,6 @@ std::uint64_t MakeSliderMoves(const int sq, const std::array<int, 8> &slider_vec
       else                                                                  break;
     moves |= tmp;
   }
-
   return moves;
 }
 
@@ -2597,7 +2538,7 @@ void Init() {
 }
 
 void UciLoop() {
-  while (Uci());
+  for (;;) Uci();
 }
 
 } // namespace mayhem
