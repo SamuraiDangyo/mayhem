@@ -95,9 +95,8 @@ const std::array<const std::string, 15> kBench =
   "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 1 ; bm Ne3" };
 
 // [Attacker][Captured] / [PNBRQK][pnbrqk]
-constexpr int kMvv[6][6] =
-{ {10, 15, 15, 20, 25, 99}, {9, 14, 14, 19, 24, 99}, {9, 14, 14, 19, 24, 99},
-  {8,  13, 13, 18, 23, 99}, {7, 12, 12, 17, 22, 99}, {6, 11, 11, 16, 21, 99} };
+constexpr int kMvv[6][6] = { {10, 15, 15, 20, 25, 99}, {9, 14, 14, 19, 24, 99}, {9, 14, 14, 19, 24, 99},
+                             { 8, 13, 13, 18, 23, 99}, {7, 12, 12, 17, 22, 99}, {6, 11, 11, 16, 21, 99} };
 
 // Piece-Square Tables
 // Material baked in
@@ -488,12 +487,10 @@ void SetNNUE(const std::string &eval_file) { // x.bin
 // Hashtable
 
 void SetHashtable(int hash_mb) {
-  // Limits 1MB -> 1TB
-  hash_mb = std::clamp(hash_mb, 1, 1048576);
+  hash_mb = std::clamp(hash_mb, 1, 1048576); // Limits 1MB -> 1TB
   // Hash in B / block in B
   g_hash_entries = static_cast<std::uint32_t>((1 << 20) * hash_mb) / (sizeof(HashEntry));
-  // Claim space
-  g_hash.reset(new HashEntry[g_hash_entries]);
+  g_hash.reset(new HashEntry[g_hash_entries]); // Claim space
 }
 
 // Hash
@@ -636,28 +633,24 @@ std::uint64_t Fill(int from, const int to) { // from / to -> Always good
 }
 
 void BuildCastlingBitboard1W() {
-  // White: O-O
-  if (g_board->castle & 0x1) {
+  if (g_board->castle & 0x1) { // White: O-O
     g_castle_w[0]       = Fill(g_king_w, 6);
     g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5)) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
   }
 
-  // White: O-O-O
-  if (g_board->castle & 0x2) {
+  if (g_board->castle & 0x2) { // White: O-O-O
     g_castle_w[1]       = Fill(g_king_w, 2);
     g_castle_empty_w[1] = (g_castle_w[1] | Fill(g_rook_w[1], 3)) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
   }
 }
 
 void BuildCastlingBitboard1B() {
-  // Black: O-O
-  if (g_board->castle & 0x4) {
+  if (g_board->castle & 0x4) { // Black: O-O
     g_castle_b[0]       = Fill(g_king_b, 56 + 6);
     g_castle_empty_b[0] = (g_castle_b[0] | Fill(g_rook_b[0], 56 + 5)) ^ (Bit(g_king_b) | Bit(g_rook_b[0]));
   }
 
-  // Black: O-O-O
-  if (g_board->castle & 0x8) {
+  if (g_board->castle & 0x8) { // Black: O-O-O
     g_castle_b[1]       = Fill(g_king_b, 56 + 2);
     g_castle_empty_b[1] = (g_castle_b[1] | Fill(g_rook_b[1], 56 + 3)) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
   }
@@ -691,8 +684,7 @@ void PutPiece(const int sq, const int p) {
   else if (p < 0) g_board->black[-p - 1] |= Bit(sq);
 }
 
-// Convert piece (Char) -> Int
-int Piece2Num(const char p) {
+int Piece2Num(const char p) { // Convert piece (Char) -> Int
   switch (p) {
     case 'P': return +1;
     case 'N': return +2;
@@ -710,24 +702,21 @@ int Piece2Num(const char p) {
   }
 }
 
-// Empty cells (Char) -> Int
-int Empty2Num(const char e) {
+int Empty2Num(const char e) { // Empty cells (Char) -> Int
   return e - '0';
 }
 
-// X-coord (Char) -> Int
-int File2Num(const char f) {
+int File2Num(const char f) { // X-coord (Char) -> Int
   return f - 'a';
 }
 
-// Ep Y-coord (Char) -> Int
-int Rank2Num(const char r) {
+int Rank2Num(const char r) { // Ep Y-coord (Char) -> Int
   return r == '3' ? 2 : 5; // '3' / '6'
 }
 
 void FenBoard(const std::string &board) {
   auto sq = 56;
-  for (std::size_t i = 0; i < board.length() /* O(n) */ && sq >= 0; ++i)
+  for (std::size_t i = 0; i < board.length() && sq >= 0; ++i) // O(n)
     if (const auto c = board[i]; c == '/') sq -= 16;
     else if (std::isdigit(c))              sq += Empty2Num(c);
     else                                   PutPiece(sq++, Piece2Num(c));
@@ -863,7 +852,7 @@ inline bool ChecksB() {
 
 // Only sort when necessary (See: lazy-sorting-algorithm paper)
 // Sort only node-by-node (Avoid costly n! / tons of operations)
-// Swap every found node for simplicity.
+// Swap every nodes for simplicity
 inline void LazySort(const int ply, const int nth, const int total_moves) {
   for (auto i = nth + 1; i < total_moves; ++i)
     if (g_boards[ply][i].score > g_boards[ply][nth].score)
@@ -920,7 +909,7 @@ inline std::uint64_t RookMagicMoves(const int sq, const std::uint64_t mask) {
 }
 
 void HandleCastlingW(const int mtype, const int from, const int to) {
-  g_moves[g_moves_n] = *g_board; // Copy
+  g_moves[g_moves_n] = *g_board; // Copy board
   g_board            = &g_moves[g_moves_n]; // Set pointer
   g_board->score     = 0;
   g_board->epsq      = -1;
@@ -1629,9 +1618,9 @@ struct ClassicalEval { // Finish the game or no NNUE
     else if (BP(3) && (WP(1) || WP(2))) { this->scale_factor = 4; this->bonus_mating<false>(); }
   }
 
-  // 1. KRRvKR / KR(NB)vK(NB)              -> White Checkmate
-  // 2. KRvKRR / K(NB)vKR(NB)              -> Black Checkmate
-  // 3. K(QR)(PNB)vK(QR) / K(QR)vK(QR)(PNB)-> Drawish
+  // 1. KRRvKR / KR(NB)vK(NB)               -> White Checkmate
+  // 2. KRvKRR / K(NB)vKR(NB)               -> Black Checkmate
+  // 3. K(RQ)(PNB)vK(RQ) / K(RQ)vK(RQ)(PNB) -> Drawish
   void bonus_special_5men() {
     if (     (WP(3) == 2 && BP(3)) || (WP(3) && (WP(2) || WP(1)) && (BP(2) || BP(1)))) this->bonus_mating<true>();
     else if ((BP(3) == 2 && WP(3)) || (BP(3) && (BP(2) || BP(1)) && (WP(2) || WP(1)))) this->bonus_mating<false>();
@@ -1644,18 +1633,18 @@ struct ClassicalEval { // Finish the game or no NNUE
   // 3. Can't force mate w/ 2 knights -> Drawish
   void white_is_mating() {
     if (this->white_total == 3) {
-      if (WP(2) == 1 && WP(1) == 1) { this->bonus_knbk<true>();         return; }
-      if (WP(2) == 1 && WP(0) == 1) { this->check_blind_bishop<true>(); return; }
-      if (WP(1) == 2)               { this->scale_factor = 4; }
+      if (WP(2) && WP(1)) { this->bonus_knbk<true>();         return; }
+      if (WP(2) && WP(0)) { this->check_blind_bishop<true>(); return; }
+      if (WP(1) == 2)     { this->scale_factor = 4; }
     }
     this->bonus_mating<true>();
   }
 
   void black_is_mating() {
     if (this->black_total == 3) {
-      if (BP(2) == 1 && BP(1) == 1) { this->bonus_knbk<false>();         return; }
-      if (BP(2) == 1 && BP(0) == 1) { this->check_blind_bishop<false>(); return; }
-      if (BP(1) == 2)               { this->scale_factor = 4; }
+      if (BP(2) && BP(1)) { this->bonus_knbk<false>();         return; }
+      if (BP(2) && BP(0)) { this->check_blind_bishop<false>(); return; }
+      if (BP(1) == 2)     { this->scale_factor = 4; }
     }
     this->bonus_mating<false>();
   }
@@ -2538,7 +2527,7 @@ void Init() {
 }
 
 void UciLoop() {
-  for (;;) Uci();
+  while (Uci());
 }
 
 } // namespace mayhem
