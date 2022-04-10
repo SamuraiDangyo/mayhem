@@ -67,7 +67,8 @@ namespace mayhem {
 #define MAX_ARR       102      // Enough space for arrays
 #define HASH          256      // MB
 #define NOISE         2        // Noise for opening moves
-#define MOVEOVERHEAD  100      // ms
+#define MOVEOVERHEAD  100      // 100 ms
+#define WEEK          (7 * 24 * 60 * 60 * 1000) // Week
 #define BOOK_BEST     false    // Nondeterministic opening play
 #define MAX_PIECES    32       // Max pieces on board (32 normally ...)
 #define READ_CLOCK    0x1FFULL // Read clock every 512 ticks (white / 2 x both)
@@ -98,8 +99,7 @@ const std::array<const std::string, 15> kBench =
 constexpr int kMvv[6][6] = { {10, 15, 15, 20, 25, 99}, {9, 14, 14, 19, 24, 99}, {9, 14, 14, 19, 24, 99},
                              { 8, 13, 13, 18, 23, 99}, {7, 12, 12, 17, 22, 99}, {6, 11, 11, 16, 21, 99} };
 
-// Piece-Square Tables
-// Material baked in
+// Piece-Square Tables ( Material baked in )
 // MG / EG -> P / N / B / R / Q / K
 constexpr int kPesto[6][2][64] =
 { {{82,   82,   82,   82,   82,   82,   82,   82,   47,   81,   62,   59,   67,   106,  120,  60,
@@ -488,8 +488,7 @@ void SetNNUE(const std::string &eval_file) { // x.bin
 
 void SetHashtable(int hash_mb) {
   hash_mb = std::clamp(hash_mb, 1, 1048576); // Limits 1MB -> 1TB
-  // Hash in B / block in B
-  g_hash_entries = static_cast<std::uint32_t>((1 << 20) * hash_mb) / (sizeof(HashEntry));
+  g_hash_entries = static_cast<std::uint32_t>((1 << 20) * hash_mb) / (sizeof(HashEntry)); // Hash(B) / Block(B)
   g_hash.reset(new HashEntry[g_hash_entries]); // Claim space
 }
 
@@ -534,7 +533,6 @@ inline bool Board::is_underpromo() const { // =n / =b / =r
 
 const std::string Board::movename() const {
   auto from2 = this->from, to2 = this->to;
-
   switch (this->type) {
     case 1: from2 = g_king_w, to2 = g_chess960 ? g_rook_w[0] : 6;      break;
     case 2: from2 = g_king_w, to2 = g_chess960 ? g_rook_w[1] : 2;      break;
@@ -543,7 +541,6 @@ const std::string Board::movename() const {
     case 5: case 6: case 7: case 8:
             return Move2Str(from2, to2) + PromoLetter(this->pieces[to2]);
   }
-
   return Move2Str(from2, to2);
 }
 
@@ -850,9 +847,8 @@ inline bool ChecksB() {
 
 // Sorting
 
-// Only sort when necessary (See: lazy-sorting-algorithm paper)
 // Sort only node-by-node (Avoid costly n! / tons of operations)
-// Swap every nodes for simplicity
+// Swap every nodes for simplicity (See: lazy-sorting-algorithm paper)
 inline void LazySort(const int ply, const int nth, const int total_moves) {
   for (auto i = nth + 1; i < total_moves; ++i)
     if (g_boards[ply][i].score > g_boards[ply][nth].score)
@@ -864,7 +860,7 @@ void EvalRootMoves() {
   for (auto i = 0; i < g_root_n; ++i)
     g_board         = g_boards[0] + i, // Pointer to this board
     g_board->score += (g_board->type == 8 ? 1000 : 0) + // =q
-                      (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) + // OO|OOO
+                      (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) + // OO / OOO
                       (g_board->is_underpromo() ? -5000 : 0) + // =r / =b / =n
                       (g_noise ? Random(-g_noise, +g_noise) : 0) + // Add noise -> Make unpredictable
                       (g_wtm ? +1 : -1) * Evaluate(g_wtm); // Full eval
@@ -1109,12 +1105,12 @@ void AddPromotionB(const int from, const int to, const int piece) {
 
 void AddPromotionStuffW(const int from, const int to) {
   if (g_underpromos) { for (const auto p : {+5, +4, +3, +2}) AddPromotionW(from, to, p), g_board = g_board_orig; } // QRBN
-  else {               for (const auto p : {+5, +2})         AddPromotionW(from, to, p), g_board = g_board_orig; } // QN
+  else               { for (const auto p : {+5, +2})         AddPromotionW(from, to, p), g_board = g_board_orig; } // QN
 }
 
 void AddPromotionStuffB(const int from, const int to) {
   if (g_underpromos) { for (const auto p : {-5, -4, -3, -2}) AddPromotionB(from, to, p), g_board = g_board_orig; }
-  else {               for (const auto p : {-5, -2})         AddPromotionB(from, to, p), g_board = g_board_orig; }
+  else               { for (const auto p : {-5, -2})         AddPromotionB(from, to, p), g_board = g_board_orig; }
 }
 
 inline void CheckNormalCapturesW(const int me, const int eat, const int to) {
@@ -1470,11 +1466,11 @@ struct ClassicalEval { // Finish the game or no NNUE
     if constexpr (wtm) {
       const auto wpx   = Xaxl(Ctz(g_board->white[0]));
       const auto color = g_board->white[2] & 0x55aa55aa55aa55aaULL;
-      if ((color && wpx == 7) || (!color && wpx == 0)) this->scale_factor = 2;
+      if ((color && wpx == 7) || (!color && wpx == 0)) this->scale_factor = 4;
     } else {
       const auto bpx   = Xaxl(Ctz(g_board->black[0]));
       const auto color = g_board->black[2] & 0x55aa55aa55aa55aaULL;
-      if ((!color && bpx == 7) || (color && bpx == 0)) this->scale_factor = 2;
+      if ((!color && bpx == 7) || (color && bpx == 0)) this->scale_factor = 4;
     }
   }
 
@@ -1628,7 +1624,7 @@ struct ClassicalEval { // Finish the game or no NNUE
       this->scale_factor = 4;
   }
 
-  // 1. Special mating pattern (knbk)
+  // 1. Special mating pattern (KNBvK)
   // 2. Don't force king to corner    -> Try to promote
   // 3. Can't force mate w/ 2 knights -> Drawish
   void white_is_mating() {
@@ -2227,7 +2223,7 @@ void PrintBestMove() {
 
 void UciGoInfinite() {
   g_analyzing = true; // Allow: =n / =b / =r / =q
-  Think(INF);
+  Think(WEEK);
   g_analyzing = false;
   PrintBestMove();
 }
@@ -2240,7 +2236,7 @@ void UciGoMovetime() {
 
 void UciGoDepth() {
   g_max_depth = std::clamp(TokenNumber(), 1, MAX_DEPTH);
-  Think(INF);
+  Think(WEEK);
   g_max_depth = MAX_DEPTH;
   TokenPop();
   PrintBestMove();
