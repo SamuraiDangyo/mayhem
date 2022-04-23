@@ -57,7 +57,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 7.2" // Version
+#define VERSION       "Mayhem 7.3" // Version
 #define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // uci startpos
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
@@ -67,13 +67,13 @@ namespace mayhem {
 #define MAX_ARR       102      // Enough space for arrays
 #define HASH          256      // MB
 #define NOISE         2        // Noise for opening moves
-#define MOVEOVERHEAD  100      // 100 ms
-#define WEEK          (7 * 24 * 60 * 60 * 1000) // Week
+#define MOVEOVERHEAD  100      // ms
+#define WEEK          (7 * 24 * 60 * 60 * 1000) // ms
 #define BOOK_BEST     false    // Nondeterministic opening play
 #define MAX_PIECES    32       // Max pieces on board (32 normally ...)
 #define READ_CLOCK    0x1FFULL // Read clock every 512 ticks (white / 2 x both)
-#define EVAL_FILE     "nn-cb80fb9393af.nnue" // "x" to disable NNUE
-#define BOOK_FILE     "performance.bin"      // "x" to disable book
+#define EVAL_FILE     "nn-cb80fb9393af.nnue" // Default NNUE ("x" to disable)
+#define BOOK_FILE     "performance.bin"      // Default Book ("x" to disable)
 
 // Constants
 
@@ -96,8 +96,9 @@ const std::array<const std::string, 15> kBench =
   "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 1 ; bm Ne3" };
 
 // [Attacker][Captured] / [PNBRQK][pnbrqk]
-constexpr int kMvv[6][6] = { {10, 15, 15, 20, 25, 99}, {9, 14, 14, 19, 24, 99}, {9, 14, 14, 19, 24, 99},
-                             { 8, 13, 13, 18, 23, 99}, {7, 12, 12, 17, 22, 99}, {6, 11, 11, 16, 21, 99} };
+constexpr int kMvv[6][6] =
+{ {10, 15, 15, 20, 25, 99}, {9, 14, 14, 19, 24, 99}, {9, 14, 14, 19, 24, 99},
+  { 8, 13, 13, 18, 23, 99}, {7, 12, 12, 17, 22, 99}, {6, 11, 11, 16, 21, 99} };
 
 // Piece-Square Tables ( Material baked in )
 // MG / EG -> P / N / B / R / Q / K
@@ -428,7 +429,7 @@ inline std::uint64_t Now() {
       std::chrono::system_clock::now().time_since_epoch()) .count();
 }
 
-// Deterministic Rand()
+// Deterministic Random()
 std::uint64_t Random64() {
   static std::uint64_t a = 0X12311227ULL, b = 0X1931311ULL, c = 0X13138141ULL;
 #define MIXER(num) (((num) << 7) ^ ((num) >> 5))
@@ -2102,8 +2103,8 @@ bool RandomMove() { // At level 0 we simply play a random move
 
 bool FastMove(const int ms) {
   if ((g_root_n <= 1) || // Only move
-      (ms <= 1)       || // Hurry up !
       (RandomMove())  || // Random mover
+      (ms <= 1)       || // Hurry up !
       (g_book_exist && ms > BOOK_MS && ProbeBook())) { // Try book
     SpeakUci(g_last_eval, 0);
     return true;
@@ -2404,10 +2405,10 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
   return permutations & moves;
 }
 
-std::uint64_t MakeSliderMagicMoves(const std::array<int, 8> &slider_vectors, const int sq, const std::uint64_t moves) {
+std::uint64_t MakeSliderMagicMoves(const std::vector<int> &slider_vectors, const int sq, const std::uint64_t moves) {
   std::uint64_t possible_moves = 0;
   const auto x_pos = Xaxl(sq), y_pos = Yaxl(sq);
-  for (auto i = 0; i < 4; ++i)
+  for (auto i = 0; i < slider_vectors.size() / 2; ++i)
     for (auto j = 1; j < 8; ++j) {
       const auto x = x_pos + j * slider_vectors[2 * i], y = y_pos + j * slider_vectors[2 * i + 1];
       if (!OnBoard(x, y)) break;
@@ -2419,7 +2420,7 @@ std::uint64_t MakeSliderMagicMoves(const std::array<int, 8> &slider_vectors, con
 }
 
 void InitBishopMagics() {
-  constexpr std::array<int, 8> bishop_vectors = {+1, +1, -1, -1, +1, -1, -1, +1};
+  const std::vector<int> bishop_vectors = {+1, +1, -1, -1, +1, -1, -1, +1};
   for (auto i = 0; i < 64; ++i) {
     const auto magics = kBishopMagics[2][i] & (~Bit(i));
     for (auto j = 0; j < 512; ++j) {
@@ -2430,7 +2431,7 @@ void InitBishopMagics() {
 }
 
 void InitRookMagics() {
-  constexpr std::array<int, 8> rook_vectors = {+1,  0,  0, +1,  0, -1, -1,  0};
+  const std::vector<int> rook_vectors = {+1, 0, 0, +1, 0, -1, -1, 0};
   for (auto i = 0; i < 64; ++i) {
     const auto magics = kRookMagics[2][i] & (~Bit(i));
     for (auto j = 0; j < 4096; ++j) {
@@ -2440,22 +2441,7 @@ void InitRookMagics() {
   }
 }
 
-std::uint64_t MakeSliderMoves(const int sq, const std::array<int, 8> &slider_vectors) {
-  std::uint64_t moves = 0;
-  const auto x_pos = Xaxl(sq), y_pos = Yaxl(sq);
-  for (auto i = 0; i < 4; ++i) {
-    const auto dx = slider_vectors[2 * i], dy = slider_vectors[2 * i + 1];
-    std::uint64_t tmp = 0;
-    for (auto j = 1; j < 8; ++j)
-      if (const auto x = x_pos + j * dx, y = y_pos + j * dy; OnBoard(x, y)) tmp |= Bit(8 * y + x);
-      else                                                                  break;
-    moves |= tmp;
-  }
-  return moves;
-}
-
-template <int k>
-std::uint64_t MakeJumpMoves(const int sq, const int dy, const std::array<int, k> &jump_vectors) {
+std::uint64_t MakeJumpMoves(const int sq, const int dy, const std::vector<int> &jump_vectors) {
   std::uint64_t moves = 0;
   const auto x_pos = Xaxl(sq), y_pos = Yaxl(sq);
   for (std::size_t i = 0; i < jump_vectors.size() / 2; ++i)
@@ -2465,23 +2451,23 @@ std::uint64_t MakeJumpMoves(const int sq, const int dy, const std::array<int, k>
 }
 
 void InitJumpMoves() {
-  constexpr std::array<int, 16> king_vectors      = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1};
-  constexpr std::array<int, 16> knight_vectors    = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2};
-  constexpr std::array<int, 4> pawn_check_vectors = {-1, +1, +1, +1};
-  constexpr std::array<int, 2> pawn_1_vectors     = { 0, +1};
+  const std::vector<int> king_vectors       = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1};
+  const std::vector<int> knight_vectors     = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2};
+  const std::vector<int> pawn_check_vectors = {-1, +1, +1, +1};
+  const std::vector<int> pawn_1_vectors     = { 0, +1};
 
   for (auto i = 0; i < 64; ++i) {
-    g_king_moves[i]     = MakeJumpMoves<16>(i, +1, king_vectors);
-    g_knight_moves[i]   = MakeJumpMoves<16>(i, +1, knight_vectors);
-    g_pawn_checks_w[i]  = MakeJumpMoves<4>(i, +1, pawn_check_vectors);
-    g_pawn_checks_b[i]  = MakeJumpMoves<4>(i, -1, pawn_check_vectors);
-    g_pawn_1_moves_w[i] = MakeJumpMoves<2>(i, +1, pawn_1_vectors);
-    g_pawn_1_moves_b[i] = MakeJumpMoves<2>(i, -1, pawn_1_vectors);
+    g_king_moves[i]     = MakeJumpMoves(i, +1, king_vectors);
+    g_knight_moves[i]   = MakeJumpMoves(i, +1, knight_vectors);
+    g_pawn_checks_w[i]  = MakeJumpMoves(i, +1, pawn_check_vectors);
+    g_pawn_checks_b[i]  = MakeJumpMoves(i, -1, pawn_check_vectors);
+    g_pawn_1_moves_w[i] = MakeJumpMoves(i, +1, pawn_1_vectors);
+    g_pawn_1_moves_b[i] = MakeJumpMoves(i, -1, pawn_1_vectors);
   }
 
   for (auto i = 0; i < 8; ++i) {
-    g_pawn_2_moves_w[ 8 + i] = MakeJumpMoves<2>( 8 + i, +1, pawn_1_vectors) | MakeJumpMoves<2>( 8 + i, +2, pawn_1_vectors);
-    g_pawn_2_moves_b[48 + i] = MakeJumpMoves<2>(48 + i, -1, pawn_1_vectors) | MakeJumpMoves<2>(48 + i, -2, pawn_1_vectors);
+    g_pawn_2_moves_w[ 8 + i] = MakeJumpMoves( 8 + i, +1, pawn_1_vectors) | MakeJumpMoves( 8 + i, +2, pawn_1_vectors);
+    g_pawn_2_moves_b[48 + i] = MakeJumpMoves(48 + i, -1, pawn_1_vectors) | MakeJumpMoves(48 + i, -2, pawn_1_vectors);
   }
 }
 
@@ -2525,5 +2511,4 @@ void Init() {
 void UciLoop() {
   while (Uci());
 }
-
 } // namespace mayhem
