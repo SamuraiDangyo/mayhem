@@ -2408,7 +2408,7 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
 std::uint64_t MakeSliderMagicMoves(const std::vector<int> &slider_vectors, const int sq, const std::uint64_t moves) {
   std::uint64_t possible_moves = 0;
   const auto x_pos = Xaxl(sq), y_pos = Yaxl(sq);
-  for (auto i = 0; i < slider_vectors.size() / 2; ++i)
+  for (std::size_t i = 0; i < slider_vectors.size() / 2; ++i)
     for (auto j = 1; j < 8; ++j) {
       const auto x = x_pos + j * slider_vectors[2 * i], y = y_pos + j * slider_vectors[2 * i + 1];
       if (!OnBoard(x, y)) break;
