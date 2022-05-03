@@ -45,44 +45,44 @@ namespace polyglotbook {
 // Class PolyglotBook
 
 class PolyglotBook : private std::ifstream {
-public:
-  PolyglotBook();
- ~PolyglotBook();
-  int probe(const bool);
-  PolyglotBook& setup(std::int8_t*, const std::uint64_t, const std::uint8_t, const std::int8_t, const bool);
-  bool open_book(const std::string&);
+ public:
+    PolyglotBook();
+    ~PolyglotBook();
+    int probe(const bool);
+    PolyglotBook& setup(std::int8_t*, const std::uint64_t, const std::uint8_t, const std::int8_t, const bool);
+    bool open_book(const std::string&);
 
-private:
-  template<typename T>
-    PolyglotBook& operator>>(T&);
+ private:
+    template<typename T>
+      PolyglotBook& operator>>(T&);
 
-  // A Polyglot book is a series of "entries" of 16 bytes. All integers are
-  // stored in big-endian format, with the highest byte first (regardless of
-  // size). The entries are ordered according to the key in ascending order.
-  struct Entry {
-    std::uint64_t key;
-    std::uint16_t move;
-    std::uint16_t count;
-    std::uint32_t learn;
-  };
+    // A Polyglot book is a series of "entries" of 16 bytes. All integers are
+    // stored in big-endian format, with the highest byte first (regardless of
+    // size). The entries are ordered according to the key in ascending order.
+    struct Entry {
+      std::uint64_t key;
+      std::uint16_t move;
+      std::uint16_t count;
+      std::uint32_t learn;
+    };
 
-  // Board for building a hash key
-  struct PolyBoard {
-    std::uint64_t both;
-    std::int8_t   *pieces;
-    std::int8_t   epsq;
-    std::uint8_t  castling;
-    std::uint8_t  wtm;
-  } polyboard;
+    // Board for building a hash key
+    struct PolyBoard {
+      std::uint64_t both;
+      std::int8_t   *pieces;
+      std::int8_t   epsq;
+      std::uint8_t  castling;
+      std::uint8_t  wtm;
+    } polyboard;
 
-  std::uint64_t polyglot_key() const;
-  bool open(const std::string&);
-  std::size_t find_first(const std::uint64_t);
-  bool is_ep_legal() const;
-  inline int ctz(const std::uint64_t bb) const { return __builtin_ctzll(bb); }
-  inline int ctz_pop(std::uint64_t *bb) const { const auto ret = this->ctz(*bb); *bb = *bb & (*bb - 0x1ULL); return ret; }
-  bool on_board(const int x) const { return x >= 0 && x <= 7; }
-
+    std::uint64_t polyglot_key() const;
+    bool open(const std::string&);
+    std::size_t find_first(const std::uint64_t);
+    bool is_ep_legal() const;
+    inline int ctz(const std::uint64_t bb) const { return __builtin_ctzll(bb); }
+    inline int ctz_pop(std::uint64_t *bb) const { const auto ret = this->ctz(*bb);
+                                                  *bb = *bb & (*bb - 0x1ULL); return ret; }
+    bool on_board(const int x) const { return x >= 0 && x <= 7; }
 };
 
 // Random numbers from PolyGlot, used to compute book hash keys
@@ -363,16 +363,12 @@ constexpr union {
 // polyglotbook.cpp start
 
 PolyglotBook::PolyglotBook() : polyboard{} {
-
   std::srand(static_cast<unsigned int>(std::time(nullptr)));
-
 }
 
 PolyglotBook::~PolyglotBook() {
-
   if (this->is_open())
     this->close();
-
 }
 
 /// operator>>() reads sizeof(T) chars from the file's binary byte stream and
@@ -381,25 +377,19 @@ PolyglotBook::~PolyglotBook() {
 
 template<typename T>
 PolyglotBook& PolyglotBook::operator>>(T& n) {
-
   n = 0;
   for (std::size_t i = 0; i < sizeof(T); ++i)
     n = T((n << 8) + std::ifstream::get());
-
   return *this;
-
 }
 
 template<>
 PolyglotBook& PolyglotBook::operator>>(Entry& e) {
-
   return *this >> e.key >> e.move >> e.count >> e.learn;
-
 }
 
 
 std::uint64_t PolyglotBook::polyglot_key() const {
-
   std::uint64_t key = 0;
 
   // Board
@@ -433,14 +423,12 @@ std::uint64_t PolyglotBook::polyglot_key() const {
 
   // The key is ready
   return key;
-
 }
 
 /// open() tries to open a book file with the given name after closing any
 /// existing one.
 
 bool PolyglotBook::open(const std::string &file) {
-
   if (this->is_open()) // Cannot close an already closed file
       this->close();
 
@@ -449,7 +437,6 @@ bool PolyglotBook::open(const std::string &file) {
   std::ifstream::clear(); // Reset any error flag to allow a retry ifstream::open()
 
   return opened;
-
 }
 
 /// probe() tries to find a book move for the given position. If no move is
@@ -458,14 +445,11 @@ bool PolyglotBook::open(const std::string &file) {
 /// move score.
 
 bool PolyglotBook::open_book(const std::string &file) {
-
   return this->open(file);
-
 }
 
 
 bool PolyglotBook::is_ep_legal() const {
-
   // -1 means no en passant possible
   if (this->polyboard.epsq < 0 || this->polyboard.epsq > 63)
     return false;
@@ -479,12 +463,10 @@ bool PolyglotBook::is_ep_legal() const {
         :
       (this->on_board(x - 1) && this->polyboard.pieces[8 * y + x - 1] == +1) ||
       (this->on_board(x + 1) && this->polyboard.pieces[8 * y + x + 1] == +1);
-
 }
 
 PolyglotBook& PolyglotBook::setup(std::int8_t *pieces, const std::uint64_t both,
     const std::uint8_t castling, const std::int8_t epsq, const bool wtm) {
-
   this->polyboard.pieces   = pieces;
   this->polyboard.both     = both;
   this->polyboard.castling = castling;
@@ -492,11 +474,9 @@ PolyglotBook& PolyglotBook::setup(std::int8_t *pieces, const std::uint64_t both,
   this->polyboard.wtm      = wtm;
 
   return *this;
-
 }
 
 int PolyglotBook::probe(const bool pick_best) {
-
   if (!this->is_open())
     return 0;
 
@@ -532,7 +512,6 @@ int PolyglotBook::probe(const bool pick_best) {
   // move is a promotion, we have to convert it to our representation and in
   // all other cases, we can directly compare with a Move after having masked
   // out the special Move flags (bit 14-15) that are not supported by PolyGlot.
-
 }
 
 /// find_first() takes a book key as input, and does a binary search through
@@ -540,7 +519,6 @@ int PolyglotBook::probe(const bool pick_best) {
 /// entry with the same key as the input.
 
 std::size_t PolyglotBook::find_first(const std::uint64_t key) {
-
   this->seekg(0, std::ios::end); // Move pointer to end, so tellg() gets file's size
 
   std::size_t low = 0, high = static_cast<std::size_t>(this->tellg()) / sizeof(Entry) - 1;
@@ -560,7 +538,6 @@ std::size_t PolyglotBook::find_first(const std::uint64_t key) {
   }
 
   return low;
-
 }
 
 // polyglotbook.cpp end

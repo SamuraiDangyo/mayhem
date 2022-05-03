@@ -220,8 +220,8 @@ INLINE uint16_t readu_le_u16(const void *p)
 #endif
 
 /*pieces*/
-enum colors { white,black };
-enum chessmen { blank,king,queen,rook,bishop,knight,pawn };
+enum colors { white, black };
+enum chessmen { blank, king, queen, rook, bishop, knight, pawn };
 
 /*nnue data*/
 typedef struct {
@@ -338,9 +338,9 @@ static_assert(kHalfDimensions % 256 == 0, "kHalfDimensions should be a multiple 
 typedef __m512i vec16_t;
 typedef __m512i vec8_t;
 typedef __mmask64 mask_t;
-#define vec_add_16(a,b) _mm512_add_epi16(a,b)
-#define vec_sub_16(a,b) _mm512_sub_epi16(a,b)
-#define vec_packs(a,b) _mm512_packs_epi16(a,b)
+#define vec_add_16(a, b) _mm512_add_epi16(a, b)
+#define vec_sub_16(a, b) _mm512_sub_epi16(a, b)
+#define vec_packs(a, b) _mm512_packs_epi16(a, b)
 #define vec_mask_pos(a) _mm512_cmpgt_epi8_mask(a,_mm512_setzero_si512())
 #define NUM_REGS 8 // only 8 are needed
 
@@ -349,10 +349,10 @@ typedef __mmask64 mask_t;
 typedef __m256i vec16_t;
 typedef __m256i vec8_t;
 typedef uint32_t mask_t;
-#define vec_add_16(a,b) _mm256_add_epi16(a,b)
-#define vec_sub_16(a,b) _mm256_sub_epi16(a,b)
-#define vec_packs(a,b) _mm256_packs_epi16(a,b)
-#define vec_mask_pos(a) _mm256_movemask_epi8(_mm256_cmpgt_epi8(a,_mm256_setzero_si256()))
+#define vec_add_16(a, b) _mm256_add_epi16(a, b)
+#define vec_sub_16(a, b) _mm256_sub_epi16(a, b)
+#define vec_packs(a, b) _mm256_packs_epi16(a, b)
+#define vec_mask_pos(a) _mm256_movemask_epi8(_mm256_cmpgt_epi8(a, _mm256_setzero_si256()))
 #define NUM_REGS 16
 
 #elif USE_SSE2
@@ -360,10 +360,10 @@ typedef uint32_t mask_t;
 typedef __m128i vec16_t;
 typedef __m128i vec8_t;
 typedef uint16_t mask_t;
-#define vec_add_16(a,b) _mm_add_epi16(a,b)
-#define vec_sub_16(a,b) _mm_sub_epi16(a,b)
-#define vec_packs(a,b) _mm_packs_epi16(a,b)
-#define vec_mask_pos(a) _mm_movemask_epi8(_mm_cmpgt_epi8(a,_mm_setzero_si128()))
+#define vec_add_16(a, b) _mm_add_epi16(a, b)
+#define vec_sub_16(a, b) _mm_sub_epi16(a, b)
+#define vec_packs(a, b) _mm_packs_epi16(a, b)
+#define vec_mask_pos(a) _mm_movemask_epi8(_mm_cmpgt_epi8(a, _mm_setzero_si128()))
 #ifdef IS_64BIT
 #define NUM_REGS 16
 #else
@@ -375,10 +375,10 @@ typedef uint16_t mask_t;
 typedef __m64 vec16_t;
 typedef __m64 vec8_t;
 typedef uint8_t mask_t;
-#define vec_add_16(a,b) _mm_add_pi16(a,b)
-#define vec_sub_16(a,b) _mm_sub_pi16(a,b)
-#define vec_packs(a,b) _mm_packs_pi16(a,b)
-#define vec_mask_pos(a) _mm_movemask_pi8(_mm_cmpgt_pi8(a,_mm_setzero_si64()))
+#define vec_add_16(a, b) _mm_add_pi16(a, b)
+#define vec_sub_16(a, b) _mm_sub_pi16(a, b)
+#define vec_packs(a, b) _mm_packs_pi16(a, b)
+#define vec_mask_pos(a) _mm_movemask_pi8(_mm_cmpgt_pi8(a, _mm_setzero_si64()))
 #define NUM_REGS 8
 
 #elif USE_NEON
@@ -386,10 +386,10 @@ typedef uint8_t mask_t;
 typedef int16x8_t vec16_t;
 typedef int8x16_t vec8_t;
 typedef uint16_t mask_t;
-#define vec_add_16(a,b) vaddq_s16(a,b)
-#define vec_sub_16(a,b) vsubq_s16(a,b)
-#define vec_packs(a,b) vcombine_s8(vqmovn_s16(a),vqmovn_s16(b))
-#define vec_mask_pos(a) neon_movemask(vcgtq_s8(a,vdupq_n_u8(0)))
+#define vec_add_16(a, b) vaddq_s16(a, b)
+#define vec_sub_16(a, b) vsubq_s16(a, b)
+#define vec_packs(a, b) vcombine_s8(vqmovn_s16(a), vqmovn_s16(b))
+#define vec_mask_pos(a) neon_movemask(vcgtq_s8(a, vdupq_n_u8(0)))
 #ifdef IS_64BIT
 #define NUM_REGS 16
 #else
@@ -630,7 +630,7 @@ INLINE void affine_txfm(int8_t *input, void *output, unsigned inDims,
   __m256i *outVec = (__m256i *)output;
   const __m256i kZero256 = _mm256_setzero_si256();
   outVec[0] = _mm256_packs_epi16(
-      _mm512_castsi512_si256(out16),_mm512_extracti64x4_epi64(out16, 1));
+      _mm512_castsi512_si256(out16), _mm512_extracti64x4_epi64(out16, 1));
   if (pack8_and_calc_mask)
     outMask[0] = (uint32_t)_mm256_movemask_epi8(_mm256_cmpgt_epi8(outVec[0], kZero256));
   else
@@ -863,22 +863,22 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
       second = kZeros;
     }
     __m64 mul = _mm_set1_pi32(factor);
-    out_0 = _mm_add_pi32(out_0, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[0],second[0])));
-    out_1 = _mm_add_pi32(out_1, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[0],second[0])));
-    out_2 = _mm_add_pi32(out_2, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[1],second[1])));
-    out_3 = _mm_add_pi32(out_3, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[1],second[1])));
-    out_4 = _mm_add_pi32(out_4, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[2],second[2])));
-    out_5 = _mm_add_pi32(out_5, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[2],second[2])));
-    out_6 = _mm_add_pi32(out_6, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[3],second[3])));
-    out_7 = _mm_add_pi32(out_7, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[3],second[3])));
-    out_8 = _mm_add_pi32(out_8, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[4],second[4])));
-    out_9 = _mm_add_pi32(out_9, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[4],second[4])));
-    out_10 = _mm_add_pi32(out_10, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[5],second[5])));
-    out_11 = _mm_add_pi32(out_11, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[5],second[5])));
-    out_12 = _mm_add_pi32(out_12, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[6],second[6])));
-    out_13 = _mm_add_pi32(out_13, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[6],second[6])));
-    out_14 = _mm_add_pi32(out_14, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[7],second[7])));
-    out_15 = _mm_add_pi32(out_15, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[7],second[7])));
+    out_0 = _mm_add_pi32(out_0, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[0], second[0])));
+    out_1 = _mm_add_pi32(out_1, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[0], second[0])));
+    out_2 = _mm_add_pi32(out_2, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[1], second[1])));
+    out_3 = _mm_add_pi32(out_3, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[1], second[1])));
+    out_4 = _mm_add_pi32(out_4, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[2], second[2])));
+    out_5 = _mm_add_pi32(out_5, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[2], second[2])));
+    out_6 = _mm_add_pi32(out_6, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[3], second[3])));
+    out_7 = _mm_add_pi32(out_7, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[3], second[3])));
+    out_8 = _mm_add_pi32(out_8, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[4], second[4])));
+    out_9 = _mm_add_pi32(out_9, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[4], second[4])));
+    out_10 = _mm_add_pi32(out_10, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[5], second[5])));
+    out_11 = _mm_add_pi32(out_11, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[5], second[5])));
+    out_12 = _mm_add_pi32(out_12, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[6], second[6])));
+    out_13 = _mm_add_pi32(out_13, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[6], second[6])));
+    out_14 = _mm_add_pi32(out_14, _mm_madd_pi16(mul, _mm_unpacklo_pi16(first[7], second[7])));
+    out_15 = _mm_add_pi32(out_15, _mm_madd_pi16(mul, _mm_unpackhi_pi16(first[7], second[7])));
   }
 
   __m64 out16_0 = _mm_srai_pi16(_mm_packs_pi32(out_0, out_1), SHIFT);
