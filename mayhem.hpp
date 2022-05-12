@@ -58,10 +58,10 @@ namespace mayhem {
 // Macros
 
 #define VERSION       "Mayhem 7.3" // Version
-#define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // uci startpos
+#define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // UCI startpos
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
-#define MAX_Q_DEPTH   12       // Max Qsearch depth
+#define MAX_Q_DEPTH   16       // Max Qsearch depth
 #define BOOK_MS       100      // At least 100ms+ for the book lookup
 #define INF           1048576  // System max number
 #define MAX_ARR       102      // Enough space for arrays
@@ -581,7 +581,7 @@ const std::string Board::to_s() const {
     s << " | " << (1 + r) << "\n +---+---+---+---+---+---+---+---+\n";
   }
   s << "   a   b   c   d   e   f   g   h\n\n" <<
-    "> " << this->to_fen() << "\n" <<
+    "> " << this->to_fen() << '\n' <<
     "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " / " <<
     "Book: " << (g_book_exist ? "OK" : "FAIL") << " / " <<
     "Eval: " << Evaluate(g_wtm) << " / " <<
@@ -1751,7 +1751,7 @@ bool Draw(const bool wtm) {
 
   const auto hash = g_r50_positions[g_board->fifty]; // g_r50_positions.pop() must contain hash !
   for (auto i = g_board->fifty - 2; i >= 0; i -= 2)
-    if (g_r50_positions[i] == hash) // Only 2 rep
+    if (g_r50_positions[i] == hash) // 2 reps is a draw
       return true;
 
   return false;
@@ -2170,9 +2170,9 @@ std::uint64_t Perft(const bool wtm, const int depth, const int ply) {
 void UciMake(const int root_i) {
   if (!g_wtm) ++g_fullmoves; // Increase fullmoves only after black move
   g_r50_positions[g_board->fifty] = Hash(g_wtm); // Set hash
-  g_board_empty                   = g_boards[0][root_i]; // Copy current board
-  g_board                         = &g_board_empty; // Set pointer
-  g_wtm                           = !g_wtm; // Flip the board
+  g_board_empty = g_boards[0][root_i]; // Copy current board
+  g_board       = &g_board_empty; // Set pointer
+  g_wtm         = !g_wtm; // Flip the board
 }
 
 void UciMakeMove() {
@@ -2266,14 +2266,14 @@ void UciGo() {
 }
 
 void UciUci() {
-  std::cout << "id name " << VERSION << "\n" <<
-    "id author Toni Helminen" << "\n" <<
-    "option name UCI_Chess960 type check default false" << "\n" <<
-    "option name Level type spin default 100 min 0 max 100" << "\n" <<
-    "option name MoveOverhead type spin default " << MOVEOVERHEAD << " min 0 max 10000" << "\n" <<
-    "option name Hash type spin default " << HASH << " min 1 max 1048576" << "\n" <<
-    "option name EvalFile type string default " << EVAL_FILE << "\n" <<
-    "option name BookFile type string default " << BOOK_FILE << "\n" <<
+  std::cout << "id name " << VERSION << '\n' <<
+    "id author Toni Helminen\n" <<
+    "option name UCI_Chess960 type check default false\n" <<
+    "option name Level type spin default 100 min 0 max 100\n" <<
+    "option name MoveOverhead type spin default " << MOVEOVERHEAD << " min 0 max 10000\n" <<
+    "option name Hash type spin default " << HASH << " min 1 max 1048576\n" <<
+    "option name EvalFile type string default " << EVAL_FILE << '\n' <<
+    "option name BookFile type string default " << BOOK_FILE << '\n' <<
     "uciok" << std::endl;
 }
 
@@ -2293,20 +2293,15 @@ struct Save {
 };
 
 // Print ASCII art board
-// > p [fen = startpos]
-// > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0_1
 // Print board + some info (NNUE, Book, Eval (cp), Hash (entries))
 // Also used for debug in UCI mode
 void UciPrintBoard(std::string s = "") {
   const Save save{};
   if (s.length()) std::replace(s.begin(), s.end(), '_', ' '), Fen(s);
-  std::cout << "\n" << g_board->to_s() << std::endl;
+  std::cout << '\n' << g_board->to_s() << std::endl;
 }
 
 // Calculate perft split numbers
-// > perft [depth = 6] [fen = startpos]
-// > perft -> 119060324
-// > perft 7 R7/P4k2/8/8/8/8/r7/6K1_w_-_-_0_1 -> 245764549
 void UciPerft(const std::string &d, const std::string &f) {
   const Save save{};
   const auto depth = d.length() ? std::max(0, std::stoi(d)) : 6;
@@ -2325,17 +2320,12 @@ void UciPerft(const std::string &d, const std::string &f) {
     total_ms += ms;
   }
   std::cout << "\n===========================\n\n" <<
-    "Nodes:    " << nodes << "\n" <<
-    "Time(ms): " << total_ms << "\n" <<
+    "Nodes:    " << nodes << '\n' <<
+    "Time(ms): " << total_ms << '\n' <<
     "NPS:      " << Nps(nodes, total_ms) << std::endl;
 }
 
 // Bench signature and speed of the program
-// > bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]
-// Speed:     bench inf 5000
-// Signature: bench 11 inf
-// > bench              -> 15932209
-// > bench 11 inf 256 0 -> 15157798
 void UciBench(const std::string &d, const std::string &t, const std::string &h, const std::string &nnue) {
   const Save save{};
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
@@ -2358,10 +2348,39 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
   g_noise     = NOISE;
   g_max_depth = MAX_DEPTH;
   std::cout << "===========================\n\n" <<
-    "Nodes:    " << nodes << "\n" <<
-    "Time(ms): " << total_ms << "\n" <<
-    "NPS:      " << Nps(nodes, total_ms) << "\n" <<
+    "Nodes:    " << nodes << '\n' <<
+    "Time(ms): " << total_ms << '\n' <<
+    "NPS:      " << Nps(nodes, total_ms) << '\n' <<
     "Mode:     " << (g_nnue_exist ? "NNUE" : "HCE") << std::endl;
+}
+
+// Supported commands help
+void UciHelp() {
+  std::cout <<
+    "help        This help\n" <<
+    "uci         Outputs the engine info\n" <<
+    "isready     Synchronize the engine with the GUI\n" <<
+    "ucinewgame  Sent before the game\n" <<
+    "stop        Stop the search and report a bestmove\n" <<
+    "quit        Exits the engine ASAP\n" <<
+    "setoption name [name] value [value]\n" <<
+    "            Sets a given option\n" <<
+    "go [wtime] [btime] [winc] [binc] [movestogo] [movetime] [depth] [infinite]\n" <<
+    "            Search the current position with the provided settings\n" <<
+    "position [fen = startpos] [moves?]\n" <<
+    "            Sets the board position via an optional FEN and optional move list\n" <<
+    "perft [depth = 6] [fen = startpos]\n" <<
+    "            Calculate perft split numbers\n" <<
+    "            > perft                                    ( 119060324 )\n" <<
+    "            > perft 7 R7/P4k2/8/8/8/8/r7/6K1_w_-_-_0_1 ( 245764549 )\n" <<
+    "bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]\n"  <<
+    "            Bench signature and speed of the program\n" <<
+    "            > bench inf 10000    ( Speed )\n" <<
+    "            > bench              ( 15932209 )\n" <<
+    "            > bench 11 inf 256 0 ( 15157798 )\n" <<
+    "p [fen = current_position]\n" <<
+    "            Print ASCII art board\n" <<
+    "            > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0_1" << std::endl;
 }
 
 bool UciCommands() {
@@ -2375,6 +2394,7 @@ bool UciCommands() {
   else if (Token("uci"))        UciUci();
   else if (Token("quit"))       return false;
   // Extra ...
+  else if (Token("help"))       UciHelp();
   else if (Token("bench"))      UciBench(TokenNth(0), TokenNth(1), TokenNth(2), TokenNth(3));
   else if (Token("perft"))      UciPerft(TokenNth(0), TokenNth(1));
   else if (Token("p"))          UciPrintBoard(TokenNth(0));
