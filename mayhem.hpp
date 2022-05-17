@@ -2024,25 +2024,26 @@ struct Material {
   const int white_n, black_n, both_n;
 
   Material() : white_n{PopCount(White())}, black_n{PopCount(Black())}, both_n{this->white_n + this->black_n} { }
-
-  bool is_rook_ending() const { // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
+  
+  // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
+  bool is_rook_ending() const { 
     return this->both_n == 5 && (PopCount(g_board->white[3] | g_board->black[3]) == 3);
   }
 
-  bool is_easy() const { // Vs king + (PNBRQ) ?
+  // Vs king + (PNBRQ) ?
+  bool is_easy() const { 
     return g_wtm ? this->black_n <= 2 : this->white_n <= 2;
   }
 
-  bool is_endgame() const { // 5 pieces or less both side -> Endgame
+  // 5 pieces or less both side -> Endgame
+  bool is_endgame() const { 
     return g_wtm ? this->black_n <= 5 : this->white_n <= 5;
   }
 };
 
-bool HCEActivation(const Material &m) { // Activate HCE when ...
-  return (!g_nnue_exist)    || // No NNUE
-         m.is_easy()        || // Easy
-         m.is_rook_ending() || // Rook ending
-         m.both_n >= 33;       // Disable NNUE for 33+ pieces
+// Activate HCE when ... No NNUE / Easy / Rook ending / 16+ pieces each color
+bool HCEActivation(const Material &m) { 
+  return (!g_nnue_exist) || m.is_easy() || m.is_rook_ending() || (m.white_n >= 17 || m.black_n >= 17); 
 }
 
 // Play the book move from root list
@@ -2117,11 +2118,11 @@ void SearchRootMoves(const bool is_eg) {
   const auto now = Now();
 
   for ( ; std::abs(g_best_score) != INF && g_depth < g_max_depth && !g_stop_search; ++g_depth) {
+    g_q_depth = std::min(g_q_depth + 2, MAX_Q_DEPTH);
     g_best_score = g_wtm ? BestW() : BestB();
     // Switch to classical only when the game is decided ( 4+ pawns ) !
     g_classical = g_classical || (is_eg && std::abs(g_best_score) > (4 * 100) && ((++good) >= 7));
     SpeakUci(g_best_score, Now() - now);
-    g_q_depth = std::min(g_q_depth + 2, MAX_Q_DEPTH);
   }
 
   g_last_eval = g_best_score;
@@ -2354,20 +2355,21 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
     "Mode:     " << (g_nnue_exist ? "NNUE" : "HCE") << std::endl;
 }
 
-// Supported commands help
 void UciHelp() {
   std::cout <<
+    "Supported UCI commands:\n" <<
     "help        This help\n" <<
     "uci         Outputs the engine info\n" <<
-    "isready     Synchronize the engine with the GUI\n" <<
+    "isready     Synchronization of the engine. Responded w/ 'readyok'\n" <<
     "ucinewgame  Sent before the game\n" <<
     "stop        Stop the search and report a bestmove\n" <<
     "quit        Exits the engine ASAP\n" <<
-    "setoption name [name] value [value]\n" <<
+    "setoption name [str] value [str]\n" <<
     "            Sets a given option\n" <<
-    "go [wtime] [btime] [winc] [binc] [movestogo] [movetime] [depth] [infinite]\n" <<
+    "go wtime [int] btime [int] winc [int] binc [int]\n" << 
+    "   movestogo [int] movetime [int] depth [int] [infinite]\n" <<
     "            Search the current position with the provided settings\n" <<
-    "position [fen = startpos] [moves?]\n" <<
+    "position [startpos | fen] moves? [e2e4 c7c5 ...]\n" <<
     "            Sets the board position via an optional FEN and optional move list\n" <<
     "perft [depth = 6] [fen = startpos]\n" <<
     "            Calculate perft split numbers\n" <<
@@ -2376,8 +2378,8 @@ void UciHelp() {
     "bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]\n"  <<
     "            Bench signature and speed of the program\n" <<
     "            > bench inf 10000    ( Speed )\n" <<
-    "            > bench              ( 15932209 )\n" <<
-    "            > bench 11 inf 256 0 ( 15157798 )\n" <<
+    "            > bench              ( 15932439 )\n" <<
+    "            > bench 11 inf 256 0 ( 15157552 )\n" <<
     "p [fen = current_position]\n" <<
     "            Print ASCII art board\n" <<
     "            > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0_1" << std::endl;
