@@ -279,8 +279,10 @@ struct Board { // 171B
 };
 
 struct HashEntry { // 10B
-  std::uint32_t killer_hash{0}, good_hash{0}; // Hash
-  std::uint8_t killer{0}, good{0};            // Index
+  std::uint32_t killer_hash{0}; // Killer move hash
+  std::uint32_t good_hash{0};   // Good move hash
+  std::uint8_t  killer{0};      // Killer move index
+  std::uint8_t  good{0};        // Good move index
 
   HashEntry() = default;
   template <MoveType>
@@ -2024,26 +2026,26 @@ struct Material {
   const int white_n, black_n, both_n;
 
   Material() : white_n{PopCount(White())}, black_n{PopCount(Black())}, both_n{this->white_n + this->black_n} { }
-  
+
   // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
-  bool is_rook_ending() const { 
+  bool is_rook_ending() const {
     return this->both_n == 5 && (PopCount(g_board->white[3] | g_board->black[3]) == 3);
   }
 
   // Vs king + (PNBRQ) ?
-  bool is_easy() const { 
+  bool is_easy() const {
     return g_wtm ? this->black_n <= 2 : this->white_n <= 2;
   }
 
   // 5 pieces or less both side -> Endgame
-  bool is_endgame() const { 
+  bool is_endgame() const {
     return g_wtm ? this->black_n <= 5 : this->white_n <= 5;
   }
 };
 
 // Activate HCE when ... No NNUE / Easy / Rook ending / 16+ pieces each color
-bool HCEActivation(const Material &m) { 
-  return (!g_nnue_exist) || m.is_easy() || m.is_rook_ending() || (m.white_n >= 17 || m.black_n >= 17); 
+bool HCEActivation(const Material &m) {
+  return (!g_nnue_exist) || m.is_easy() || m.is_rook_ending() || (m.white_n >= 17 || m.black_n >= 17);
 }
 
 // Play the book move from root list
@@ -2357,6 +2359,7 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
 
 void UciHelp() {
   std::cout <<
+    "Mayhem. Linux UCI Chess960 engine. Written in C++17 language\n" <<
     "Supported UCI commands:\n" <<
     "help        This help\n" <<
     "uci         Outputs the engine info\n" <<
@@ -2366,10 +2369,10 @@ void UciHelp() {
     "quit        Exits the engine ASAP\n" <<
     "setoption name [str] value [str]\n" <<
     "            Sets a given option\n" <<
-    "go wtime [int] btime [int] winc [int] binc [int]\n" << 
+    "go wtime [int] btime [int] winc [int] binc [int]\n" <<
     "   movestogo [int] movetime [int] depth [int] [infinite]\n" <<
     "            Search the current position with the provided settings\n" <<
-    "position [startpos | fen] moves? [e2e4 c7c5 ...]\n" <<
+    "position (startpos | fen [str]) (moves [e2e4 c7c5 ...])?\n" <<
     "            Sets the board position via an optional FEN and optional move list\n" <<
     "perft [depth = 6] [fen = startpos]\n" <<
     "            Calculate perft split numbers\n" <<
@@ -2378,8 +2381,8 @@ void UciHelp() {
     "bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]\n"  <<
     "            Bench signature and speed of the program\n" <<
     "            > bench inf 10000    ( Speed )\n" <<
-    "            > bench              ( 15932439 )\n" <<
-    "            > bench 11 inf 256 0 ( 15157552 )\n" <<
+    "            > bench              ( 15965585 )\n" <<
+    "            > bench 11 inf 256 0 ( 15031762 )\n" <<
     "p [fen = current_position]\n" <<
     "            Print ASCII art board\n" <<
     "            > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0_1" << std::endl;
