@@ -2403,6 +2403,7 @@ bool UciCommands() {
   else if (Token("bench"))      UciBench(TokenNth(0), TokenNth(1), TokenNth(2), TokenNth(3));
   else if (Token("perft"))      UciPerft(TokenNth(0), TokenNth(1));
   else if (Token("p"))          UciPrintBoard(TokenNth(0));
+  else                          std::cout << "Unknown command: " << TokenNth(0) << std::endl;
 
   return g_game_on;
 }
