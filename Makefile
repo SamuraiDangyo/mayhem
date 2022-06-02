@@ -14,11 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-# Examples
-
-# make -j CXX="g++"
-# make -j CXX="g++" NFLAGS="-DUSE_SSE2 -msse2" EXE="mayhem-sse2"
-
 # Definitions
 
 CXX    = clang++
@@ -35,4 +30,9 @@ all:
 clean:
 	rm -f $(EXE)
 
-.PHONY: all clean
+help:
+	@echo 'Flags: -DWINDOWS, CXX=, CXXFLAGS=, EXE=, [BWN]FLAGS='
+	@echo 'make -j'
+	@echo 'make -j CXX="g++" NFLAGS="-DUSE_SSE2 -msse2"'
+
+.PHONY: all clean help
