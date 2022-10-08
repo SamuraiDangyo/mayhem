@@ -57,7 +57,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 7.3" // Version
+#define VERSION       "Mayhem 7.4" // Version
 #define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // UCI startpos
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
@@ -65,7 +65,7 @@ namespace mayhem {
 #define BOOK_MS       100      // At least 100ms+ for the book lookup
 #define INF           1048576  // System max number
 #define MAX_ARR       102      // Enough space for arrays
-#define HASH          256      // MB
+#define HASH_MB       256      // MB
 #define NOISE         2        // Noise for opening moves
 #define MOVEOVERHEAD  100      // ms
 #define WEEK          (7 * 24 * 60 * 60 * 1000) // ms
@@ -73,7 +73,7 @@ namespace mayhem {
 #define MAX_PIECES    32       // Max pieces on board (32 normally ...)
 #define READ_CLOCK    0x1FFULL // Read clock every 512 ticks (white / 2 x both)
 #define EVAL_FILE     "nn-cb80fb9393af.nnue" // Default NNUE ("x" to disable)
-#define BOOK_FILE     "performance.bin"      // Default Book ("x" to disable)
+#define BOOK_FILE     "final-book.bin"       // Default Book ("x" to disable)
 
 // Constants
 
@@ -702,17 +702,9 @@ int Piece2Num(const char p) { // Convert piece (Char) -> Int
   }
 }
 
-int Empty2Num(const char e) { // Empty cells (Char) -> Int
-  return e - '0';
-}
-
-int File2Num(const char f) { // X-coord (Char) -> Int
-  return f - 'a';
-}
-
-int Rank2Num(const char r) { // Ep Y-coord (Char) -> Int
-  return r == '3' ? 2 : 5; // '3' / '6'
-}
+int Empty2Num(const char e) { return e - '0'; } // Empty cells (Char) -> Int
+int File2Num(const char f) { return f - 'a'; } // X-coord (Char) -> Int
+int Rank2Num(const char r) { return r == '3' ? 2 : 5; } // Ep Y-coord (Char | '3' / '6') -> Int
 
 void FenBoard(const std::string &board) {
   auto sq = 56;
@@ -850,8 +842,8 @@ inline bool ChecksB() {
 
 // Sorting
 
-// Sort only node-by-node (Avoid costly n! / tons of operations)
-// Swap every nodes for simplicity (See: lazy-sorting-algorithm paper)
+// Sort only one node at a time ( Avoid costly n! / tons of operations )
+// Swap every node for simplicity ( See: lazy-sorting-algorithm paper )
 inline void LazySort(const int ply, const int nth, const int total_moves) {
   for (auto i = nth + 1; i < total_moves; ++i)
     if (g_boards[ply][i].score > g_boards[ply][nth].score)
@@ -1405,7 +1397,7 @@ int MgenRoot() {
 #define BISHOP_PAIR_BONUS  20
 #define CHECKS_BONUS       17
 
-// Probe Eucalyptus KPK bitbases -> true: draw -> false: not draw
+// Probe Eucalyptus KPK bitbases -> true: draw / false: not draw
 inline bool ProbeKPK(const bool wtm) {
   return g_board->white[0] ?
     eucalyptus::IsDraw(     Ctz(g_board->white[5]),      Ctz(g_board->white[0]),      Ctz(g_board->black[5]),  wtm) :
@@ -1414,16 +1406,14 @@ inline bool ProbeKPK(const bool wtm) {
 
 // Detect trivial draws really fast
 bool EasyDraw(const bool wtm) {
-  if (g_board->white[3] | g_board->white[4] | g_board->black[3] | g_board->black[4]) // R/Q/r/q -> No draw
-    return false;
+  if (g_board->white[3] | g_board->white[4] | g_board->black[3] | g_board->black[4])
+    return false; // R/Q/r/q -> No draw
 
-  if (g_board->white[1] | g_board->white[2] | g_board->black[1] | g_board->black[2]) // N/B/n/b -> Drawish ?
-    return (g_board->white[0] | g_board->black[0]) ?
-      false : // Pawns ? -> No draw
-      PopCount(g_board->white[1] | g_board->white[2]) <= 1 && // Max 1 N/B per side -> Draw
-      PopCount(g_board->black[1] | g_board->black[2]) <= 1;
+  const auto nnbb  = g_board->white[1] | g_board->white[2] | g_board->black[1] | g_board->black[2];
+  const auto pawns = g_board->white[0] | g_board->black[0];
+  if (nnbb) return pawns ? false : PopCount(nnbb) <= 1; // Total 1 N/B + no pawns -> Draw
 
-  const auto pawns_n = PopCount(g_board->white[0] | g_board->black[0]); // No N/B/R/Q/n/b/r/q -> Pawns ?
+  const auto pawns_n = PopCount(pawns); // No N/B/R/Q/n/b/r/q -> Pawns ?
   return pawns_n == 1 ? ProbeKPK(wtm) : (pawns_n == 0); // Check KPK ? / Bare kings ? -> Draw
 }
 
@@ -1431,7 +1421,7 @@ bool EasyDraw(const bool wtm) {
 // Bishop on a1/h1/a8/h8 blocked by own pawn
 int FixFRC() {
   // No bishop in corner -> Speedup
-  static const std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
+  const std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
   if (!((g_board->white[2] | g_board->black[2]) & corners))
     return 0;
 
@@ -1445,6 +1435,11 @@ int FixFRC() {
 
 // Classical evaluation (HCE)
 
+inline int FlipY(const int sq) { return sq ^ 56; } // Mirror horizontal
+inline int Square(const int x) { return x * x; } // x ^ 2
+int CloseBonus(const int a, const int b) { return Square(7 - std::abs(Xaxl(a) - Xaxl(b))) + Square(7 - std::abs(Yaxl(a) - Yaxl(b))); }
+int CloseAnyCornerBonus(const int sq) { return std::max({CloseBonus(sq, 0), CloseBonus(sq, 7), CloseBonus(sq, 56), CloseBonus(sq, 63)}); }
+
 struct ClassicalEval { // Finish the game or no NNUE
   const std::uint64_t white, black, both;
   const bool m_wtm; // Avoid collision w/ template wtm
@@ -1452,17 +1447,6 @@ struct ClassicalEval { // Finish the game or no NNUE
       wk{0}, bk{0}, score{0}, mg{0}, eg{0}, scale_factor{1};
 
   explicit ClassicalEval(const bool wtm) : white{White()}, black{Black()}, both{this->white | this->black}, m_wtm{wtm} { }
-
-  inline int flip_y(const int sq) const { return sq ^ 56; } // Mirror horizontal
-  int square(const int x) const { return x * x; }
-
-  int close_bonus(const int a, const int b) const {
-    return this->square(7 - std::abs(Xaxl(a) - Xaxl(b))) + this->square(7 - std::abs(Yaxl(a) - Yaxl(b)));
-  }
-
-  int close_any_corner_bonus(const int sq) const {
-    return std::max({this->close_bonus(sq, 0),  this->close_bonus(sq, 7), this->close_bonus(sq, 56), this->close_bonus(sq, 63)});
-  }
 
   template<bool wtm>
   void check_blind_bishop() {
@@ -1483,8 +1467,8 @@ struct ClassicalEval { // Finish the game or no NNUE
       this->mg += kPesto[p][0][sq];
       this->eg += kPesto[p][1][sq];
     } else {
-      this->mg -= kPesto[p][0][this->flip_y(sq)];
-      this->eg -= kPesto[p][1][this->flip_y(sq)];
+      this->mg -= kPesto[p][0][FlipY(sq)];
+      this->eg -= kPesto[p][1][FlipY(sq)];
     }
   }
 
@@ -1574,12 +1558,12 @@ struct ClassicalEval { // Finish the game or no NNUE
 
   template<bool wtm>
   void bonus_knbk() {
-    if constexpr (wtm) this->score += (2 * this->close_bonus(this->wk, this->bk)) +
-      (10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(this->close_bonus(0, this->bk), this->close_bonus(63, this->bk)) :
-                                                           std::max(this->close_bonus(7, this->bk), this->close_bonus(56, this->bk))));
-    else               this->score -= (2 * this->close_bonus(this->wk, this->bk)) +
-      (10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(this->close_bonus(0, this->wk), this->close_bonus(63, this->wk)) :
-                                                           std::max(this->close_bonus(7, this->wk), this->close_bonus(56, this->wk))));
+    if constexpr (wtm) this->score += (2 * CloseBonus(this->wk, this->bk)) +
+      (10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
+                                                           std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk))));
+    else               this->score -= (2 * CloseBonus(this->wk, this->bk)) +
+      (10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
+                                                           std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk))));
   }
 
   void bonus_tempo() {
@@ -1594,8 +1578,8 @@ struct ClassicalEval { // Finish the game or no NNUE
   // Force black king in the corner and get closer
   template<bool wtm>
   void bonus_mating() {
-    if constexpr (wtm) this->score += 6 * this->close_any_corner_bonus(this->bk) + 4 * this->close_bonus(this->wk, this->bk);
-    else               this->score -= 6 * this->close_any_corner_bonus(this->wk) + 4 * this->close_bonus(this->bk, this->wk);
+    if constexpr (wtm) this->score += 6 * CloseAnyCornerBonus(this->bk) + 4 * CloseBonus(this->wk, this->bk);
+    else               this->score -= 6 * CloseAnyCornerBonus(this->wk) + 4 * CloseBonus(this->bk, this->wk);
   }
 
 #define WP(x) this->w_pieces[(x)]
@@ -1752,8 +1736,8 @@ bool Draw(const bool wtm) {
   if (g_board->fifty > 100 || EasyDraw(wtm)) return true;
 
   const auto hash = g_r50_positions[g_board->fifty]; // g_r50_positions.pop() must contain hash !
-  for (auto i = g_board->fifty - 2; i >= 0; i -= 2)
-    if (g_r50_positions[i] == hash) // 2 reps is a draw
+  for (int i = g_board->fifty - 2, reps = 0; i >= 0; i -= 2)
+    if (g_r50_positions[i] == hash && ++reps == 2) // 3 reps is draw
       return true;
 
   return false;
@@ -2070,8 +2054,8 @@ int BookSolveType(const int from, const int to, const int move) {
   // PolyGlot promos (=n / =b / =r / =q)
   auto is_promo = [&move](const int v){ return move & (0x1 << (12 + v)); };
   constexpr std::array<int, 4> v = {0, 1, 2, 3};
-  if (const auto res = std::find_if(v.begin(), v.end(), is_promo); res != v.end())
-    return 5 + *res;
+  const auto res = std::find_if(v.begin(), v.end(), is_promo);
+  if (res != v.end()) return 5 + *res;
 
   // White: O-O / O-O-O
   if (g_board->pieces[from] == +6 && g_board->pieces[to] == +4)
@@ -2274,7 +2258,7 @@ void UciUci() {
     "option name UCI_Chess960 type check default false\n" <<
     "option name Level type spin default 100 min 0 max 100\n" <<
     "option name MoveOverhead type spin default " << MOVEOVERHEAD << " min 0 max 10000\n" <<
-    "option name Hash type spin default " << HASH << " min 1 max 1048576\n" <<
+    "option name Hash type spin default " << HASH_MB << " min 1 max 1048576\n" <<
     "option name EvalFile type string default " << EVAL_FILE << '\n' <<
     "option name BookFile type string default " << BOOK_FILE << '\n' <<
     "uciok" << std::endl;
@@ -2370,7 +2354,7 @@ void UciHelp() {
     "setoption name [str] value [str]\n" <<
     "            Sets a given option\n" <<
     "go wtime [int] btime [int] winc [int] binc [int]\n" <<
-    "   movestogo [int] movetime [int] depth [int] [infinite]\n" <<
+    "    ... movestogo [int] movetime [int] depth [int] [infinite]\n" <<
     "            Search the current position with the provided settings\n" <<
     "position (startpos | fen [str]) (moves [e2e4 c7c5 ...])?\n" <<
     "            Sets the board position via an optional FEN and optional move list\n" <<
@@ -2381,8 +2365,8 @@ void UciHelp() {
     "bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]\n"  <<
     "            Bench signature and speed of the program\n" <<
     "            > bench inf 10000    ( Speed )\n" <<
-    "            > bench              ( 15965585 )\n" <<
-    "            > bench 11 inf 256 0 ( 15031762 )\n" <<
+    "            > bench              ( 15988584 )\n" <<
+    "            > bench 11 inf 256 0 ( 15419826 )\n" <<
     "p [fen = current_position]\n" <<
     "            Print ASCII art board\n" <<
     "            > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0_1" << std::endl;
@@ -2513,7 +2497,7 @@ void InitScale() {
 void InitLMR() {
   for (auto d = 0; d < MAX_DEPTH; ++d)
     for (auto m = 0; m < MAX_MOVES; ++m)
-      g_lmr[d][m] = std::clamp<int>(0.25 * std::log(d) * std::log(m), 1, 6);
+      g_lmr[d][m] = std::clamp<int>((!d || !m) ? 1 : 0.25 * std::log(d) * std::log(m), 1, 6);
 }
 
 void PrintVersion() {
@@ -2528,7 +2512,7 @@ void Init() {
   InitZobrist();
   InitScale();
   InitLMR();
-  SetHashtable(HASH);
+  SetHashtable(HASH_MB);
   SetNNUE(EVAL_FILE);
   SetBook(BOOK_FILE);
   Fen(STARTPOS);
