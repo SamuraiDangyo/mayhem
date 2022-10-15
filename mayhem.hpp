@@ -57,8 +57,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 7.4" // Version
-#define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // UCI startpos
+#define VERSION       "Mayhem 7.5" // Version
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
 #define MAX_Q_DEPTH   16       // Max Qsearch depth
@@ -68,10 +67,11 @@ namespace mayhem {
 #define HASH_MB       256      // MB
 #define NOISE         2        // Noise for opening moves
 #define MOVEOVERHEAD  100      // ms
-#define WEEK          (7 * 24 * 60 * 60 * 1000) // ms
 #define BOOK_BEST     false    // Nondeterministic opening play
-#define MAX_PIECES    32       // Max pieces on board (32 normally ...)
 #define READ_CLOCK    0x1FFULL // Read clock every 512 ticks (white / 2 x both)
+#define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // UCI startpos
+#define WEEK          (7 * 24 * 60 * 60 * 1000) // ms
+#define MAX_PIECES    (2 * (8 * 1 + 2 * 3 + 2 * 3 + 2 * 5 + 2 * 9 + 2 * 0)) // Max pieces on board (Kings always exist)
 #define EVAL_FILE     "nn-cb80fb9393af.nnue" // Default NNUE ("x" to disable)
 #define BOOK_FILE     "final-book.bin"       // Default Book ("x" to disable)
 
@@ -100,57 +100,64 @@ constexpr int kMvv[6][6] =
 { {10, 15, 15, 20, 25, 99}, {9, 14, 14, 19, 24, 99}, {9, 14, 14, 19, 24, 99},
   { 8, 13, 13, 18, 23, 99}, {7, 12, 12, 17, 22, 99}, {6, 11, 11, 16, 21, 99} };
 
-// Piece-Square Tables ( Material baked in )
-// MG / EG -> P / N / B / R / Q / K
-constexpr int kPesto[6][2][64] =
-{{{ 82,   82,   82,   82,   82,   82,   82,   82,   47,   81,   62,   59,   67,   106,  120,  60,
-    56,   78,   78,   72,   85,   85,   115,  70,   55,   80,   77,   94,   99,   88,   92,   57,
-    68,   95,   88,   103,  105,  94,   99,   59,   76,   89,   108,  113,  147,  138,  107,  62,
-    180,  216,  143,  177,  150,  208,  116,  71,   82,   82,   82,   82,   82,   82,   82,   82 },
-  { 94,   94,   94,   94,   94,   94,   94,   94,   107,  102,  102,  104,  107,  94,   96,   87,
-    98,   101,  88,   95,   94,   89,   93,   86,   107,  103,  91,   87,   87,   86,   97,   93,
-    126,  118,  107,  99,   92,   98,   111,  111,  188,  194,  179,  161,  150,  147,  176,  178,
-    272,  267,  252,  228,  241,  226,  259,  281,  94,   94,   94,   94,   94,   94,   94,   94 }},
- {{ 232,  316,  279,  304,  320,  309,  318,  314,  308,  284,  325,  334,  336,  355,  323,  318,
-    314,  328,  349,  347,  356,  354,  362,  321,  324,  341,  353,  350,  365,  356,  358,  329,
-    328,  354,  356,  390,  374,  406,  355,  359,  290,  397,  374,  402,  421,  466,  410,  381,
-    264,  296,  409,  373,  360,  399,  344,  320,  170,  248,  303,  288,  398,  240,  322,  230 },
-  { 252,  230,  258,  266,  259,  263,  231,  217,  239,  261,  271,  276,  279,  261,  258,  237,
-    258,  278,  280,  296,  291,  278,  261,  259,  263,  275,  297,  306,  297,  298,  285,  263,
-    264,  284,  303,  303,  303,  292,  289,  263,  257,  261,  291,  290,  280,  272,  262,  240,
-    256,  273,  256,  279,  272,  256,  257,  229,  223,  243,  268,  253,  250,  254,  218,  182 }},
- {{ 332,  362,  351,  344,  352,  353,  326,  344,  369,  380,  381,  365,  372,  386,  398,  366,
-    365,  380,  380,  380,  379,  392,  383,  375,  359,  378,  378,  391,  399,  377,  375,  369,
-    361,  370,  384,  415,  402,  402,  372,  363,  349,  402,  408,  405,  400,  415,  402,  363,
-    339,  381,  347,  352,  395,  424,  383,  318,  336,  369,  283,  328,  340,  323,  372,  357},
-  { 274,  288,  274,  292,  288,  281,  292,  280,  283,  279,  290,  296,  301,  288,  282,  270,
-    285,  294,  305,  307,  310,  300,  290,  282,  291,  300,  310,  316,  304,  307,  294,  288,
-    294,  306,  309,  306,  311,  307,  300,  299,  299,  289,  297,  296,  295,  303,  297,  301,
-    289,  293,  304,  285,  294,  284,  293,  283,  283,  276,  286,  289,  290,  288,  280,  273 }},
- {{ 458,  464,  478,  494,  493,  484,  440,  451,  433,  461,  457,  468,  476,  488,  471,  406,
-    432,  452,  461,  460,  480,  477,  472,  444,  441,  451,  465,  476,  486,  470,  483,  454,
-    453,  466,  484,  503,  501,  512,  469,  457,  472,  496,  503,  513,  494,  522,  538,  493,
-    504,  509,  535,  539,  557,  544,  503,  521,  509,  519,  509,  528,  540,  486,  508,  520 },
-  { 503,  514,  515,  511,  507,  499,  516,  492,  506,  506,  512,  514,  503,  503,  501,  509,
-    508,  512,  507,  511,  505,  500,  504,  496,  515,  517,  520,  516,  507,  506,  504,  501,
-    516,  515,  525,  513,  514,  513,  511,  514,  519,  519,  519,  517,  516,  509,  507,  509,
-    523,  525,  525,  523,  509,  515,  520,  515,  525,  522,  530,  527,  524,  524,  520,  517 }},
- {{ 1024, 1007, 1016, 1035, 1010, 1000, 994,  975,  990,  1017, 1036, 1027, 1033, 1040, 1022, 1026,
-    1011, 1027, 1014, 1023, 1020, 1027, 1039, 1030, 1016, 999,  1016, 1015, 1023, 1021, 1028, 1022,
-    998,  998,  1009, 1009, 1024, 1042, 1023, 1026, 1012, 1008, 1032, 1033, 1054, 1081, 1072, 1082,
-    1001, 986,  1020, 1026, 1009, 1082, 1053, 1079, 997,  1025, 1054, 1037, 1084, 1069, 1068, 1070 },
-  { 903,  908,  914,  893,  931,  904,  916,  895,  914,  913,  906,  920,  920,  913,  900,  904,
-    920,  909,  951,  942,  945,  953,  946,  941,  918,  964,  955,  983,  967,  970,  975,  959,
-    939,  958,  960,  981,  993,  976,  993,  972,  916,  942,  945,  985,  983,  971,  955,  945,
-    919,  956,  968,  977,  994,  961,  966,  936,  927,  958,  958,  963,  963,  955,  946,  956 }},
- {{ -15,  36,   12,   -54,  8,    -28,  24,   14,   1,    7,    -8,   -64,  -43,  -16,  9,    8,
-    -14,  -14,  -22,  -46,  -44,  -30,  -15,  -27,  -49,  -1,   -27,  -39,  -46,  -44,  -33,  -51,
-    -17,  -20,  -12,  -27,  -30,  -25,  -14,  -36,  -9,   24,   2,    -16,  -20,  6,    22,   -22,
-    29,   -1,   -20,  -7,   -8,   -4,   -38,  -29,  -65,  23,   16,   -15,  -56,  -34,  2,    13},
-  { -53,  -34,  -21,  -11,  -28,  -14,  -24,  -43,  -27,  -11,  4,    13,   14,   4,    -5,   -17,
-    -19,  -3,   11,   21,   23,   16,   7,    -9,   -18,  -4,   21,   24,   27,   23,   9,    -11,
-    -8,   22,   24,   27,   26,   33,   26,   3,    10,   17,   23,   15,   20,   45,   44,   13,
-    -12,  17,   14,   17,   17,   38,   23,   11,   -74,  -35,  -18,  -18,  -11,  15,   4,    -17 }}};
+// Evaluation phases      ( P, N, B, R, Q, K )
+constexpr int kPiece[6] = { 1, 3, 3, 5, 9, 0 };
+
+// MG / EG -> P , N, B, R, Q, K
+constexpr int kPestoMaterial[2][6] =
+{{ 82, 337, 365, 477, 1025, 0},
+ { 94, 281, 297, 512,  936, 0 }};
+
+// [Piece][Phase][Square]
+constexpr int kPestoPsqt[6][2][64] =
+{{{  0,    0,    0,    0,    0,    0,    0,    0,  -35,   -1,  -20,  -23,  -15,   24,   38,  -22, // Pawn (MG)
+   -26,   -4,   -4,  -10,    3,    3,   33,  -12,  -27,   -2,   -5,   12,   17,    6,   10,  -25,
+   -14,   13,    6,   21,   23,   12,   17,  -23  , -6,    7,   26,   31,   65,   56,   25,  -20,
+    98,  134,   61,   95,   68,  126,   34,  -11,    0,    0,    0,    0,    0,    0,    0,    0 },
+{    0,    0,    0,    0,    0,    0,    0,    0,   13,    8,    8,   10,   13,    0,    2,   -7, // Pawn (EG)
+     4,    7,   -6,    1,    0,   -5,   -1,   -8,   13,    9,   -3,   -7,   -7,   -8,    3,   -1,
+    32,   24,   13,    5,   -2,    4,   17,   17,   94,  100,   85,   67,   56,   53,   82,   84,
+   178,  173,  158,  134,  147,  132,  165,  187,    0,    0,    0,    0,    0,    0,    0,    0 }},
+{{-105,  -21,  -58,  -33,  -17,  -28,  -19,  -23,  -29,  -53,  -12,   -3,   -1,   18,  -14,  -19, // Knight (MG)
+   -23,   -9,   12,   10,   19,   17,   25,  -16,  -13,    4,   16,   13,   28,   19,   21,   -8,
+    -9,   17,   19,   53,   37,   69,   18,   22,  -47,   60,   37,   65,   84,  129,   73,   44,
+   -73,  -41,   72,   36,   23,   62,    7,  -17, -167,  -89,  -34,  -49,   61,  -97,  -15, -107 },
+{  -29,  -51,  -23,  -15,  -22,  -18,  -50,  -64,  -42,  -20,  -10,   -5,   -2,  -20,  -23,  -44, // Knight (EG)
+   -23,   -3,   -1,   15,   10,   -3,  -20,  -22,  -18,   -6,   16,   25,   16,   17,    4,  -18,
+   -17,    3,   22,   22,   22,   11,    8,  -18,  -24,  -20,   10,    9,   -1,   -9,  -19,  -41,
+   -25,   -8,  -25,   -2,   -9,  -25,  -24,  -52,  -58,  -38,  -13,  -28,  -31,  -27,  -63,  -99 }},
+{{ -33,   -3,  -14,  -21,  -13,  -12,  -39,  -21,    4,   15,   16,    0,    7,   21,   33,    1, // Bishop (MG)
+     0,   15,   15,   15,   14,   27,   18,   10,   -6,   13,   13,   26,   34,   12,   10,    4,
+    -4,    5,   19,   50,   37,   37,    7,   -2,  -16,   37,   43,   40,   35,   50,   37,   -2,
+   -26,   16,  -18,  -13,   30,   59,   18,  -47,  -29,    4,  -82,  -37,  -25,  -42,    7,   -8 },
+{  -23,   -9,  -23,   -5,   -9,  -16,   -5,  -17,  -14,  -18,   -7,   -1,    4,   -9,  -15,  -27, // Bishop (EG)
+   -12,   -3,    8,   10,   13,    3,   -7,  -15,   -6,    3,   13,   19,    7,   10,   -3,   -9,
+    -3,    9,   12,    9,   14,   10,    3,    2,    2,   -8,    0,   -1,   -2,    6,    0,    4,
+    -8,   -4,    7,  -12,   -3,  -13,   -4,  -14,  -14,  -21,  -11,   -8,   -7,   -9,  -17,  -24 }},
+{{ -19,  -13,    1,   17,   16,    7,  -37,  -26,  -44,  -16,  -20,   -9,   -1,   11,   -6,  -71, // Rook (MG)
+   -45,  -25,  -16,  -17,    3,    0,   -5,  -33,  -36,  -26,  -12,   -1,    9,   -7,    6,  -23,
+   -24,  -11,    7,   26,   24,   35,   -8,  -20,   -5,   19,   26,   36,   17,   45,   61,   16,
+    27,   32,   58,   62,   80,   67,   26,   44,   32,   42,   32,   51,   63,    9,   31,   43 },
+{   -9,    2,    3,   -1,   -5,  -13,    4,  -20,   -6,   -6,    0,    2,   -9,   -9,  -11,   -3, // Rook (EG)
+    -4,    0,   -5,   -1,   -7,  -12,   -8,  -16,    3,    5,    8,    4,   -5,   -6,   -8,  -11,
+     4,    3,   13,    1,    2,    1,   -1,    2,    7,    7,    7,    5,    4,   -3,   -5,   -3,
+    11,   13,   13,   11,   -3,    3,    8,    3,   13,   10,   18,   15,   12,   12,    8,    5 }},
+{{  -1,  -18,   -9,   10,  -15,  -25,  -31,  -50,  -35,   -8,   11,    2,    8,   15,   -3,    1, // Queen (MG)
+   -14,    2,  -11,   -2,   -5,    2,   14,    5,   -9,  -26,   -9,  -10,   -2,   -4,    3,   -3,
+   -27,  -27,  -16,  -16,   -1,   17,   -2,    1,  -13,  -17,    7,    8,   29,   56,   47,   57,
+   -24,  -39,   -5,    1,  -16,   57,   28,   54,  -28,    0,   29,   12,   59,   44,   43,   45},
+{  -33,  -28,  -22,  -43,   -5,  -32,  -20,  -41,  -22,  -23,  -30,  -16,  -16,  -23,  -36,  -32, // Queen (EG)
+   -16,  -27,   15,    6,    9,   17,   10,    5,  -18,   28,   19,   47,   31,   34,   39,   23,
+     3,   22,   24,   45,   57,   40,   57,   36,  -20,    6,    9,   49,   47,   35,   19,    9,
+   -17,   20,   32,   41,   58,   25,   30,    0,   -9,   22,   22,   27,   27,   19,   10,   20 }},
+{{ -15,   36,   12,  -54,    8,  -28,   24,   14,    1,    7,   -8,  -64,  -43,  -16,    9,    8, // King (MG)
+   -14,  -14,  -22,  -46,  -44,  -30,  -15,  -27,  -49,   -1,  -27,  -39,  -46,  -44,  -33,  -51,
+   -17,  -20,  -12,  -27,  -30,  -25,  -14,  -36,   -9,   24,    2,  -16,  -20,    6,   22,  -22,
+    29,   -1,  -20,   -7,   -8,   -4,  -38,  -29,  -65,   23,   16,  -15,  -56,  -34,    2,   13 },
+{  -53,  -34,  -21,  -11,  -28,  -14,  -24,  -43,  -27,  -11,    4,   13,   14,    4,   -5,  -17, // King (EG)
+   -19,   -3,   11,   21,   23,   16,    7,   -9,  -18,   -4,   21,   24,   27,   23,    9,  -11,
+    -8,   22,   24,   27,   26,   33,   26,    3,   10,   17,   23,   15,   20,   45,   44,   13,
+   -12,   17,   14,   17,   17,   38,   23,   11,  -74,  -35,  -18,  -18,  -11,   15,    4,  -17 }}};
 
 constexpr std::uint64_t kRookMagics[3][64] =
 { { 0x548001400080106cULL, 0x900184000110820ULL,  0x428004200a81080ULL,  0x140088082000c40ULL, // Magics
@@ -1443,7 +1450,7 @@ int CloseAnyCornerBonus(const int sq) { return std::max({CloseBonus(sq, 0), Clos
 struct ClassicalEval { // Finish the game or no NNUE
   const std::uint64_t white, black, both;
   const bool m_wtm; // Avoid collision w/ template wtm
-  int w_pieces[5]{}, b_pieces[5]{}, white_total{0}, black_total{0}, both_total{0},
+  int w_pieces[5]{}, b_pieces[5]{}, white_total{1}, black_total{1}, both_total{0}, piece_sum{0},
       wk{0}, bk{0}, score{0}, mg{0}, eg{0}, scale_factor{1};
 
   explicit ClassicalEval(const bool wtm) : white{White()}, black{Black()}, both{this->white | this->black}, m_wtm{wtm} { }
@@ -1464,18 +1471,12 @@ struct ClassicalEval { // Finish the game or no NNUE
   template<bool wtm, int p>
   inline void pesto(const int sq) {
     if constexpr (wtm) {
-      this->mg += kPesto[p][0][sq];
-      this->eg += kPesto[p][1][sq];
+      this->mg += kPestoPsqt[p][0][sq]        + kPestoMaterial[0][p];
+      this->eg += kPestoPsqt[p][1][sq]        + kPestoMaterial[1][p];
     } else {
-      this->mg -= kPesto[p][0][FlipY(sq)];
-      this->eg -= kPesto[p][1][FlipY(sq)];
+      this->mg -= kPestoPsqt[p][0][FlipY(sq)] + kPestoMaterial[0][p];
+      this->eg -= kPestoPsqt[p][1][FlipY(sq)] + kPestoMaterial[1][p];
     }
-  }
-
-  template<bool wtm, int piece>
-  inline void inc_piece_count() {
-    if constexpr (wtm) ++this->w_pieces[piece];
-    else               ++this->b_pieces[piece];
   }
 
   // Squares not having own pieces are reachable
@@ -1493,67 +1494,37 @@ struct ClassicalEval { // Finish the game or no NNUE
 
   template<bool wtm, int piece, int k>
   inline void eval_score(const int sq, const std::uint64_t m) {
-    this->inc_piece_count<wtm, piece>();
     this->pesto<wtm, piece>(sq);
-    this->mobility<wtm, k>(m);
+    this->mobility<wtm, k>(m & this->reachable<wtm>());
   }
 
-  template<bool wtm>
-  void pawn(const int sq) {
-    this->inc_piece_count<wtm, 0>();
-    this->pesto<wtm, 0>(sq);
-  }
-
-  template<bool wtm>
-  void knight(const int sq) {
-    this->eval_score<wtm, 1, 2>(sq, g_knight_moves[sq] & this->reachable<wtm>());
-  }
-
-  template<bool wtm>
-  void bishop(const int sq) {
-    this->eval_score<wtm, 2, 3>(sq, BishopMagicMoves(sq, this->both) & this->reachable<wtm>());
-  }
-
-  template<bool wtm>
-  void rook(const int sq) {
-    this->eval_score<wtm, 3, 3>(sq, RookMagicMoves(sq, this->both) & this->reachable<wtm>());
-  }
-
-  template<bool wtm>
-  void queen(const int sq) {
-    this->eval_score<wtm, 4, 2>(sq, (BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)) & this->reachable<wtm>());
-  }
-
-  template<bool wtm>
-  void king(const int sq) {
-    if constexpr (wtm) this->wk = sq;
-    else               this->bk = sq;
-    this->pesto<wtm, 5>(sq);
-    this->mobility<wtm, 1>(g_king_moves[sq] & this->reachable<wtm>());
-  }
+  template<bool wtm> void pawn(const int sq)   { this->pesto<wtm, 0>(sq); }
+  template<bool wtm> void knight(const int sq) { this->eval_score<wtm, 1, 2>(sq, g_knight_moves[sq]); }
+  template<bool wtm> void bishop(const int sq) { this->eval_score<wtm, 2, 3>(sq, BishopMagicMoves(sq, this->both)); }
+  template<bool wtm> void rook(const int sq)   { this->eval_score<wtm, 3, 3>(sq, RookMagicMoves(sq, this->both)); }
+  template<bool wtm> void queen(const int sq)  { this->eval_score<wtm, 4, 2>(sq, BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)); }
+  template<bool wtm> void king(const int sq)   { this->eval_score<wtm, 5, 1>(sq, g_king_moves[sq]); }
 
   void eval_piece(const int sq) {
     switch (g_board->pieces[sq]) {
-      case +1: this->pawn<true>(sq);    break;
-      case +2: this->knight<true>(sq);  break;
-      case +3: this->bishop<true>(sq);  break;
-      case +4: this->rook<true>(sq);    break;
-      case +5: this->queen<true>(sq);   break;
-      case +6: this->king<true>(sq);    break;
-      case -1: this->pawn<false>(sq);   break;
-      case -2: this->knight<false>(sq); break;
-      case -3: this->bishop<false>(sq); break;
-      case -4: this->rook<false>(sq);   break;
-      case -5: this->queen<false>(sq);  break;
-      case -6: this->king<false>(sq);   break;
+      case +1: this->pawn  <true>(sq);  this->piece_sum += kPiece[0]; ++this->white_total; ++this->w_pieces[0]; break;
+      case +2: this->knight<true>(sq);  this->piece_sum += kPiece[1]; ++this->white_total; ++this->w_pieces[1]; break;
+      case +3: this->bishop<true>(sq);  this->piece_sum += kPiece[2]; ++this->white_total; ++this->w_pieces[2]; break;
+      case +4: this->rook  <true>(sq);  this->piece_sum += kPiece[3]; ++this->white_total; ++this->w_pieces[3]; break;
+      case +5: this->queen <true>(sq);  this->piece_sum += kPiece[4]; ++this->white_total; ++this->w_pieces[4]; break;
+      case +6: this->king  <true>(sq);  this->wk = sq; break; // White king (+1) is already in
+      case -1: this->pawn  <false>(sq); this->piece_sum += kPiece[0]; ++this->black_total; ++this->b_pieces[0]; break;
+      case -2: this->knight<false>(sq); this->piece_sum += kPiece[1]; ++this->black_total; ++this->b_pieces[1]; break;
+      case -3: this->bishop<false>(sq); this->piece_sum += kPiece[2]; ++this->black_total; ++this->b_pieces[2]; break;
+      case -4: this->rook  <false>(sq); this->piece_sum += kPiece[3]; ++this->black_total; ++this->b_pieces[3]; break;
+      case -5: this->queen <false>(sq); this->piece_sum += kPiece[4]; ++this->black_total; ++this->b_pieces[4]; break;
+      case -6: this->king  <false>(sq); this->bk = sq; break; // Black king (+1) is already in
     }
   }
 
   void evaluate_pieces() {
     for (auto b = this->both; b; ) this->eval_piece(CtzPop(&b));
-    this->white_total = std::accumulate(this->w_pieces + 0, this->w_pieces + 5, 1); // Start from 1 (king)
-    this->black_total = std::accumulate(this->b_pieces + 0, this->b_pieces + 5, 1);
-    this->both_total  = this->white_total + this->black_total;
+    this->both_total = this->white_total + this->black_total;
   }
 
   template<bool wtm>
@@ -1640,9 +1611,8 @@ struct ClassicalEval { // Finish the game or no NNUE
     else if (this->both_total  == 5) this->bonus_special_5men();
   }
 
-  int calculate_score() const {
-    // 30 phases for HCE (assume kings exist)
-    const float n = std::max<float>(this->both_total - 2, 0) / static_cast<float>(MAX_PIECES - 2);
+  int calculate_score() const { // "MAX_PIECES" phases for HCE (assume kings exist)
+    const float n = static_cast<float>(std::clamp(this->piece_sum, 0, MAX_PIECES)) / static_cast<float>(MAX_PIECES);
     const int s   = static_cast<int>(n * static_cast<float>(this->mg) + (1.0f - n) * static_cast<float>(this->eg));
     return (this->score + s) / this->scale_factor;
   }
@@ -2354,7 +2324,7 @@ void UciHelp() {
     "setoption name [str] value [str]\n" <<
     "            Sets a given option\n" <<
     "go wtime [int] btime [int] winc [int] binc [int]\n" <<
-    "    ... movestogo [int] movetime [int] depth [int] [infinite]\n" <<
+    "            ... movestogo [int] movetime [int] depth [int] [infinite]\n" <<
     "            Search the current position with the provided settings\n" <<
     "position (startpos | fen [str]) (moves [e2e4 c7c5 ...])?\n" <<
     "            Sets the board position via an optional FEN and optional move list\n" <<
@@ -2365,8 +2335,8 @@ void UciHelp() {
     "bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]\n"  <<
     "            Bench signature and speed of the program\n" <<
     "            > bench inf 10000    ( Speed )\n" <<
-    "            > bench              ( 15988584 )\n" <<
-    "            > bench 11 inf 256 0 ( 15419826 )\n" <<
+    "            > bench              ( 16032936 | NNUE )\n" <<
+    "            > bench 11 inf 256 0 ( 14598462 | HCE )\n" <<
     "p [fen = current_position]\n" <<
     "            Print ASCII art board\n" <<
     "            > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0_1" << std::endl;
