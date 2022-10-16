@@ -760,7 +760,8 @@ void FenFullMoves(const std::string &fullmoves) {
 }
 
 // Fully legal FEN expected
-void FenGen(const std::string &fen) {
+void FenGen(std::string fen) {
+  if (fen.length()) std::replace(fen.begin(), fen.end(), '_', ' '); // Little hack
   std::vector<std::string> tokens{};
   SplitString< std::vector<std::string> >(fen, tokens);
   if (fen.length() < 23 || // "8/8/8/8/8/8/8/8 w - - 0 1"
@@ -2016,10 +2017,9 @@ bool FindBookMove(const int from, const int to, const int type) {
 
 int BookSolveType(const int from, const int to, const int move) {
   // PolyGlot promos (=n / =b / =r / =q)
-  auto is_promo = [&move](const int v){ return move & (0x1 << (12 + v)); };
-  constexpr std::array<int, 4> v = {0, 1, 2, 3};
-  const auto res = std::find_if(v.begin(), v.end(), is_promo);
-  if (res != v.end()) return 5 + *res;
+  constexpr std::array<int, 4> p = {0, 1, 2, 3};
+  const auto res = std::find_if(p.begin(), p.end(), [&move](const int v){ return move & (0x1 << (12 + v)); });
+  if (res != p.end()) return 5 + *res;
 
   // White: O-O / O-O-O
   if (g_board->pieces[from] == +6 && g_board->pieces[to] == +4)
@@ -2246,20 +2246,18 @@ struct Save {
 // Print ASCII art board
 // Print board + some info (NNUE, Book, Eval (cp), Hash (entries))
 // Also used for debug in UCI mode
-void UciPrintBoard(std::string s = "") {
+void UciPrintBoard(const std::string &fen) {
   const Save save{};
-  if (s.length()) std::replace(s.begin(), s.end(), '_', ' '), Fen(s);
+  if (fen.length()) Fen(fen);
   std::cout << '\n' << g_board->to_s() << std::endl;
 }
 
 // Calculate perft split numbers
-void UciPerft(const std::string &d, const std::string &f) {
+void UciPerft(const std::string &d, const std::string &fen) {
   const Save save{};
   const auto depth = d.length() ? std::max(0, std::stoi(d)) : 6;
-  std::string fen  = f.length() ? f : STARTPOS;
-  std::replace(fen.begin(), fen.end(), '_', ' '); // Hack !
   std::uint64_t nodes = depth >= 1 ? 0 : 1, total_ms = 0;
-  Fen(fen);
+  Fen(fen.length() ? fen : STARTPOS);
   g_root_n = MgenRoot();
   for (auto i = 0; i < g_root_n; ++i) {
     g_board           = g_boards[0] + i;
