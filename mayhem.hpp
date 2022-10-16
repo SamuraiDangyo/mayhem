@@ -1598,7 +1598,7 @@ struct ClassicalEval { // Finish the game or no NNUE
     this->bonus_mating<false>();
   }
 
-  // Special EG functions. To avoid always doing "Tabula rasa"
+  // Special EG functions. Avoid always doing "Tabula rasa"
   void bonus_endgame() {
     if (     this->black_total == 1) this->white_is_mating();
     else if (this->white_total == 1) this->black_is_mating();
@@ -1606,7 +1606,7 @@ struct ClassicalEval { // Finish the game or no NNUE
     else if (this->both_total  == 5) this->bonus_special_5men();
   }
 
-  int calculate_score() const { // "MAX_PIECES" phases for HCE (assume kings exist)
+  int calculate_score() const { // 96 phases for HCE
     const float n = static_cast<float>(std::clamp(this->piece_sum, 0, MAX_PIECES)) / static_cast<float>(MAX_PIECES);
     const int s   = static_cast<int>(n * static_cast<float>(this->mg) + (1.0f - n) * static_cast<float>(this->eg));
     return (this->score + s) / this->scale_factor;
@@ -1852,7 +1852,6 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
       return true;
     }
   }
-
   return false;
 }
 
@@ -1877,7 +1876,6 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
       return true;
     }
   }
-
   return false;
 }
 
