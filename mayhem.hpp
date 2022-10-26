@@ -356,29 +356,29 @@ inline std::uint64_t Both() {
 }
 
 // Count first 0's
-int Ctz(const std::uint64_t bb) {
+inline int Ctz(const std::uint64_t bb) {
   return std::countr_zero(bb);
 }
 
 // Count (return) zeros AND then pop (arg) BitBoard
-int CtzPop(std::uint64_t *bb) {
+inline int CtzPop(std::uint64_t *bb) {
   const auto ret = Ctz(*bb);
   *bb = *bb & (*bb - 0x1ULL);
   return ret;
 }
 
 // Count 1's in 64b
-int PopCount(const std::uint64_t bb) {
+inline int PopCount(const std::uint64_t bb) {
   return std::popcount(bb);
 }
 
 // X axle of board
-int Xaxl(const int sq) {
+inline int Xaxl(const int sq) {
   return static_cast<int>(sq % 8);
 }
 
 // Y axle of board
-int Yaxl(const int sq) {
+inline int Yaxl(const int sq) {
   return static_cast<int>(sq / 8);
 }
 
@@ -424,7 +424,7 @@ bool InputAvailable() {
   return _kbhit();
 #else
   fd_set fd;
-  struct timeval tv = {0, 0};
+  struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
   FD_ZERO(&fd);
   FD_SET(STDIN_FILENO, &fd);
   select(STDIN_FILENO + 1, &fd, nullptr, nullptr, &tv);
@@ -1445,8 +1445,6 @@ struct ClassicalEval { // Finish the game or no NNUE
   int w_pieces[5]{}, b_pieces[5]{}, white_total{1}, black_total{1}, both_total{0}, piece_sum{0},
       wk{0}, bk{0}, score{0}, mg{0}, eg{0}, scale_factor{1};
 
-  explicit ClassicalEval(const bool wtm2) : white{White()}, black{Black()}, both{this->white | this->black}, wtm{wtm2} { }
-
   template<bool wtm>
   void check_blind_bishop() {
     if constexpr (wtm) {
@@ -1624,8 +1622,6 @@ struct ClassicalEval { // Finish the game or no NNUE
 struct NnueEval {
   const bool wtm{true};
 
-  explicit NnueEval(const bool wtm2) : wtm{wtm2} { } // explicit -> Force curly init
-
   int probe() const {
     auto i = 2;
 
@@ -1661,12 +1657,12 @@ struct NnueEval {
 };
 
 int EvaluateClassical(const bool wtm) {
-  ClassicalEval e{wtm};
+  ClassicalEval e { .white = White(), .black = Black(), .both = Both(), .wtm = wtm };
   return e.evaluate();
 }
 
 int EvaluateNNUE(const bool wtm) {
-  NnueEval e{wtm};
+  NnueEval e { .wtm = wtm };
   return e.evaluate() / 4; // NNUE evals are 4x
 }
 
@@ -1969,8 +1965,6 @@ int BestB() {
 struct Material {
   const int white_n{0}, black_n{0}, both_n{0};
 
-  Material() : white_n{PopCount(White())}, black_n{PopCount(Black())}, both_n{this->white_n + this->black_n} { }
-
   // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
   bool is_rook_ending() const { return this->both_n == 5 && (PopCount(g_board->white[3] | g_board->black[3]) == 3); }
 
@@ -2079,7 +2073,7 @@ void Think(const int ms) {
   if (FastMove(ms)) return;
 
   const auto tmp = g_board;
-  const Material m{};
+  const Material m{ .white_n = PopCount(White()), .black_n = PopCount(Black()), .both_n = PopCount(Both()) };
   g_classical = HCEActivation(m);
   EvalRootMoves();
   SortRootMoves();
@@ -2312,7 +2306,7 @@ void UciHelp() {
     "            > perft 7 R7/P4k2/8/8/8/8/r7/6K1_w_-_-_0_1 ( 245764549 )\n" <<
     "bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]\n"  <<
     "            Bench signature and speed of the program\n" <<
-    "            > bench inf 10000    ( 624629547 | Speed )\n" <<
+    "            > bench inf 10000    ( 545884148 | Speed )\n" <<
     "            > bench              ( 16032936  | NNUE )\n" <<
     "            > bench 11 inf 256 0 ( 14598462  | HCE )\n" <<
     "p [fen = current_position]\n" <<
