@@ -1,5 +1,5 @@
 /*
-Mayhem. Linux UCI Chess960 engine. Written in C++17 language
+Mayhem. Linux UCI Chess960 engine. Written in C++20 language
 Copyright (C) 2020-2022 Toni Helminen
 
 This program is free software: you can redistribute it and/or modify
@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Headers
 
+#include <bit>
 #include <algorithm>
 #include <memory>
 #include <iostream>
@@ -57,7 +58,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 7.5" // Version
+#define VERSION       "Mayhem 7.6"
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
 #define MAX_Q_DEPTH   16       // Max Qsearch depth
@@ -316,7 +317,7 @@ bool g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active 
   g_classical = false, g_game_on = true, g_analyzing = false;
 
 Board g_board_empty{}, *g_board = &g_board_empty, *g_moves = nullptr, *g_board_orig = nullptr,
-  g_boards[MAX_DEPTH + MAX_Q_DEPTH + 4][MAX_MOVES]{};
+  g_boards[MAX_DEPTH + MAX_Q_DEPTH][MAX_MOVES]{};
 
 std::uint32_t g_hash_entries = 0, g_tokens_nth = 0;
 std::vector<std::string> g_tokens(300); // 300 plys init
@@ -355,34 +356,34 @@ inline std::uint64_t Both() {
 }
 
 // Count first 0's
-inline int Ctz(const std::uint64_t bb) {
-  return static_cast<int>(__builtin_ctzll(bb));
+int Ctz(const std::uint64_t bb) {
+  return std::countr_zero(bb);
 }
 
 // Count (return) zeros AND then pop (arg) BitBoard
-inline int CtzPop(std::uint64_t *bb) {
+int CtzPop(std::uint64_t *bb) {
   const auto ret = Ctz(*bb);
   *bb = *bb & (*bb - 0x1ULL);
   return ret;
 }
 
 // Count 1's in 64b
-inline int PopCount(const std::uint64_t bb) {
-  return static_cast<int>(__builtin_popcountll(bb));
+int PopCount(const std::uint64_t bb) {
+  return std::popcount(bb);
 }
 
-// sq % 8 - X axle of board
-inline int Xaxl(const int sq) {
-  return static_cast<int>(sq & 0x7);
+// X axle of board
+int Xaxl(const int sq) {
+  return static_cast<int>(sq % 8);
 }
 
-// sq / 8 - Y axle of board
-inline int Yaxl(const int sq) {
-  return static_cast<int>(sq >> 3);
+// Y axle of board
+int Yaxl(const int sq) {
+  return static_cast<int>(sq / 8);
 }
 
 // Set bit in 1 -> 64
-inline std::uint64_t Bit(const int nth) {
+constexpr std::uint64_t Bit(const int nth) {
   return 0x1ULL << nth;
 }
 
@@ -591,9 +592,9 @@ const std::string Board::to_s() const {
   }
   s << "   a   b   c   d   e   f   g   h\n\n" <<
     "> " << this->to_fen() << '\n' <<
-    "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " / " <<
-    "Book: " << (g_book_exist ? "OK" : "FAIL") << " / " <<
-    "Eval: " << Evaluate(g_wtm) << " / " <<
+    "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " | " <<
+    "Book: " << (g_book_exist ? "OK" : "FAIL") << " | " <<
+    "Eval: " << std::showpos << Evaluate(g_wtm) << std::noshowpos << " | " <<
     "Hash: " << g_hash_entries;
   return s.str();
 }
@@ -711,7 +712,7 @@ int Piece2Num(const char p) { // Convert piece (Char) -> Int
 
 int Empty2Num(const char e) { return e - '0'; } // Empty cells (Char) -> Int
 int File2Num(const char f) { return f - 'a'; } // X-coord (Char) -> Int
-int Rank2Num(const char r) { return r == '3' ? 2 : 5; } // Ep Y-coord (Char | '3' / '6') -> Int
+int Rank2Num(const char r) { return r - '1'; } // Ep Y-coord (Char | '3' / '6') -> Int
 
 void FenBoard(const std::string &board) {
   auto sq = 56;
@@ -761,7 +762,7 @@ void FenFullMoves(const std::string &fullmoves) {
 
 // Fully legal FEN expected
 void FenGen(std::string fen) {
-  if (fen.length()) std::replace(fen.begin(), fen.end(), '_', ' '); // Little hack
+  if (fen.length()) std::replace(fen.begin(), fen.end(), '_', ' '); // "_" -> " ": Little hack
   std::vector<std::string> tokens{};
   SplitString< std::vector<std::string> >(fen, tokens);
   if (fen.length() < 23 || // "8/8/8/8/8/8/8/8 w - - 0 1"
@@ -784,7 +785,6 @@ void FenReset() {
   g_board_empty = {};
   g_board       = &g_board_empty;
   g_wtm         = true;
-  g_board->epsq = -1;
   g_king_w      = g_king_b = 0;
   g_fullmoves   = 1;
 
@@ -793,8 +793,7 @@ void FenReset() {
     g_rook_w[i]   = g_rook_b[i] = 0;
   }
 
-  for (auto i = 0; i < 6; ++i)
-    g_board->white[i] = g_board->black[i] = 0;
+  for (auto i = 0; i < 6; ++i) g_board->white[i] = g_board->black[i] = 0;
 }
 
 void Fen(const std::string &fen) {
@@ -867,9 +866,7 @@ void EvalRootMoves() {
 
 // 2. Then sort root moves
 struct RootCompFunctor { bool operator()(const Board &a, const Board &b) const { return a.score > b.score; } };
-void SortRootMoves() {
-  std::sort(g_boards[0] + 0, g_boards[0] + g_root_n, RootCompFunctor()); // 9 -> 0
-}
+void SortRootMoves() { std::sort(g_boards[0] + 0, g_boards[0] + g_root_n, RootCompFunctor()); } // 9 -> 0
 
 void SortRoot(const int index) {
   if (index) {
@@ -1065,16 +1062,16 @@ void ModifyPawnStuffB(const int from, const int to) {
 void AddPromotionW(const int from, const int to, const int piece) {
   const auto eat = g_board->pieces[to];
 
-  g_moves[g_moves_n]        = *g_board;
-  g_board                   = &g_moves[g_moves_n];
-  g_board->from             = from;
-  g_board->to               = to;
-  g_board->score            = 110 + piece; // Highest priority
-  g_board->type             = 3 + piece;
-  g_board->epsq             = -1;
-  g_board->fifty            = 0;
-  g_board->pieces[to]       = piece;
-  g_board->pieces[from]     = 0;
+  g_moves[g_moves_n]         = *g_board;
+  g_board                    = &g_moves[g_moves_n];
+  g_board->from              = from;
+  g_board->to                = to;
+  g_board->score             = 110 + piece; // Highest priority
+  g_board->type              = 3 + piece;
+  g_board->epsq              = -1;
+  g_board->fifty             = 0;
+  g_board->pieces[to]        = piece;
+  g_board->pieces[from]      = 0;
   g_board->white[0]         ^= Bit(from);
   g_board->white[piece - 1] |= Bit(to);
 
@@ -1085,17 +1082,17 @@ void AddPromotionW(const int from, const int to, const int piece) {
 void AddPromotionB(const int from, const int to, const int piece) {
   const auto eat = g_board->pieces[to];
 
-  g_moves[g_moves_n]    = *g_board;
-  g_board               = &g_moves[g_moves_n];
-  g_board->from         = from;
-  g_board->to           = to;
-  g_board->score        = 110 + (-piece);
-  g_board->type         = 3 + (-piece);
-  g_board->epsq         = -1;
-  g_board->fifty        = 0;
-  g_board->pieces[from] = 0;
-  g_board->pieces[to]   = piece;
-  g_board->black[0]    ^= Bit(from);
+  g_moves[g_moves_n]          = *g_board;
+  g_board                     = &g_moves[g_moves_n];
+  g_board->from               = from;
+  g_board->to                 = to;
+  g_board->score              = 110 + (-piece);
+  g_board->type               = 3 + (-piece);
+  g_board->epsq               = -1;
+  g_board->fifty              = 0;
+  g_board->pieces[from]       = 0;
+  g_board->pieces[to]         = piece;
+  g_board->black[0]          ^= Bit(from);
   g_board->black[-piece - 1] |= Bit(to);
 
   if (eat >= +1)  g_board->white[eat - 1] ^= Bit(to);
@@ -1390,8 +1387,8 @@ int MgenTacticalB(Board *moves) {
 }
 
 // Generate only root moves
-int MgenRoot() {
-  return g_wtm ? MgenW(g_boards[0]) : MgenB(g_boards[0]);
+void MgenRoot() {
+  g_root_n = g_wtm ? MgenW(g_boards[0]) : MgenB(g_boards[0]);
 }
 
 // Evaluation
@@ -1424,7 +1421,7 @@ bool EasyDraw(const bool wtm) {
 // Bishop on a1/h1/a8/h8 blocked by own pawn
 int FixFRC() {
   // No bishop in corner -> Speedup
-  const std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
+  constexpr std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
   if (!((g_board->white[2] | g_board->black[2]) & corners)) return 0;
 
   auto s = 0;
@@ -1443,12 +1440,12 @@ int CloseBonus(const int a, const int b) { return Square(7 - std::abs(Xaxl(a) - 
 int CloseAnyCornerBonus(const int sq) { return std::max({CloseBonus(sq, 0), CloseBonus(sq, 7), CloseBonus(sq, 56), CloseBonus(sq, 63)}); }
 
 struct ClassicalEval { // Finish the game or no NNUE
-  const std::uint64_t white, black, both;
-  const bool m_wtm; // Avoid collision w/ template wtm
+  const std::uint64_t white{0}, black{0}, both{0};
+  const bool wtm{true};
   int w_pieces[5]{}, b_pieces[5]{}, white_total{1}, black_total{1}, both_total{0}, piece_sum{0},
       wk{0}, bk{0}, score{0}, mg{0}, eg{0}, scale_factor{1};
 
-  explicit ClassicalEval(const bool wtm) : white{White()}, black{Black()}, both{this->white | this->black}, m_wtm{wtm} { }
+  explicit ClassicalEval(const bool wtm2) : white{White()}, black{Black()}, both{this->white | this->black}, wtm{wtm2} { }
 
   template<bool wtm>
   void check_blind_bishop() {
@@ -1533,7 +1530,7 @@ struct ClassicalEval { // Finish the game or no NNUE
   }
 
   void bonus_tempo() {
-    this->score += this->m_wtm ? +TEMPO_BONUS : -TEMPO_BONUS;
+    this->score += this->wtm ? +TEMPO_BONUS : -TEMPO_BONUS;
   }
 
   void bonus_checks() {
@@ -1625,7 +1622,7 @@ struct ClassicalEval { // Finish the game or no NNUE
 // NNUE Eval
 
 struct NnueEval {
-  const bool wtm;
+  const bool wtm{true};
 
   explicit NnueEval(const bool wtm2) : wtm{wtm2} { } // explicit -> Force curly init
 
@@ -1923,7 +1920,7 @@ int BestW() {
   for (auto i = 0; i < g_root_n; ++i) {
     g_board = g_boards[0] + i;
     g_is_pv = i <= 1 && !g_boards[0][i].score; // 1 / 2 moves too good and not tactical -> pv
-    int score;
+    int score{0};
     if (g_depth >= 1 && i >= 1) { // Null window search for bad moves
       if ((score = SearchB(alpha, alpha + 1, g_depth, 1)) > alpha)
         g_board = g_boards[0] + i, score = SearchB(alpha, +INF, g_depth, 1); // Search w/ full window
@@ -1949,7 +1946,7 @@ int BestB() {
   for (auto i = 0; i < g_root_n; ++i) {
     g_board = g_boards[0] + i;
     g_is_pv = i <= 1 && !g_boards[0][i].score;
-    int score;
+    int score{0};
     if (g_depth >= 1 && i >= 1) {
       if ((score = SearchW(beta - 1, beta, g_depth, 1)) < beta)
         g_board = g_boards[0] + i, score = SearchW(-INF, beta, g_depth, 1);
@@ -1970,24 +1967,18 @@ int BestB() {
 
 // Material detection for classical activation
 struct Material {
-  const int white_n, black_n, both_n;
+  const int white_n{0}, black_n{0}, both_n{0};
 
   Material() : white_n{PopCount(White())}, black_n{PopCount(Black())}, both_n{this->white_n + this->black_n} { }
 
   // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
-  bool is_rook_ending() const {
-    return this->both_n == 5 && (PopCount(g_board->white[3] | g_board->black[3]) == 3);
-  }
+  bool is_rook_ending() const { return this->both_n == 5 && (PopCount(g_board->white[3] | g_board->black[3]) == 3); }
 
   // Vs king + (PNBRQ) ?
-  bool is_easy() const {
-    return g_wtm ? this->black_n <= 2 : this->white_n <= 2;
-  }
+  bool is_easy() const { return g_wtm ? this->black_n <= 2 : this->white_n <= 2; }
 
   // 5 pieces or less both side -> Endgame
-  bool is_endgame() const {
-    return g_wtm ? this->black_n <= 5 : this->white_n <= 5;
-  }
+  bool is_endgame() const { return g_wtm ? this->black_n <= 5 : this->white_n <= 5; }
 };
 
 // Activate HCE when ... No NNUE / Easy / Rook ending / 16+ pieces each color
@@ -2020,12 +2011,10 @@ int BookSolveType(const int from, const int to, const int move) {
   if (res != p.end()) return 5 + *res;
 
   // White: O-O / O-O-O
-  if (g_board->pieces[from] == +6 && g_board->pieces[to] == +4)
-    return to > from ? 1 : 2;
+  if (g_board->pieces[from] == +6 && g_board->pieces[to] == +4) return to > from ? 1 : 2;
 
   // Black: O-O / O-O-O
-  if (g_board->pieces[from] == -6 && g_board->pieces[to] == -4)
-    return to > from ? 3 : 4;
+  if (g_board->pieces[from] == -6 && g_board->pieces[to] == -4) return to > from ? 3 : 4;
 
   // Normal
   return 0;
@@ -2086,7 +2075,7 @@ void ThinkReset() { // Reset search status
 void Think(const int ms) {
   g_stop_search_time = Now() + static_cast<std::uint64_t>(ms); // Start clock early
   ThinkReset();
-  g_root_n = MgenRoot();
+  MgenRoot();
   if (FastMove(ms)) return;
 
   const auto tmp = g_board;
@@ -2109,8 +2098,7 @@ std::uint64_t Perft(const bool wtm, const int depth, const int ply) {
   const auto moves_n = wtm ? MgenW(g_boards[ply]) : MgenB(g_boards[ply]);
   if (depth == 1) return moves_n; // Bulk counting
   std::uint64_t nodes = 0;
-  for (auto i = 0; i < moves_n; ++i)
-    g_board = g_boards[ply] + i, nodes += Perft(!wtm, depth - 1, ply + 1);
+  for (auto i = 0; i < moves_n; ++i) g_board = g_boards[ply] + i, nodes += Perft(!wtm, depth - 1, ply + 1);
   return nodes;
 }
 
@@ -2126,7 +2114,7 @@ void UciMake(const int root_i) {
 
 void UciMakeMove() {
   const auto move = TokenNth();
-  g_root_n = MgenRoot();
+  MgenRoot();
   for (auto i = 0; i < g_root_n; ++i)
     if (move == g_boards[0][i].movename()) {
       UciMake(i);
@@ -2228,8 +2216,8 @@ void UciUci() {
 
 // Save state (just in case) if multiple commands in a row
 struct Save {
-  const bool nnue, book;
-  const std::string fen;
+  const bool nnue{false}, book{false};
+  const std::string fen{};
 
   // Save stuff in constructor
   Save() : nnue{g_nnue_exist}, book{g_book_exist}, fen{g_board->to_fen()} { }
@@ -2256,7 +2244,7 @@ void UciPerft(const std::string &d, const std::string &fen) {
   const auto depth = d.length() ? std::max(0, std::stoi(d)) : 6;
   std::uint64_t nodes = depth >= 1 ? 0 : 1, total_ms = 0;
   Fen(fen.length() ? fen : STARTPOS);
-  g_root_n = MgenRoot();
+  MgenRoot();
   for (auto i = 0; i < g_root_n; ++i) {
     g_board           = g_boards[0] + i;
     const auto now    = Now();
@@ -2324,9 +2312,9 @@ void UciHelp() {
     "            > perft 7 R7/P4k2/8/8/8/8/r7/6K1_w_-_-_0_1 ( 245764549 )\n" <<
     "bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]\n"  <<
     "            Bench signature and speed of the program\n" <<
-    "            > bench inf 10000    ( 4065432  | Speed )\n" <<
-    "            > bench              ( 16032936 | NNUE )\n" <<
-    "            > bench 11 inf 256 0 ( 14598462 | HCE )\n" <<
+    "            > bench inf 10000    ( 624629547 | Speed )\n" <<
+    "            > bench              ( 16032936  | NNUE )\n" <<
+    "            > bench 11 inf 256 0 ( 14598462  | HCE )\n" <<
     "p [fen = current_position]\n" <<
     "            Print ASCII art board\n" <<
     "            > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0_1" << std::endl;

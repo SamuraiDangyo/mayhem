@@ -1,7 +1,7 @@
 # Mayhem
 
 Linux UCI Chess960 engine.
-Written in C++17 language.
+Written in C++20 language.
 Licensed under the GPLv3.
 Optimized for speed and simplicity.
 Programmed in self-documenting style.

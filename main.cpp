@@ -1,5 +1,5 @@
 /*
-Mayhem. Linux UCI Chess960 engine. Written in C++17 language
+Mayhem. Linux UCI Chess960 engine. Written in C++20 language
 Copyright (C) 2020-2022 Toni Helminen
 
 This program is free software: you can redistribute it and/or modify

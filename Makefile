@@ -1,4 +1,4 @@
-# Mayhem. Linux UCI Chess960 engine. Written in C++17 language
+# Mayhem. Linux UCI Chess960 engine. Written in C++20 language
 # Copyright (C) 2020-2022 Toni Helminen
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 
 CXX    = clang++
 EXE    = mayhem
-BFLAGS = -std=c++17 -flto -O3 -march=native -DNDEBUG
+BFLAGS = -std=c++20 -flto -O3 -march=native -DNDEBUG
 WFLAGS = -Wall -Wextra -Wshadow -Wcast-qual -pedantic
 NFLAGS = -DUSE_AVX2 -mavx2
 
