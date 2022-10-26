@@ -2285,7 +2285,7 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
 
 void UciHelp() {
   std::cout <<
-    "Mayhem. Linux UCI Chess960 engine. Written in C++17 language\n" <<
+    "Mayhem. Linux UCI Chess960 engine. Written in C++20 language\n" <<
     "Supported UCI commands:\n" <<
     "help        This help\n" <<
     "uci         Outputs the engine info\n" <<
