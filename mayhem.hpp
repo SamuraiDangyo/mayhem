@@ -433,7 +433,7 @@ bool InputAvailable() {
 }
 } // extern "C"
 
-// ms since 1970
+// ms since 1.1.1970
 inline std::uint64_t Now() {
   return std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::system_clock::now().time_since_epoch()) .count();
@@ -2057,8 +2057,7 @@ void SearchRootMoves(const bool is_eg) {
   }
 
   g_last_eval = g_best_score;
-  if (!g_q_depth) // Nothing searched -> Print smt for UCI
-    SpeakUci(g_last_eval, Now() - now);
+  if (!g_q_depth) SpeakUci(g_last_eval, Now() - now); // Nothing searched -> Print smt for UCI
 }
 
 void ThinkReset() { // Reset search status
@@ -2286,7 +2285,6 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
 void UciHelp() {
   std::cout <<
     "Mayhem. Linux UCI Chess960 engine. Written in C++20 language\n" <<
-    "Supported UCI commands:\n" <<
     "help        This help\n" <<
     "uci         Outputs the engine info\n" <<
     "isready     Synchronization of the engine. Responded w/ 'readyok'\n" <<
