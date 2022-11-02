@@ -58,7 +58,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 7.6"
+#define VERSION       "Mayhem 7.7"
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
 #define MAX_Q_DEPTH   16       // Max Qsearch depth
@@ -79,8 +79,8 @@ namespace mayhem {
 // Constants
 
 // Tactical fens to pressure search
-const std::array<const std::string, 15> kBench =
-{ "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 1 ; bm Rh8",
+const std::array<const std::string, 15> kBench = {
+   "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 1 ; bm Rh8",
   "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 1 ; bm Nxa7+",
   "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 1 ; bm Rxh7+",
   "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0 1 ; bm Qxh3",
@@ -94,24 +94,27 @@ const std::array<const std::string, 15> kBench =
   "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0 1 ; bm Rxg7",
   "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0 1 ; bm Qxc6",
   "5bk1/1rQ4p/5pp1/2pP4/3n1PP1/7P/1q3BB1/4R1K1 w - - 0 1 ; bm d6",
-  "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 1 ; bm Ne3" };
+  "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 1 ; bm Ne3"
+};
 
 // [Attacker][Captured] / [PNBRQK][pnbrqk]
-constexpr int kMvv[6][6] =
- {{ 10, 15, 15, 20, 25, 99 }, { 9, 14, 14, 19, 24, 99 }, { 9, 14, 14, 19, 24, 99 },
-  {  8, 13, 13, 18, 23, 99 }, { 7, 12, 12, 17, 22, 99 }, { 6, 11, 11, 16, 21, 99 }};
+constexpr int kMvv[6][6] = {
+  { 10, 15, 15, 20, 25, 99 }, { 9, 14, 14, 19, 24, 99 }, { 9, 14, 14, 19, 24, 99 },
+  {  8, 13, 13, 18, 23, 99 }, { 7, 12, 12, 17, 22, 99 }, { 6, 11, 11, 16, 21, 99 }
+};
 
-// Evaluation phases      ( P, N, B, R, Q, K )
+// Evaluation phases      ( P  N  B  R  Q  K )
 constexpr int kPiece[6] = { 1, 3, 3, 5, 9, 0 };
 
 // MG / EG -> P , N, B, R, Q, K
-constexpr int kPestoMaterial[2][6] =
-{{ 82, 337, 365, 477, 1025, 0 },
- { 94, 281, 297, 512,  936, 0 }};
+constexpr int kPestoMaterial[2][6] = {
+  { 82, 337, 365, 477, 1025, 0 },
+  { 94, 281, 297, 512,  936, 0 }
+};
 
 // [Piece][Phase][Square]
-constexpr int kPestoPsqt[6][2][64] =
- {{{ 0,   0,   0,   0,   0,   0,   0,   0, -35,  -1, -20, -23, -15,  24,  38, -22, // Pawn (MG)
+constexpr int kPestoPsqt[6][2][64] = {
+  {{ 0,   0,   0,   0,   0,   0,   0,   0, -35,  -1, -20, -23, -15,  24,  38, -22, // Pawn (MG)
    -26,  -4,  -4, -10,   3,   3,  33, -12, -27,  -2,  -5,  12,  17,   6,  10, -25,
    -14,  13,   6,  21,  23,  12,  17, -23,  -6,   7,  26,  31,  65,  56,  25, -20,
     98, 134,  61,  95,  68, 126,  34, -11,   0,   0,   0,   0,   0,   0,   0,   0 },
@@ -158,10 +161,11 @@ constexpr int kPestoPsqt[6][2][64] =
  { -53, -34, -21, -11, -28, -14, -24, -43, -27, -11,   4,  13,  14,   4,  -5, -17, // King (EG)
    -19,  -3,  11,  21,  23,  16,   7,  -9, -18,  -4,  21,  24,  27,  23,   9, -11,
     -8,  22,  24,  27,  26,  33,  26,   3,  10,  17,  23,  15,  20,  45,  44,  13,
-   -12,  17,  14,  17,  17,  38,  23,  11, -74, -35, -18, -18, -11,  15,   4, -17 }}};
+   -12,  17,  14,  17,  17,  38,  23,  11, -74, -35, -18, -18, -11,  15,   4, -17 }}
+};
 
-constexpr std::uint64_t kRookMagics[3][64] =
- {{ 0x548001400080106cULL, 0x900184000110820ULL,  0x428004200a81080ULL,  0x140088082000c40ULL, // Magics
+constexpr std::uint64_t kRookMagics[3][64] = {
+  { 0x548001400080106cULL, 0x900184000110820ULL,  0x428004200a81080ULL,  0x140088082000c40ULL, // Magics
     0x1480020800011400ULL, 0x100008804085201ULL,  0x2a40220001048140ULL, 0x50000810000482aULL,
     0x250020100020a004ULL, 0x3101880100900a00ULL, 0x200a040a00082002ULL, 0x1004300044032084ULL,
     0x2100408001013ULL,    0x21f00440122083ULL,   0xa204280406023040ULL, 0x2241801020800041ULL,
@@ -208,10 +212,11 @@ constexpr std::uint64_t kRookMagics[3][64] =
     0x7e010101010100ULL,   0x7c020202020200ULL,   0x7a040404040400ULL,   0x76080808080800ULL,
     0x6e101010101000ULL,   0x5e202020202000ULL,   0x3e404040404000ULL,   0x7e808080808000ULL,
     0x7e01010101010100ULL, 0x7c02020202020200ULL, 0x7a04040404040400ULL, 0x7608080808080800ULL,
-    0x6e10101010101000ULL, 0x5e20202020202000ULL, 0x3e40404040404000ULL, 0x7e80808080808000ULL }};
+    0x6e10101010101000ULL, 0x5e20202020202000ULL, 0x3e40404040404000ULL, 0x7e80808080808000ULL }
+};
 
-constexpr std::uint64_t kBishopMagics[3][64] =
- {{ 0x2890208600480830ULL, 0x324148050f087ULL,    0x1402488a86402004ULL, 0xc2210a1100044bULL, // Magics
+constexpr std::uint64_t kBishopMagics[3][64] = {
+  { 0x2890208600480830ULL, 0x324148050f087ULL,    0x1402488a86402004ULL, 0xc2210a1100044bULL, // Magics
     0x88450040b021110cULL, 0xc0407240011ULL,      0xd0246940cc101681ULL, 0x1022840c2e410060ULL,
     0x4a1804309028d00bULL, 0x821880304a2c0ULL,    0x134088090100280ULL,  0x8102183814c0208ULL,
     0x518598604083202ULL,  0x67104040408690ULL,   0x1010040020d000ULL,   0x600001028911902ULL,
@@ -258,7 +263,8 @@ constexpr std::uint64_t kBishopMagics[3][64] =
     0x20408102000ULL,      0x40810204000ULL,      0xa1020400000ULL,      0x142240000000ULL,
     0x284402000000ULL,     0x500804020000ULL,     0x201008040200ULL,     0x402010080400ULL,
     0x2040810204000ULL,    0x4081020400000ULL,    0xa102040000000ULL,    0x14224000000000ULL,
-    0x28440200000000ULL,   0x50080402000000ULL,   0x20100804020000ULL,   0x40201008040200ULL }};
+    0x28440200000000ULL,   0x50080402000000ULL,   0x20100804020000ULL,   0x40201008040200ULL }
+};
 
 // Enums
 
@@ -424,7 +430,7 @@ bool InputAvailable() {
   return _kbhit();
 #else
   fd_set fd;
-  struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
+  struct timeval tv { .tv_sec = 0, .tv_usec = 0 };
   FD_ZERO(&fd);
   FD_SET(STDIN_FILENO, &fd);
   select(STDIN_FILENO + 1, &fd, nullptr, nullptr, &tv);
@@ -1495,19 +1501,22 @@ struct ClassicalEval { // Finish the game or no NNUE
   template<bool wtm> void queen(const int sq)  { this->eval_score<wtm, 4, 2>(sq, BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)); }
   template<bool wtm> void king(const int sq)   { this->eval_score<wtm, 5, 1>(sq, g_king_moves[sq]); }
 
+  #define W_EVAL(p) this->piece_sum += kPiece[(p)]; ++this->white_total; ++this->w_pieces[(p)]
+  #define B_EVAL(p) this->piece_sum += kPiece[(p)]; ++this->black_total; ++this->b_pieces[(p)]
+
   void eval_piece(const int sq) {
     switch (g_board->pieces[sq]) {
-      case +1: this->pawn  <true>(sq);  this->piece_sum += kPiece[0]; ++this->white_total; ++this->w_pieces[0]; break;
-      case +2: this->knight<true>(sq);  this->piece_sum += kPiece[1]; ++this->white_total; ++this->w_pieces[1]; break;
-      case +3: this->bishop<true>(sq);  this->piece_sum += kPiece[2]; ++this->white_total; ++this->w_pieces[2]; break;
-      case +4: this->rook  <true>(sq);  this->piece_sum += kPiece[3]; ++this->white_total; ++this->w_pieces[3]; break;
-      case +5: this->queen <true>(sq);  this->piece_sum += kPiece[4]; ++this->white_total; ++this->w_pieces[4]; break;
+      case +1: this->pawn  <true>(sq);  W_EVAL(0);     break;
+      case +2: this->knight<true>(sq);  W_EVAL(1);     break;
+      case +3: this->bishop<true>(sq);  W_EVAL(2);     break;
+      case +4: this->rook  <true>(sq);  W_EVAL(3);     break;
+      case +5: this->queen <true>(sq);  W_EVAL(4);     break;
       case +6: this->king  <true>(sq);  this->wk = sq; break; // White king (+1) is already in
-      case -1: this->pawn  <false>(sq); this->piece_sum += kPiece[0]; ++this->black_total; ++this->b_pieces[0]; break;
-      case -2: this->knight<false>(sq); this->piece_sum += kPiece[1]; ++this->black_total; ++this->b_pieces[1]; break;
-      case -3: this->bishop<false>(sq); this->piece_sum += kPiece[2]; ++this->black_total; ++this->b_pieces[2]; break;
-      case -4: this->rook  <false>(sq); this->piece_sum += kPiece[3]; ++this->black_total; ++this->b_pieces[3]; break;
-      case -5: this->queen <false>(sq); this->piece_sum += kPiece[4]; ++this->black_total; ++this->b_pieces[4]; break;
+      case -1: this->pawn  <false>(sq); B_EVAL(0);     break;
+      case -2: this->knight<false>(sq); B_EVAL(1);     break;
+      case -3: this->bishop<false>(sq); B_EVAL(2);     break;
+      case -4: this->rook  <false>(sq); B_EVAL(3);     break;
+      case -5: this->queen <false>(sq); B_EVAL(4);     break;
       case -6: this->king  <false>(sq); this->bk = sq; break; // Black king (+1) is already in
     }
   }
@@ -1624,8 +1633,7 @@ struct NnueEval {
 
   int probe() const {
     auto i = 2;
-
-    for (auto both = Both(); both; )
+    for (auto both = Both(); both ; )
       switch (const auto sq = CtzPop(&both); g_board->pieces[sq]) {
         case +1: case +2: case +3: case +4: case +5: // PNBRQ
           g_nnue_pieces[i]    = 7 - g_board->pieces[sq];

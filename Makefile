@@ -25,15 +25,15 @@ NFLAGS = -DUSE_AVX2 -mavx2
 # Targets
 
 all:
-	$(CXX) $(BFLAGS) $(WFLAGS) $(NFLAGS) $(CXXFLAGS) $(EXTRA) -o $(EXE) main.cpp
+	$(CXX) $(BFLAGS) $(WFLAGS) $(NFLAGS) $(CXXFLAGS) -o $(EXE) main.cpp
 
 clean:
 	rm -f $(EXE)
 
 help:
 	@echo '+-+-+-+-+ Compiling help +-+-+-+-+'
-	@echo '-DWINDOWS, [CXX, CXXFLAGS, EXTRA, EXE, [BWN]FLAGS]= # Flags'
+	@echo '-DWINDOWS, [CXX, CXXFLAGS, EXE, [BWN]FLAGS]= # Flags'
 	@echo 'make -j # Simple build'
-	@echo 'make -j CXX="g++" NFLAGS="-DUSE_SSE2 -msse2" # Old build'
+	@echo 'make -j NFLAGS="-DUSE_SSE2 -msse2" # Old CPU build'
 
 .PHONY: all clean help
