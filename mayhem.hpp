@@ -361,21 +361,17 @@ inline std::uint64_t Both() {
   return White() | Black();
 }
 
-// Count first 0's
-inline int Ctz(const std::uint64_t bb) {
-  return std::countr_zero(bb);
-}
+// Count Trailing Zeros
+#define Ctz(bb) std::countr_zero((bb))
+
+// Count 1's
+#define PopCount(bb) std::popcount((bb))
 
 // Count (return) zeros AND then pop (arg) BitBoard
 inline int CtzPop(std::uint64_t *bb) {
   const auto ret = Ctz(*bb);
   *bb = *bb & (*bb - 0x1ULL);
   return ret;
-}
-
-// Count 1's in 64b
-inline int PopCount(const std::uint64_t bb) {
-  return std::popcount(bb);
 }
 
 // X axle of board
@@ -2312,9 +2308,9 @@ void UciHelp() {
     "            > perft 7 R7/P4k2/8/8/8/8/r7/6K1_w_-_-_0_1 ( 245764549 )\n" <<
     "bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]\n"  <<
     "            Bench signature and speed of the program\n" <<
-    "            > bench inf 10000    ( 545884148 | Speed )\n" <<
     "            > bench              ( 16032936  | NNUE )\n" <<
     "            > bench 11 inf 256 0 ( 14598462  | HCE )\n" <<
+    "            > bench inf 10000    ( 545884148 | Speed )\n" <<
     "p [fen = current_position]\n" <<
     "            Print ASCII art board\n" <<
     "            > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0_1" << std::endl;
