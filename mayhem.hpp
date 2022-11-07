@@ -285,7 +285,6 @@ struct Board { // 28B
   std::uint8_t  castle{0};    // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
   std::uint8_t  fifty{0};     // Rule 50 counter
 
-  Board() = default; // Default constructor (Just this)
   const std::string movename() const;
   bool is_underpromo() const;
   const std::string to_fen() const;
@@ -298,9 +297,7 @@ struct HashEntry { // 10B
   std::uint8_t  killer{0};      // Killer move index
   std::uint8_t  good{0};        // Good move index
 
-  HashEntry() = default;
-  template <MoveType>
-  void update(const std::uint64_t, const std::uint8_t);
+  template <MoveType> void update(const std::uint64_t, const std::uint8_t);
   void put_hash_value_to_moves(const std::uint64_t, Board*) const;
 };
 
@@ -361,10 +358,10 @@ inline std::uint64_t Both() {
   return White() | Black();
 }
 
-// Count Trailing Zeros
+// Count Trailing Zeros ( 0 before 1 )
 #define Ctz(bb) std::countr_zero((bb))
 
-// Count 1's
+// Population Count ( of 1 )
 #define PopCount(bb) std::popcount((bb))
 
 // Count (return) zeros AND then pop (arg) BitBoard
@@ -524,7 +521,7 @@ void HashEntry::update(const std::uint64_t hash, const std::uint8_t index) {
   if constexpr (type == MoveType::kKiller) {
     this->killer_hash = static_cast<std::uint32_t>(hash >> 32);
     this->killer      = index + 1;
-  } else if constexpr (type == MoveType::kGood) {
+  } else { // == MoveType::kGood) !
     this->good_hash = static_cast<std::uint32_t>(hash >> 32);
     this->good      = index + 1;
   }
@@ -2003,19 +2000,15 @@ bool FindBookMove(const int from, const int to, const int type) {
 }
 
 int BookSolveType(const int from, const int to, const int move) {
-  // PolyGlot promos (=n / =b / =r / =q)
-  constexpr std::array<int, 4> p = {0, 1, 2, 3};
-  const auto res = std::find_if(p.begin(), p.end(), [&move](const int v){ return move & (0x1 << (12 + v)); });
-  if (res != p.end()) return 5 + *res;
+  constexpr std::array<int, 4> p = {0, 1, 2, 3}; // PolyGlot promos (=n / =b / =r / =q)
 
-  // White: O-O / O-O-O
-  if (g_board->pieces[from] == +6 && g_board->pieces[to] == +4) return to > from ? 1 : 2;
+  if (const auto res = std::find_if(p.begin(), p.end(), [&move](const int v){ return move & (0x1 << (12 + v)); });
+      res != p.end()) return 5 + *res;
 
-  // Black: O-O / O-O-O
-  if (g_board->pieces[from] == -6 && g_board->pieces[to] == -4) return to > from ? 3 : 4;
+  if (g_board->pieces[from] == +6 && g_board->pieces[to] == +4) return to > from ? 1 : 2; // OOW / OOOW
+  if (g_board->pieces[from] == -6 && g_board->pieces[to] == -4) return to > from ? 3 : 4; // OOB / OOOB
 
-  // Normal
-  return 0;
+  return 0; // Normal
 }
 
 bool ProbeBook() { // Probe PolyGlot book
