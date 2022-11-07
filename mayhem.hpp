@@ -64,7 +64,7 @@ namespace mayhem {
 #define MAX_Q_DEPTH   16       // Max Qsearch depth
 #define BOOK_MS       100      // At least 100ms+ for the book lookup
 #define INF           1048576  // System max number
-#define MAX_ARR       102      // Enough space for arrays
+#define MAX_ARR       100      // Enough space for arrays
 #define HASH_MB       256      // MB
 #define NOISE         2        // Noise for opening moves
 #define MOVEOVERHEAD  100      // ms
@@ -521,7 +521,7 @@ void HashEntry::update(const std::uint64_t hash, const std::uint8_t index) {
   if constexpr (type == MoveType::kKiller) {
     this->killer_hash = static_cast<std::uint32_t>(hash >> 32);
     this->killer      = index + 1;
-  } else { // == MoveType::kGood) !
+  } else { // == MoveType::kGood !
     this->good_hash = static_cast<std::uint32_t>(hash >> 32);
     this->good      = index + 1;
   }
