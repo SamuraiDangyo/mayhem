@@ -423,7 +423,7 @@ bool InputAvailable() {
   return _kbhit();
 #else
   fd_set fd;
-  struct timeval tv { .tv_sec = 0, .tv_usec = 0 };
+  struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
   FD_ZERO(&fd);
   FD_SET(STDIN_FILENO, &fd);
   select(STDIN_FILENO + 1, &fd, nullptr, nullptr, &tv);
