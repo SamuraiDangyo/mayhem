@@ -359,14 +359,14 @@ inline std::uint64_t Both() {
 }
 
 // Count Trailing Zeros ( 0 before 1 )
-#define Ctz(bb) std::countr_zero((bb))
+#define CTZ(bb) std::countr_zero((bb))
 
 // Population Count ( of 1 )
-#define PopCount(bb) std::popcount((bb))
+#define POP_COUNT(bb) std::popcount((bb))
 
 // Count (return) zeros AND then pop (arg) BitBoard
 inline int CtzPop(std::uint64_t *bb) {
-  const auto ret = Ctz(*bb);
+  const auto ret = CTZ(*bb);
   *bb = *bb & (*bb - 0x1ULL);
   return ret;
 }
@@ -835,11 +835,11 @@ bool ChecksCastleB(std::uint64_t squares) {
 }
 
 inline bool ChecksW() {
-  return ChecksHereW(Ctz(g_board->black[5]));
+  return ChecksHereW(CTZ(g_board->black[5]));
 }
 
 inline bool ChecksB() {
-  return ChecksHereB(Ctz(g_board->white[5]));
+  return ChecksHereB(CTZ(g_board->white[5]));
 }
 
 // Sorting
@@ -1276,12 +1276,12 @@ void MgenRooksPlusQueensB() {
 }
 
 void MgenKingW() {
-  const auto sq = Ctz(g_board->white[5]);
+  const auto sq = CTZ(g_board->white[5]);
   AddMovesW(sq, g_king_moves[sq] & g_good);
 }
 
 void MgenKingB() {
-  const auto sq = Ctz(g_board->black[5]);
+  const auto sq = CTZ(g_board->black[5]);
   AddMovesB(sq, g_king_moves[sq] & g_good);
 }
 
@@ -1400,8 +1400,8 @@ void MgenRoot() {
 // Probe Eucalyptus KPK bitbases -> true: draw / false: not draw
 inline bool ProbeKPK(const bool wtm) {
   return g_board->white[0] ?
-    eucalyptus::IsDraw(     Ctz(g_board->white[5]),      Ctz(g_board->white[0]),      Ctz(g_board->black[5]),  wtm) :
-    eucalyptus::IsDraw(63 - Ctz(g_board->black[5]), 63 - Ctz(g_board->black[0]), 63 - Ctz(g_board->white[5]), !wtm);
+    eucalyptus::IsDraw(     CTZ(g_board->white[5]),      CTZ(g_board->white[0]),      CTZ(g_board->black[5]),  wtm) :
+    eucalyptus::IsDraw(63 - CTZ(g_board->black[5]), 63 - CTZ(g_board->black[0]), 63 - CTZ(g_board->white[5]), !wtm);
 }
 
 // Detect trivial draws really fast
@@ -1410,9 +1410,9 @@ bool EasyDraw(const bool wtm) {
 
   const auto nnbb  = g_board->white[1] | g_board->white[2] | g_board->black[1] | g_board->black[2];
   const auto pawns = g_board->white[0] | g_board->black[0];
-  if (nnbb) return pawns ? false : PopCount(nnbb) <= 1; // Total 1 N/B + no pawns -> Draw
+  if (nnbb) return pawns ? false : POP_COUNT(nnbb) <= 1; // Total 1 N/B + no pawns -> Draw
 
-  const auto pawns_n = PopCount(pawns); // No N/B/R/Q/n/b/r/q -> Pawns ?
+  const auto pawns_n = POP_COUNT(pawns); // No N/B/R/Q/n/b/r/q -> Pawns ?
   return pawns_n == 1 ? ProbeKPK(wtm) : (pawns_n == 0); // Check KPK ? / Bare kings ? -> Draw
 }
 
@@ -1447,11 +1447,11 @@ struct ClassicalEval { // Finish the game or no NNUE
   template<bool wtm>
   void check_blind_bishop() {
     if constexpr (wtm) {
-      const auto wpx   = Xaxl(Ctz(g_board->white[0]));
+      const auto wpx   = Xaxl(CTZ(g_board->white[0]));
       const auto color = g_board->white[2] & 0x55aa55aa55aa55aaULL;
       if ((color && wpx == 7) || (!color && wpx == 0)) this->scale_factor = 4;
     } else {
-      const auto bpx   = Xaxl(Ctz(g_board->black[0]));
+      const auto bpx   = Xaxl(CTZ(g_board->black[0]));
       const auto color = g_board->black[2] & 0x55aa55aa55aa55aaULL;
       if ((!color && bpx == 7) || (color && bpx == 0)) this->scale_factor = 4;
     }
@@ -1469,16 +1469,12 @@ struct ClassicalEval { // Finish the game or no NNUE
   }
 
   // Squares not having own pieces are reachable
-  template<bool wtm>
-  inline std::uint64_t reachable() const {
-    if constexpr (wtm) return ~this->white;
-    else               return ~this->black;
-  }
+  template<bool wtm> inline std::uint64_t reachable() const { return wtm ? ~this->white : ~this->black; }
 
   template<bool wtm, int k>
   inline void mobility(const std::uint64_t m) {
-    if constexpr (wtm) this->score += k * PopCount(m);
-    else               this->score -= k * PopCount(m);
+    if constexpr (wtm) this->score += k * POP_COUNT(m);
+    else               this->score -= k * POP_COUNT(m);
   }
 
   template<bool wtm, int piece, int k>
@@ -1830,7 +1826,7 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
       (!g_is_pv) && // Not pv ?
       (depth >= 3) && // Enough depth ( 2 blunders too much. 3 sweet spot ... ) ?
       ((g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4]) ||
-       (PopCount(g_board->white[0]) >= 2)) && // Non pawn material or at least 2 pawns ( Zugzwang ... ) ?
+       (POP_COUNT(g_board->white[0]) >= 2)) && // Non pawn material or at least 2 pawns ( Zugzwang ... ) ?
       (!ChecksB()) && // Not under checks ?
       (Evaluate(true) >= beta)) { // Looks good ?
     const auto ep     = g_board->epsq;
@@ -1854,7 +1850,7 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
       (!g_is_pv) &&
       (depth >= 3) &&
       ((g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4]) ||
-       (PopCount(g_board->black[0]) >= 2)) &&
+       (POP_COUNT(g_board->black[0]) >= 2)) &&
       (!ChecksW()) &&
       (alpha >= Evaluate(false))) {
     const auto ep     = g_board->epsq;
@@ -1967,7 +1963,7 @@ struct Material {
   const int white_n{0}, black_n{0}, both_n{0};
 
   // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
-  bool is_rook_ending() const { return this->both_n == 5 && (PopCount(g_board->white[3] | g_board->black[3]) == 3); }
+  bool is_rook_ending() const { return this->both_n == 5 && (POP_COUNT(g_board->white[3] | g_board->black[3]) == 3); }
 
   // Vs king + (PNBRQ) ?
   bool is_easy() const { return g_wtm ? this->black_n <= 2 : this->white_n <= 2; }
@@ -2069,7 +2065,7 @@ void Think(const int ms) {
   if (FastMove(ms)) return;
 
   const auto tmp = g_board;
-  const Material m{ .white_n = PopCount(White()), .black_n = PopCount(Black()), .both_n = PopCount(Both()) };
+  const Material m{ .white_n = POP_COUNT(White()), .black_n = POP_COUNT(Black()), .both_n = POP_COUNT(Both()) };
   g_classical = HCEActivation(m);
   EvalRootMoves();
   SortRootMoves();
@@ -2115,10 +2111,10 @@ void UciMakeMove() {
 
 void UciTakeSpecialFen() {
   TokenPop(); // pop "fen"
-  std::string fen{};
+  std::stringstream fen{};
   for ( ; TokenOk() && !TokenPeek("moves"); TokenPop())
-    fen += TokenNth() + " ";
-  Fen(fen);
+    fen << TokenNth() << " ";
+  Fen(fen.str());
 }
 
 void UciFen() {
@@ -2344,7 +2340,7 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
     if (moves & Bit(i))
       good[total++] = i; // post inc
 
-  const auto popn = PopCount(moves);
+  const auto popn = POP_COUNT(moves);
   for (auto i = 0; i < popn; ++i)
     if ((0x1 << i) & index)
       permutations |= Bit(good[i]);
@@ -2458,4 +2454,5 @@ void Init() {
 void UciLoop() {
   while (Uci()) continue; // Exe UCI commands
 }
+
 } // namespace mayhem
