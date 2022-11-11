@@ -2297,7 +2297,7 @@ void UciHelp() {
     "            > perft 7 R7/P4k2/8/8/8/8/r7/6K1_w_-_-_0_1 ( 245764549 )\n" <<
     "bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]\n"  <<
     "            Bench signature and speed of the program\n" <<
-    "            > bench              ( 16032936  | NNUE )\n" <<
+    "            > bench              ( 16033298  | NNUE )\n" <<
     "            > bench 11 inf 256 0 ( 14598462  | HCE )\n" <<
     "            > bench inf 10000    ( 545884148 | Speed )\n" <<
     "p [fen = current_position]\n" <<
