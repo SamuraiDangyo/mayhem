@@ -1916,7 +1916,7 @@ int BestW() {
     int score{0};
     if (g_depth >= 1 && i >= 1) { // Null window search for bad moves
       if ((score = SearchB(alpha, alpha + 1, g_depth, 1)) > alpha)
-        g_board = g_boards[0] + i, score = SearchB(alpha, +INF, g_depth, 1); // Search w/ full window
+        g_board = g_boards[0] + i, g_is_pv = i <= 1 && !g_boards[0][i].score, score = SearchB(alpha, +INF, g_depth, 1); // Search w/ full window
     } else {
       score = SearchB(alpha, +INF, g_depth, 1);
     }
@@ -1942,7 +1942,7 @@ int BestB() {
     int score{0};
     if (g_depth >= 1 && i >= 1) {
       if ((score = SearchW(beta - 1, beta, g_depth, 1)) < beta)
-        g_board = g_boards[0] + i, score = SearchW(-INF, beta, g_depth, 1);
+        g_board = g_boards[0] + i, g_is_pv = i <= 1 && !g_boards[0][i].score, score = SearchW(-INF, beta, g_depth, 1);
     } else {
       score = SearchW(-INF, beta, g_depth, 1);
     }
