@@ -104,7 +104,7 @@ constexpr int kMvv[6][6] = {
 };
 
 // Evaluation phases      ( P  N  B  R  Q  K )
-constexpr int kPiece[6] = { 1, 3, 3, 5, 9, 0 }; //Must match MAX_PIECES !
+constexpr int kPiece[6] = { 1, 3, 3, 5, 9, 0 }; // Must match MAX_PIECES !
 
 // ( MG  EG ) -> ( P  N  B  R  Q  K )
 constexpr int kPestoMaterial[2][6] = {
@@ -856,8 +856,8 @@ void EvalRootMoves() {
   for (auto i = 0; i < g_root_n; ++i)
     g_board         = g_boards[0] + i, // Pointer to this board
     g_board->score += (g_board->type == 8 ? 1000 : 0) + // =q
-                      (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) + // OO / OOO
-                      (g_board->is_underpromo() ? -5000 : 0) + // =r / =b / =n
+                      (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) + // ( OO, OOO )
+                      (g_board->is_underpromo() ? -5000 : 0) + // ( =r, =b, =n )
                       (g_noise ? Random(-g_noise, +g_noise) : 0) + // Add noise -> Make unpredictable
                       (g_wtm ? +1 : -1) * Evaluate(g_wtm); // Full eval
 }
