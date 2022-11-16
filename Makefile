@@ -18,7 +18,7 @@
 
 CXX    = clang++
 EXE    = mayhem
-BFLAGS = -std=c++20 -flto -O3 -march=native -DNDEBUG
+BFLAGS = -std=c++20 -O3 -march=native -DNDEBUG
 WFLAGS = -Wall -Wextra -Wshadow -Wcast-qual -pedantic
 NFLAGS = -DUSE_AVX2 -mavx2
 

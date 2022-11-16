@@ -72,7 +72,7 @@ namespace mayhem {
 #define READ_CLOCK    0x1FFULL // Read clock every 512 ticks (white / 2 x both)
 #define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // UCI startpos
 #define WEEK          (7 * 24 * 60 * 60 * 1000) // ms
-#define MAX_PIECES    (2 * (8 * 1 + 2 * 3 + 2 * 3 + 2 * 5 + 2 * 9 + 2 * 0)) // Max pieces on board (Kings always exist)
+#define MAX_PIECES    (2 * (8 * 1 + 2 * 3 + 2 * 3 + 2 * 5 + 1 * 9 + 1 * 0)) // Max pieces on board (Kings always exist)
 #define EVAL_FILE     "nn-cb80fb9393af.nnue" // Default NNUE ("x" to disable)
 #define BOOK_FILE     "final-book.bin"       // Default Book ("x" to disable)
 
@@ -591,10 +591,9 @@ const std::string Board::to_s() const {
   }
   s << "   a   b   c   d   e   f   g   h\n\n" <<
     "> " << this->to_fen() << '\n' <<
-    "> NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " | " <<
-    "Book: " << (g_book_exist ? "OK" : "FAIL") << " | " <<
-    "Eval: " << std::showpos << Evaluate(g_wtm) << std::noshowpos << " | " <<
-    "Hash: " << g_hash_entries;
+    "> Eval: " << std::showpos << Evaluate(g_wtm) << std::noshowpos << " | " <<
+    "NNUE: " << (g_nnue_exist ? "OK" : "FAIL") << " | " <<
+    "Book: " << (g_book_exist ? "OK" : "FAIL");
   return s.str();
 }
 
@@ -1750,6 +1749,8 @@ int QSearchB(const int alpha, int beta, const int depth, const int ply) {
   return beta;
 }
 
+void SetPv(const int ply, const int move_i) { g_board = g_boards[ply] + move_i, g_is_pv = move_i <= 1 && !g_board->score; }
+
 // a >= b -> Minimizer won't pick any better move anyway.
 //           So searching beyond is a waste of time.
 int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
@@ -1769,8 +1770,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   auto sort = true;
   for (auto i = 0; i < moves_n; ++i) {
     if (sort) LazySort(ply, i, moves_n), sort = g_boards[ply][i].score != 0;
-    g_board = g_boards[ply] + i;
-    g_is_pv = i <= 1 && !g_boards[ply][i].score;
+    SetPv(ply, i);
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksW()) {
       if (SearchB(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) <= alpha) continue;
       g_board = g_boards[ply] + i;
@@ -1802,8 +1802,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   auto sort = true;
   for (auto i = 0; i < moves_n; ++i) {
     if (sort) LazySort(ply, i, moves_n), sort = g_boards[ply][i].score != 0;
-    g_board = g_boards[ply] + i;
-    g_is_pv = i <= 1 && !g_boards[ply][i].score;
+    SetPv(ply, i);
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksB()) {
       if (SearchW(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) >= beta) continue;
       g_board = g_boards[ply] + i;
@@ -1911,12 +1910,11 @@ int BestW() {
   auto best_i = 0, alpha = -INF;
 
   for (auto i = 0; i < g_root_n; ++i) {
-    g_board = g_boards[0] + i;
-    g_is_pv = i <= 1 && !g_boards[0][i].score; // 1 / 2 moves too good and not tactical -> pv
+    SetPv(0, i); // 1 / 2 moves too good and not tactical -> pv
     int score{0};
     if (g_depth >= 1 && i >= 1) { // Null window search for bad moves
       if ((score = SearchB(alpha, alpha + 1, g_depth, 1)) > alpha)
-        g_board = g_boards[0] + i, g_is_pv = i <= 1 && !g_boards[0][i].score, score = SearchB(alpha, +INF, g_depth, 1); // Search w/ full window
+        SetPv(0, i), score = SearchB(alpha, +INF, g_depth, 1); // Search w/ full window
     } else {
       score = SearchB(alpha, +INF, g_depth, 1);
     }
@@ -1937,12 +1935,11 @@ int BestB() {
   auto best_i = 0, beta = +INF;
 
   for (auto i = 0; i < g_root_n; ++i) {
-    g_board = g_boards[0] + i;
-    g_is_pv = i <= 1 && !g_boards[0][i].score;
+    SetPv(0, i);
     int score{0};
     if (g_depth >= 1 && i >= 1) {
       if ((score = SearchW(beta - 1, beta, g_depth, 1)) < beta)
-        g_board = g_boards[0] + i, g_is_pv = i <= 1 && !g_boards[0][i].score, score = SearchW(-INF, beta, g_depth, 1);
+        SetPv(0, i), score = SearchW(-INF, beta, g_depth, 1);
     } else {
       score = SearchW(-INF, beta, g_depth, 1);
     }
@@ -2173,14 +2170,14 @@ void UciGo() {
   auto wtime = 0, btime = 0, winc = 0, binc = 0, mtg = 26;
 
   for ( ; TokenOk(); TokenPop())
-    if (     Token("wtime"))     {wtime = std::max(0, TokenNumber() - g_move_overhead);}
-    else if (Token("btime"))     {btime = std::max(0, TokenNumber() - g_move_overhead);}
-    else if (Token("winc"))      {winc  = std::max(0, TokenNumber());}
-    else if (Token("binc"))      {binc  = std::max(0, TokenNumber());}
-    else if (Token("movestogo")) {mtg   = std::max(1, TokenNumber());}
-    else if (Token("movetime"))  {UciGoMovetime(); return;}
-    else if (Token("infinite"))  {UciGoInfinite(); return;}
-    else if (Token("depth"))     {UciGoDepth();    return;}
+    if (     Token("wtime"))     { wtime = std::max(0, TokenNumber() - g_move_overhead); }
+    else if (Token("btime"))     { btime = std::max(0, TokenNumber() - g_move_overhead); }
+    else if (Token("winc"))      { winc  = std::max(0, TokenNumber()); }
+    else if (Token("binc"))      { binc  = std::max(0, TokenNumber()); }
+    else if (Token("movestogo")) { mtg   = std::max(1, TokenNumber()); }
+    else if (Token("movetime"))  { UciGoMovetime(); return; }
+    else if (Token("infinite"))  { UciGoInfinite(); return; }
+    else if (Token("depth"))     { UciGoDepth();    return; }
 
   g_wtm ? Think(std::min(wtime, wtime / mtg + winc)) :
           Think(std::min(btime, btime / mtg + binc));
@@ -2269,10 +2266,10 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
   g_noise     = NOISE;
   g_max_depth = MAX_DEPTH;
   std::cout << "===========================\n\n" <<
+    "Mode:     " << (g_nnue_exist ? "NNUE" : "HCE") << '\n' <<
     "Nodes:    " << nodes << '\n' <<
     "Time(ms): " << total_ms << '\n' <<
-    "NPS:      " << Nps(nodes, total_ms) << '\n' <<
-    "Mode:     " << (g_nnue_exist ? "NNUE" : "HCE") << std::endl;
+    "NPS:      " << Nps(nodes, total_ms) << std::endl;
 }
 
 void UciHelp() {
@@ -2289,20 +2286,18 @@ void UciHelp() {
     "go wtime [int] btime [int] winc [int] binc [int]\n" <<
     "            ... movestogo [int] movetime [int] depth [int] [infinite]\n" <<
     "            Search the current position with the provided settings\n" <<
-    "position (startpos | fen [str]) (moves [e2e4 c7c5 ...])?\n" <<
+    "position [startpos | fen] [moves]?\n" <<
     "            Sets the board position via an optional FEN and optional move list\n" <<
-    "perft [depth = 6] [fen = startpos]\n" <<
+    "perft [depth] [fen]\n" <<
     "            Calculate perft split numbers\n" <<
-    "            > perft                                    ( 119060324 )\n" <<
-    "            > perft 7 R7/P4k2/8/8/8/8/r7/6K1_w_-_-_0_1 ( 245764549 )\n" <<
-    "bench [depth = 11] [time = inf] [hash = 256] [nnue = 1]\n"  <<
+    "            > perft ( 119060324 )\n" <<
+    "bench [depth] [time] [hash] [nnue]\n"  <<
     "            Bench signature and speed of the program\n" <<
-    "            > bench              ( 16033298  | NNUE )\n" <<
-    "            > bench 11 inf 256 0 ( 14598462  | HCE )\n" <<
-    "            > bench inf 10000    ( 545884148 | Speed )\n" <<
-    "p [fen = current_position]\n" <<
-    "            Print ASCII art board\n" <<
-    "            > p 2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1_w_-_-_0_1" << std::endl;
+    "            > bench              ( 16021954  | NNUE )\n" <<
+    "            > bench 11 inf 256 0 ( 17222277  | HCE )\n" <<
+    "            > bench inf 10000    ( 577714586 | Speed )\n" <<
+    "p [fen]\n" <<
+    "            Print ASCII art board" << std::endl;
 }
 
 bool UciCommands() {
