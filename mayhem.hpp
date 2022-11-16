@@ -104,9 +104,9 @@ constexpr int kMvv[6][6] = {
 };
 
 // Evaluation phases      ( P  N  B  R  Q  K )
-constexpr int kPiece[6] = { 1, 3, 3, 5, 9, 0 };
+constexpr int kPiece[6] = { 1, 3, 3, 5, 9, 0 }; //Must match MAX_PIECES !
 
-// MG / EG -> P, N, B, R, Q, K
+// ( MG  EG ) -> ( P  N  B  R  Q  K )
 constexpr int kPestoMaterial[2][6] = {
   { 82, 337, 365, 477, 1025, 0 },
   { 94, 281, 297, 512,  936, 0 }
