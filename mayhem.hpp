@@ -63,7 +63,7 @@ namespace mayhem {
 #define MAX_Q_DEPTH   16       // Max Qsearch depth
 #define BOOK_MS       100      // At least 100ms+ for the book lookup
 #define INF           1048576  // System max number
-#define MAX_ARR       101      // Enough space for arrays
+#define MAX_ARR       101      // Enough space for arrays ( 75 Rule too )
 #define HASH_MB       256      // MB
 #define NOISE         2        // Noise for opening moves
 #define MOVEOVERHEAD  100      // ms
@@ -309,10 +309,9 @@ std::uint64_t g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_s
   g_rook_magic_moves[64][4096]{}, g_zobrist_ep[64]{}, g_zobrist_castle[16]{}, g_zobrist_wtm[2]{},
   g_r50_positions[MAX_ARR]{}, g_zobrist_board[13][64]{};
 
-int g_move_overhead = MOVEOVERHEAD, g_level = 100, g_root_n = 0, g_king_w = 0, g_king_b = 0,
-  g_moves_n = 0, g_max_depth = MAX_DEPTH, g_q_depth = 0, g_depth = 0, g_best_score = 0, g_noise = NOISE,
-  g_last_eval = 0, g_rook_w[2]{}, g_rook_b[2]{}, g_lmr[MAX_DEPTH][MAX_MOVES]{}, g_fullmoves = 1,
-  g_nnue_pieces[64]{}, g_nnue_squares[64]{};
+int g_move_overhead = MOVEOVERHEAD, g_level = 100, g_root_n = 0, g_king_w = 0, g_king_b = 0, g_moves_n = 0,
+  g_max_depth = MAX_DEPTH, g_q_depth = 0, g_depth = 0, g_best_score = 0, g_noise = NOISE, g_last_eval = 0,
+  g_rook_w[2]{}, g_rook_b[2]{}, g_fullmoves = 1, g_nnue_pieces[64]{}, g_nnue_squares[64]{};
 
 bool g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active = false,
   g_stop_search = false, g_is_pv = false, g_book_exist = false, g_nnue_exist = false,
@@ -325,7 +324,6 @@ std::uint32_t g_hash_entries = 0, g_tokens_nth = 0;
 std::vector<std::string> g_tokens(300); // 300 plys init
 polyglotbook::PolyglotBook g_book{};
 std::unique_ptr<HashEntry[]> g_hash{};
-float g_scale[MAX_ARR]{};
 
 // Prototypes
 
@@ -1646,26 +1644,24 @@ struct NnueEval {
 };
 
 int EvaluateClassical(const bool wtm) {
-  ClassicalEval e { .white = White(), .black = Black(), .both = Both(), .wtm = wtm };
-  return e.evaluate();
+  return ClassicalEval { .white = White(), .black = Black(), .both = Both(), .wtm = wtm } .evaluate();
 }
 
 int EvaluateNNUE(const bool wtm) {
-  NnueEval e { .wtm = wtm };
-  return e.evaluate() / 4; // NNUE evals are 4x
+  return NnueEval { .wtm = wtm } .evaluate() / 4; // NNUE evals are 4x
 }
 
-// Add noise to eval for different playing levels
+// Add noise to eval for different playing levels ( -5 -> +5 pawns )
 // 0    (Random Mover)
 // 1-99 (Levels)
 // 100  (Full Strength)
-int LevelNoise() { // -5 -> +5 pawns
-  return g_level == 100 ? 0 : Random(-5 * (100 - g_level), +5 * (100 - g_level));
-}
+int LevelNoise() { return g_level == 100 ? 0 : Random(-5 * (100 - g_level), +5 * (100 - g_level)); }
+
+// Shuffle period 30 plies then scale
+float GetScale() { return g_board->fifty < 30 ? 1.0f : (1.0f - ((static_cast<float>(g_board->fifty - 30)) / 110.0f)); }
 
 int Evaluate(const bool wtm) {
-  return LevelNoise() + (EasyDraw(wtm) ? 0 :
-    (g_scale[g_board->fifty] * (static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)))));
+  return LevelNoise() + (EasyDraw(wtm) ? 0 : (GetScale() * (static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)))));
 }
 
 // Search
@@ -1743,6 +1739,7 @@ int QSearchB(const int alpha, int beta, const int depth, const int ply) {
 }
 
 void SetPv(const int ply, const int move_i) { g_board = g_boards[ply] + move_i, g_is_pv = move_i <= 1 && !g_board->score; }
+int GetLmr(const int depth, const int move) { return (depth <= 0 || move <= 0) ? 1 : std::clamp<int>(0.25 * std::log(depth) * std::log(move), 1, 6); }
 
 // a >= b -> Minimizer won't pick any better move anyway.
 //           So searching beyond is a waste of time.
@@ -1765,7 +1762,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
     if (sort) LazySort(ply, i, moves_n), sort = g_boards[ply][i].score != 0;
     SetPv(ply, i);
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksW()) {
-      if (SearchB(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) <= alpha) continue;
+      if (SearchB(alpha, beta, depth - 2 - GetLmr(depth, i), ply + 1) <= alpha) continue;
       g_board = g_boards[ply] + i;
     }
     if (const auto score = SearchB(alpha, beta, depth - 1, ply + 1); score > alpha) { // Improved scope
@@ -1797,7 +1794,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
     if (sort) LazySort(ply, i, moves_n), sort = g_boards[ply][i].score != 0;
     SetPv(ply, i);
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksB()) {
-      if (SearchW(alpha, beta, depth - 2 - g_lmr[depth][i], ply + 1) >= beta) continue;
+      if (SearchW(alpha, beta, depth - 2 - GetLmr(depth, i), ply + 1) >= beta) continue;
       g_board = g_boards[ply] + i;
     }
     if (const auto score = SearchW(alpha, beta, depth - 1, ply + 1); score < beta) {
@@ -2082,7 +2079,7 @@ std::uint64_t Perft(const bool wtm, const int depth, const int ply) {
 
 void UciMake(const int root_i) {
   if (!g_wtm) ++g_fullmoves; // Increase fullmoves only after black move
-  g_r50_positions[g_board->fifty] = Hash(g_wtm); // Set hash
+  g_r50_positions[std::min<std::size_t>(g_board->fifty, 99)] = Hash(g_wtm); // Set hash
   g_board_empty = g_boards[0][root_i]; // Copy current board
   g_board       = &g_board_empty; // Set pointer
   g_wtm         = !g_wtm; // Flip the board
@@ -2409,18 +2406,6 @@ void InitZobrist() {
   for (auto i = 0; i <  2; ++i) g_zobrist_wtm[i]    = Random8x64();
 }
 
-// Shuffle period 30 plies then scale
-void InitScale() {
-  for (auto i = 0; i < MAX_ARR; ++i)
-    g_scale[i] = i < 30 ? 1.0f : (1.0f - ((static_cast<float>(i - 30)) / 110.0f));
-}
-
-void InitLMR() {
-  for (auto d = 0; d < MAX_DEPTH; ++d)
-    for (auto m = 0; m < MAX_MOVES; ++m)
-      g_lmr[d][m] = std::clamp<int>((!d || !m) ? 1 : 0.25 * std::log(d) * std::log(m), 1, 6);
-}
-
 void PrintVersion() {
   std::cout << VERSION << " by Toni Helminen" << std::endl;
 }
@@ -2431,8 +2416,6 @@ void Init() {
   InitRookMagics();
   InitJumpMoves();
   InitZobrist();
-  InitScale();
-  InitLMR();
   SetHashtable(HASH_MB);
   SetNNUE(EVAL_FILE);
   SetBook(BOOK_FILE);
