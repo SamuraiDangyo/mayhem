@@ -63,7 +63,7 @@ namespace mayhem {
 #define MAX_Q_DEPTH   16       // Max Qsearch depth
 #define BOOK_MS       100      // At least 100ms+ for the book lookup
 #define INF           1048576  // System max number
-#define MAX_ARR       101      // Enough space for arrays ( 75 Rule too )
+#define MAX_ARR       101      // Enough space for arrays
 #define HASH_MB       256      // MB
 #define NOISE         2        // Noise for opening moves
 #define MOVEOVERHEAD  100      // ms
@@ -2079,7 +2079,7 @@ std::uint64_t Perft(const bool wtm, const int depth, const int ply) {
 
 void UciMake(const int root_i) {
   if (!g_wtm) ++g_fullmoves; // Increase fullmoves only after black move
-  g_r50_positions[std::min<std::size_t>(g_board->fifty, 99)] = Hash(g_wtm); // Set hash
+  g_r50_positions[std::min<std::size_t>(g_board->fifty, 100)] = Hash(g_wtm); // Set hash
   g_board_empty = g_boards[0][root_i]; // Copy current board
   g_board       = &g_board_empty; // Set pointer
   g_wtm         = !g_wtm; // Flip the board
