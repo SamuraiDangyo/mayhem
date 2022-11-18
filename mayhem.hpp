@@ -1661,7 +1661,8 @@ int LevelNoise() { return g_level == 100 ? 0 : Random(-5 * (100 - g_level), +5 *
 float GetScale() { return g_board->fifty < 30 ? 1.0f : (1.0f - ((static_cast<float>(g_board->fifty - 30)) / 110.0f)); }
 
 int Evaluate(const bool wtm) {
-  return LevelNoise() + (EasyDraw(wtm) ? 0 : (GetScale() * (static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)))));
+  return LevelNoise() +
+    (EasyDraw(wtm) ? 0 : (GetScale() * (static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)))));
 }
 
 // Search
@@ -1739,7 +1740,7 @@ int QSearchB(const int alpha, int beta, const int depth, const int ply) {
 }
 
 void SetPv(const int ply, const int move_i) { g_board = g_boards[ply] + move_i, g_is_pv = move_i <= 1 && !g_board->score; }
-int GetLmr(const int depth, const int move) { return (depth <= 0 || move <= 0) ? 1 : std::clamp<int>(0.25 * std::log(depth) * std::log(move), 1, 6); }
+int GetLmr(const int d, const int m) { return (d <= 0 || m <= 0) ? 1 : std::clamp<int>(0.25 * std::log(d) * std::log(m), 1, 6); }
 
 // a >= b -> Minimizer won't pick any better move anyway.
 //           So searching beyond is a waste of time.
@@ -2276,6 +2277,7 @@ void UciHelp() {
     "go wtime [int] btime [int] winc [int] binc [int]\n" <<
     "            ... movestogo [int] movetime [int] depth [int] [infinite]\n" <<
     "            Search the current position with the provided settings\n" <<
+    "p [fen]     Print ASCII art board\n" <<
     "position [startpos | fen] [moves]?\n" <<
     "            Sets the board position via an optional FEN and optional move list\n" <<
     "perft [depth] [fen]\n" <<
@@ -2285,9 +2287,7 @@ void UciHelp() {
     "            Bench signature and speed of the program\n" <<
     "            > bench              ( 16021954  | NNUE )\n" <<
     "            > bench 11 inf 256 0 ( 17222277  | HCE )\n" <<
-    "            > bench inf 10000    ( 577714586 | Speed )\n" <<
-    "p [fen]\n" <<
-    "            Print ASCII art board" << std::endl;
+    "            > bench inf 10000    ( 577714586 | Speed )" << std::endl;
 }
 
 bool UciCommands() {
