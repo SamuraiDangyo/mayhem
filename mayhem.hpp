@@ -271,7 +271,7 @@ enum class MoveType { kKiller, kGood };
 
 // Structs
 
-struct Board { // 28B
+struct Board { // 172B
   std::uint64_t white[6]{};   // White bitboards
   std::uint64_t black[6]{};   // Black bitboards
   std::int32_t  score{0};     // Sorting score
@@ -280,9 +280,9 @@ struct Board { // 28B
   std::uint8_t  index{0};     // Sorting index
   std::uint8_t  from{0};      // From square
   std::uint8_t  to{0};        // To square
-  std::uint8_t  type{0};      // Move type (0: Normal, 1: OOw, 2: OOOw, 3: OOb, 4: OOOb, 5: =n, 6: =b, 7: =r, 8: =q)
-  std::uint8_t  castle{0};    // Castling rights (0x1: K, 0x2: Q, 0x4: k, 0x8: q)
-  std::uint8_t  fifty{0};     // Rule 50 counter
+  std::uint8_t  type{0};      // Move type ( 0:Normal 1:OOw 2:OOOw 3:OOb 4:OOOb 5:=n 6:=b 7:=r 8:=q )
+  std::uint8_t  castle{0};    // Castling rights ( 0x1:K 0x2:Q 0x4:k 0x8:q )
+  std::uint8_t  fifty{0};     // Rule 50 counter ( 256 max )
 
   const std::string movename() const;
   bool is_underpromo() const;
@@ -408,7 +408,7 @@ char PromoLetter(const std::int8_t piece) {
 }
 
 extern "C" {
-// See if cin has smt
+// See if std::cin has smt
 bool InputAvailable() {
 #ifdef WINDOWS
   return _kbhit();
@@ -2026,19 +2026,19 @@ bool FastMove(const int ms) {
 }
 
 void SearchRootMoves(const bool is_eg) {
-  auto good      = 0; // Good score in a row for HCE activation
-  const auto now = Now();
+  auto good        = 0; // Good score in a row for HCE activation
+  const auto start = Now();
 
   for ( ; std::abs(g_best_score) != INF && g_depth < g_max_depth && !g_stop_search; ++g_depth) {
     g_q_depth = std::min(g_q_depth + 2, MAX_Q_DEPTH);
     g_best_score = g_wtm ? BestW() : BestB();
     // Switch to classical only when the game is decided ( 4+ pawns ) !
     g_classical = g_classical || (is_eg && std::abs(g_best_score) > (4 * 100) && ((++good) >= 7));
-    SpeakUci(g_best_score, Now() - now);
+    SpeakUci(g_best_score, Now() - start);
   }
 
   g_last_eval = g_best_score;
-  if (!g_q_depth) SpeakUci(g_last_eval, Now() - now); // Nothing searched -> Print smt for UCI
+  if (!g_q_depth) SpeakUci(g_last_eval, Now() - start); // Nothing searched -> Print smt for UCI
 }
 
 void ThinkReset() { // Reset search status
@@ -2142,7 +2142,6 @@ void UciGoInfinite() {
 
 void UciGoMovetime() {
   Think(std::max(0, TokenNumber()));
-  TokenPop();
   PrintBestMove();
 }
 
@@ -2150,7 +2149,6 @@ void UciGoDepth() {
   g_max_depth = std::clamp(TokenNumber(), 1, MAX_DEPTH);
   Think(WEEK);
   g_max_depth = MAX_DEPTH;
-  TokenPop();
   PrintBestMove();
 }
 
@@ -2166,9 +2164,9 @@ void UciGo() {
     else if (Token("winc"))      { winc  = std::max(0, TokenNumber()); }
     else if (Token("binc"))      { binc  = std::max(0, TokenNumber()); }
     else if (Token("movestogo")) { mtg   = std::max(1, TokenNumber()); }
-    else if (Token("movetime"))  { UciGoMovetime(); return; }
-    else if (Token("infinite"))  { UciGoInfinite(); return; }
-    else if (Token("depth"))     { UciGoDepth();    return; }
+    else if (Token("movetime"))  { UciGoMovetime(), TokenPop(); return; }
+    else if (Token("infinite"))  { UciGoInfinite();             return; }
+    else if (Token("depth"))     { UciGoDepth(), TokenPop();    return; }
 
   g_wtm ? Think(std::min(wtime, wtime / mtg + winc)) :
           Think(std::min(btime, btime / mtg + binc));
@@ -2221,9 +2219,9 @@ void UciPerft(const std::string &d, const std::string &fen) {
   MgenRoot();
   for (auto i = 0; i < g_root_n; ++i) {
     g_board           = g_boards[0] + i;
-    const auto now    = Now();
+    const auto start  = Now();
     const auto nodes2 = depth >= 0 ? Perft(!g_wtm, depth - 1, 1) : 0;
-    const auto ms     = Now() - now;
+    const auto ms     = Now() - start;
     std::cout << (i + 1) << ". " << g_boards[0][i].movename() << " -> " << nodes2 << " (" << ms << " ms)" << std::endl;
     nodes    += nodes2;
     total_ms += ms;
@@ -2248,9 +2246,9 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
   for (const auto &fen : kBench) {
     std::cout << "[ " << (++n) << "/" << kBench.size() << " ; "  << fen << " ]" << std::endl;
     Fen(fen);
-    const auto now = Now();
+    const auto start = Now();
     Think(time);
-    total_ms += Now() - now;
+    total_ms += Now() - start;
     nodes    += g_nodes;
     std::cout << std::endl;
   }
