@@ -79,21 +79,21 @@ namespace mayhem {
 
 // Tactical fens to pressure search
 const std::array<const std::string, 15> kBench = {
-   "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 1 ; bm Rh8",
-  "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 1 ; bm Nxa7+",
-  "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 1 ; bm Rxh7+",
-  "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0 1 ; bm Qxh3",
-  "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0 1 ; bm g3",
-  "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0 1 ; bm Nb5",
-  "8/6pp/4p3/1p1n4/1NbkN1P1/P4P1P/1PR3K1/r7 w - - 0 1 ; bm Rxc4+",
-  "2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0 1 ; bm Nxd4+",
-  "nrq4r/2k1p3/1p1pPnp1/pRpP1p2/P1P2P2/2P1BB2/1R2Q1P1/6K1 w - - 0 1 ; bm Bxc5",
-  "3r2k1/5p2/6p1/4b3/1P2P3/1R2P2p/P1K1N3/8 b - - 0 1 ; bm Rd1",
-  "1k1r4/pp1r1pp1/4n1p1/2R5/2Pp1qP1/3P2QP/P4PB1/1R4K1 w - - 0 1 ; bm Bxb7",
-  "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0 1 ; bm Rxg7",
-  "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0 1 ; bm Qxc6",
-  "5bk1/1rQ4p/5pp1/2pP4/3n1PP1/7P/1q3BB1/4R1K1 w - - 0 1 ; bm d6",
-  "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 1 ; bm Ne3"
+   "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 1 ; bm a8h8",
+  "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 1 ; bm b5a7",
+  "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 1 ; bm c7h7",
+  "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0 1 ; bm h5h3",
+  "6k1/3r4/2R5/P5P1/1P4p1/8/4rB2/6K1 b - - 0 1 ; bm g4g3",
+  "5n2/pRrk2p1/P4p1p/4p3/3N4/5P2/6PP/6K1 w - - 0 1 ; bm d4b5",
+  "8/6pp/4p3/1p1n4/1NbkN1P1/P4P1P/1PR3K1/r7 w - - 0 1 ; bm c2c4",
+  "2r5/2rk2pp/1pn1pb2/pN1p4/P2P4/1N2B3/nPR1KPPP/3R4 b - - 0 1 ; bm c6d4",
+  "nrq4r/2k1p3/1p1pPnp1/pRpP1p2/P1P2P2/2P1BB2/1R2Q1P1/6K1 w - - 0 1 ; bm e3c5",
+  "3r2k1/5p2/6p1/4b3/1P2P3/1R2P2p/P1K1N3/8 b - - 0 1 ; bm d8d1",
+  "1k1r4/pp1r1pp1/4n1p1/2R5/2Pp1qP1/3P2QP/P4PB1/1R4K1 w - - 0 1 ; bm g2b7",
+  "2r1k3/6pr/p1nBP3/1p3p1p/2q5/2P5/P1R4P/K2Q2R1 w - - 0 1 ; bm g1g7",
+  "2b4k/p1b2p2/2p2q2/3p1PNp/3P2R1/3B4/P1Q2PKP/4r3 w - - 0 1 ; bm c2c6",
+  "5bk1/1rQ4p/5pp1/2pP4/3n1PP1/7P/1q3BB1/4R1K1 w - - 0 1 ; bm d5d6",
+  "rnbqkb1r/pppp1ppp/8/4P3/6n1/7P/PPPNPPP1/R1BQKBNR b KQkq - 0 1 ; bm g4e3"
 };
 
 // [Attacker][Captured] / [PNBRQK][pnbrqk]
@@ -413,7 +413,7 @@ bool InputAvailable() {
 #ifdef WINDOWS
   return _kbhit();
 #else
-  fd_set fd;
+  fd_set fd{};
   struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
   FD_ZERO(&fd);
   FD_SET(STDIN_FILENO, &fd);
