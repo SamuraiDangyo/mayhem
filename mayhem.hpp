@@ -39,7 +39,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <utility>
 
 extern "C" {
-// InputAvailable()
 #ifdef WINDOWS
 #include <conio.h>
 #else
@@ -57,7 +56,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 7.7"
+#define VERSION       "Mayhem 7.8"
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
 #define MAX_Q_DEPTH   16       // Max Qsearch depth
@@ -79,7 +78,7 @@ namespace mayhem {
 
 // Tactical fens to pressure search
 const std::array<const std::string, 15> kBench = {
-   "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 1 ; bm a8h8",
+  "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 1 ; bm a8h8",
   "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 1 ; bm b5a7",
   "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 1 ; bm c7h7",
   "5r1k/1b4p1/p6p/4Pp1q/2pNnP2/7N/PPQ3PP/5R1K b - - 0 1 ; bm h5h3",
@@ -355,10 +354,15 @@ inline std::uint64_t Both() {
   return White() | Black();
 }
 
-// Count (return) zeros AND then pop (arg) BitBoard
-inline int CtzPop(std::uint64_t *bb) {
-  const auto ret = std::countr_zero(*bb); // Count Trailing Zeros ( 0 before 1 )
-  *bb = *bb & (*bb - 0x1ULL);
+// Set bit in 1 -> 64
+constexpr std::uint64_t Bit(const int nth) {
+  return 0x1ULL << nth;
+}
+
+// Count Trailing zeros AND then pop BitBoard
+inline int CtzPop(std::uint64_t *b) {
+  const auto ret = std::countr_zero(*b); // 010110100 -> 2
+  *b &= *b - 0x1ULL;
   return ret;
 }
 
@@ -370,11 +374,6 @@ inline int Xaxl(const int sq) {
 // Y axle of board
 inline int Yaxl(const int sq) {
   return static_cast<int>(sq / 8);
-}
-
-// Set bit in 1 -> 64
-constexpr std::uint64_t Bit(const int nth) {
-  return 0x1ULL << nth;
 }
 
 // Nodes Per Second
@@ -408,8 +407,7 @@ char PromoLetter(const std::int8_t piece) {
 }
 
 extern "C" {
-// See if std::cin has smt
-bool InputAvailable() {
+bool InputAvailable() { // See if std::cin has smt
 #ifdef WINDOWS
   return _kbhit();
 #else
@@ -464,7 +462,7 @@ void SplitString(const std::string &str, T &cont, const std::string &delims = " 
   cont.push_back(str.substr(prev, cur - prev));
 }
 
-// Read input from cin
+// Read input from std::cin
 void ReadInput() {
   std::string line{};
   std::getline(std::cin, line);
@@ -475,13 +473,13 @@ void ReadInput() {
 
 // PolyGlot Book lib
 
-void SetBook(const std::string &book_file) { // x.nnue
+void SetBook(const std::string &book_file) { // book.bin
   g_book_exist = book_file.length() <= 1 ? false : g_book.open_book(book_file);
 }
 
 // NNUE lib
 
-void SetNNUE(const std::string &eval_file) { // x.bin
+void SetNNUE(const std::string &eval_file) { // nn.nnue
   g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str());
 }
 
@@ -1434,17 +1432,16 @@ struct ClassicalEval { // Finish the game or no NNUE
   int w_pieces[5]{}, b_pieces[5]{}, white_total{1}, black_total{1}, both_total{0}, piece_sum{0},
       wk{0}, bk{0}, score{0}, mg{0}, eg{0}, scale_factor{1};
 
-  template<bool wtm>
-  void check_blind_bishop() {
-    if constexpr (wtm) {
-      const auto wpx   = Xaxl(std::countr_zero(g_board->white[0]));
-      const auto color = g_board->white[2] & 0x55aa55aa55aa55aaULL;
-      if ((color && wpx == 7) || (!color && wpx == 0)) this->scale_factor = 4;
-    } else {
-      const auto bpx   = Xaxl(std::countr_zero(g_board->black[0]));
-      const auto color = g_board->black[2] & 0x55aa55aa55aa55aaULL;
-      if ((!color && bpx == 7) || (color && bpx == 0)) this->scale_factor = 4;
-    }
+  void check_blind_bishop_w() {
+    const auto wpx   = Xaxl(std::countr_zero(g_board->white[0]));
+    const auto color = g_board->white[2] & 0x55aa55aa55aa55aaULL;
+    if ((color && wpx == 7) || (!color && wpx == 0)) this->scale_factor = 4;
+  }
+
+  void check_blind_bishop_b() {
+    const auto bpx   = Xaxl(std::countr_zero(g_board->black[0]));
+    const auto color = g_board->black[2] & 0x55aa55aa55aa55aaULL;
+    if ((!color && bpx == 7) || (color && bpx == 0)) this->scale_factor = 4;
   }
 
   template<bool wtm, int p>
@@ -1480,23 +1477,23 @@ struct ClassicalEval { // Finish the game or no NNUE
   template<bool wtm> void queen(const int sq)  { this->eval_score<wtm, 4, 2>(sq, BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)); }
   template<bool wtm> void king(const int sq)   { this->eval_score<wtm, 5, 1>(sq, g_king_moves[sq]); }
 
-  #define W_EVAL(p) this->piece_sum += kPiece[(p)]; ++this->white_total; ++this->w_pieces[(p)]
-  #define B_EVAL(p) this->piece_sum += kPiece[(p)]; ++this->black_total; ++this->b_pieces[(p)]
+  template<int p> void eval_w() { this->piece_sum += kPiece[p]; ++this->white_total; ++this->w_pieces[p]; }
+  template<int p> void eval_b() { this->piece_sum += kPiece[p]; ++this->black_total; ++this->b_pieces[p]; }
 
   void eval_piece(const int sq) {
     switch (g_board->pieces[sq]) {
-      case +1: this->pawn  <true>(sq);  W_EVAL(0);     break;
-      case +2: this->knight<true>(sq);  W_EVAL(1);     break;
-      case +3: this->bishop<true>(sq);  W_EVAL(2);     break;
-      case +4: this->rook  <true>(sq);  W_EVAL(3);     break;
-      case +5: this->queen <true>(sq);  W_EVAL(4);     break;
-      case +6: this->king  <true>(sq);  this->wk = sq; break; // White king (+1) is already in
-      case -1: this->pawn  <false>(sq); B_EVAL(0);     break;
-      case -2: this->knight<false>(sq); B_EVAL(1);     break;
-      case -3: this->bishop<false>(sq); B_EVAL(2);     break;
-      case -4: this->rook  <false>(sq); B_EVAL(3);     break;
-      case -5: this->queen <false>(sq); B_EVAL(4);     break;
-      case -6: this->king  <false>(sq); this->bk = sq; break; // Black king (+1) is already in
+      case +1: this->pawn  <true>(sq);  this->eval_w<0>(); break;
+      case +2: this->knight<true>(sq);  this->eval_w<1>(); break;
+      case +3: this->bishop<true>(sq);  this->eval_w<2>(); break;
+      case +4: this->rook  <true>(sq);  this->eval_w<3>(); break;
+      case +5: this->queen <true>(sq);  this->eval_w<4>(); break;
+      case +6: this->king  <true>(sq);  this->wk = sq;     break; // White king (+1) is already in
+      case -1: this->pawn  <false>(sq); this->eval_b<0>(); break;
+      case -2: this->knight<false>(sq); this->eval_b<1>(); break;
+      case -3: this->bishop<false>(sq); this->eval_b<2>(); break;
+      case -4: this->rook  <false>(sq); this->eval_b<3>(); break;
+      case -5: this->queen <false>(sq); this->eval_b<4>(); break;
+      case -6: this->king  <false>(sq); this->bk = sq;     break; // Black king (+1) is already in
     }
   }
 
@@ -1505,12 +1502,14 @@ struct ClassicalEval { // Finish the game or no NNUE
     this->both_total = this->white_total + this->black_total;
   }
 
-  template<bool wtm>
-  void bonus_knbk() {
-    if constexpr (wtm) this->score += (2 * CloseBonus(this->wk, this->bk)) +
+  void bonus_knbk_w() {
+    this->score += (2 * CloseBonus(this->wk, this->bk)) +
       (10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
                                                            std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk))));
-    else               this->score -= (2 * CloseBonus(this->wk, this->bk)) +
+  }
+
+  void bonus_knbk_b() {
+    this->score -= (2 * CloseBonus(this->wk, this->bk)) +
       (10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
                                                            std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk))));
   }
@@ -1524,12 +1523,9 @@ struct ClassicalEval { // Finish the game or no NNUE
     else if (ChecksB()) this->score -= CHECKS_BONUS;
   }
 
-  // Force black king in the corner and get closer
-  template<bool wtm>
-  void bonus_mating() {
-    if constexpr (wtm) this->score += 6 * CloseAnyCornerBonus(this->bk) + 4 * CloseBonus(this->wk, this->bk);
-    else               this->score -= 6 * CloseAnyCornerBonus(this->wk) + 4 * CloseBonus(this->bk, this->wk);
-  }
+  // Force enemy king in the corner and get closer
+  void bonus_mating_w() { this->score += 6 * CloseAnyCornerBonus(this->bk) + 4 * CloseBonus(this->wk, this->bk); }
+  void bonus_mating_b() { this->score -= 6 * CloseAnyCornerBonus(this->wk) + 4 * CloseBonus(this->bk, this->wk); }
 
 #define WP(x) this->w_pieces[(x)]
 #define BP(x) this->b_pieces[(x)]
@@ -1544,18 +1540,18 @@ struct ClassicalEval { // Finish the game or no NNUE
   // 3. KRvK(NB)   -> Drawish (Try to checkmate)
   // 4. K(NB)vKR   -> Drawish (Try to checkmate)
   void bonus_special_4men() {
-    if (     WP(4) && (!BP(4)))         { this->bonus_mating<true>(); }
-    else if (BP(4) && (!WP(4)))         { this->bonus_mating<false>(); }
-    else if (WP(3) && (BP(1) || BP(2))) { this->scale_factor = 4; this->bonus_mating<true>(); }
-    else if (BP(3) && (WP(1) || WP(2))) { this->scale_factor = 4; this->bonus_mating<false>(); }
+    if (     WP(4) && (!BP(4)))         { this->bonus_mating_w(); }
+    else if (BP(4) && (!WP(4)))         { this->bonus_mating_b(); }
+    else if (WP(3) && (BP(1) || BP(2))) { this->scale_factor = 4; this->bonus_mating_w(); }
+    else if (BP(3) && (WP(1) || WP(2))) { this->scale_factor = 4; this->bonus_mating_b(); }
   }
 
   // 1. KRRvKR / KR(NB)vK(NB)               -> White Checkmate
   // 2. KRvKRR / K(NB)vKR(NB)               -> Black Checkmate
   // 3. K(RQ)(PNB)vK(RQ) / K(RQ)vK(RQ)(PNB) -> Drawish
   void bonus_special_5men() {
-    if (     (WP(3) == 2 && BP(3)) || (WP(3) && (WP(2) || WP(1)) && (BP(2) || BP(1)))) this->bonus_mating<true>();
-    else if ((BP(3) == 2 && WP(3)) || (BP(3) && (BP(2) || BP(1)) && (WP(2) || WP(1)))) this->bonus_mating<false>();
+    if (     (WP(3) == 2 && BP(3)) || (WP(3) && (WP(2) || WP(1)) && (BP(2) || BP(1)))) this->bonus_mating_w();
+    else if ((BP(3) == 2 && WP(3)) || (BP(3) && (BP(2) || BP(1)) && (WP(2) || WP(1)))) this->bonus_mating_b();
     else if (((WP(3) && BP(3)) || (WP(4) && BP(4))) && ((WP(0) || WP(1) || WP(2)) || (BP(0) || BP(1) || BP(2))))
       this->scale_factor = 4;
   }
@@ -1565,20 +1561,20 @@ struct ClassicalEval { // Finish the game or no NNUE
   // 3. Can't force mate w/ 2 knights -> Drawish
   void white_is_mating() {
     if (this->white_total == 3) {
-      if (WP(2) && WP(1)) { this->bonus_knbk<true>();         return; }
-      if (WP(2) && WP(0)) { this->check_blind_bishop<true>(); return; }
+      if (WP(2) && WP(1)) { this->bonus_knbk_w();         return; }
+      if (WP(2) && WP(0)) { this->check_blind_bishop_w(); return; }
       if (WP(1) == 2)     { this->scale_factor = 4; }
     }
-    this->bonus_mating<true>();
+    this->bonus_mating_w();
   }
 
   void black_is_mating() {
     if (this->black_total == 3) {
-      if (BP(2) && BP(1)) { this->bonus_knbk<false>();         return; }
-      if (BP(2) && BP(0)) { this->check_blind_bishop<false>(); return; }
+      if (BP(2) && BP(1)) { this->bonus_knbk_b();         return; }
+      if (BP(2) && BP(0)) { this->check_blind_bishop_b(); return; }
       if (BP(1) == 2)     { this->scale_factor = 4; }
     }
-    this->bonus_mating<false>();
+    this->bonus_mating_b();
   }
 
   // Special EG functions. Avoid always doing "Tabula rasa"
@@ -1896,20 +1892,26 @@ int SearchB(const int alpha, int beta, const int depth, const int ply) {
   return beta;
 }
 
+int FindBestW(const int i, const int alpha) {
+  if (g_depth >= 1 && i >= 1) { // Null window search for bad moves
+    if (const int score = SearchB(alpha, alpha + 1, g_depth, 1); score > alpha) {
+      SetPv(0, i);
+      return SearchB(alpha, +INF, g_depth, 1); // Search w/ full window
+    } else {
+      return score;
+    }
+  }
+  return SearchB(alpha, +INF, g_depth, 1);
+}
+
 // Root search
 int BestW() {
   auto best_i = 0, alpha = -INF;
 
   for (auto i = 0; i < g_root_n; ++i) {
     SetPv(0, i); // 1 / 2 moves too good and not tactical -> pv
-    int score{0};
-    if (g_depth >= 1 && i >= 1) { // Null window search for bad moves
-      if ((score = SearchB(alpha, alpha + 1, g_depth, 1)) > alpha)
-        SetPv(0, i), score = SearchB(alpha, +INF, g_depth, 1); // Search w/ full window
-    } else {
-      score = SearchB(alpha, +INF, g_depth, 1);
-    }
-    if (g_stop_search) return g_best_score;
+    const auto score = FindBestW(i, alpha);
+    if (g_stop_search) return g_best_score; // Scores are rubbish now
     if (score > alpha) {
       // Skip underpromos unless really good ( 3+ pawns )
       if (g_boards[0][i].is_underpromo() && ((score + (3 * 100)) < alpha)) continue;
@@ -1922,18 +1924,24 @@ int BestW() {
   return alpha;
 }
 
+int FindBestB(const int i, const int beta) {
+  if (g_depth >= 1 && i >= 1) {
+    if (const int score = SearchW(beta - 1, beta, g_depth, 1); score < beta) {
+      SetPv(0, i);
+      return SearchW(-INF, beta, g_depth, 1);
+    } else {
+      return score;
+    }
+  }
+  return SearchW(-INF, beta, g_depth, 1);
+}
+
 int BestB() {
   auto best_i = 0, beta = +INF;
 
   for (auto i = 0; i < g_root_n; ++i) {
     SetPv(0, i);
-    int score{0};
-    if (g_depth >= 1 && i >= 1) {
-      if ((score = SearchW(beta - 1, beta, g_depth, 1)) < beta)
-        SetPv(0, i), score = SearchW(-INF, beta, g_depth, 1);
-    } else {
-      score = SearchW(-INF, beta, g_depth, 1);
-    }
+    const auto score = FindBestB(i, beta);
     if (g_stop_search) return g_best_score;
     if (score < beta) {
       if (g_boards[0][i].is_underpromo() && ((score - (3 * 100)) > beta)) continue;
@@ -2242,7 +2250,7 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
   g_nnue_exist        = g_nnue_exist && nnue != "0"; // Use nnue ?
   std::uint64_t nodes = 0;
   const auto time     = !t.length() || t == "inf" ? INF : std::max(0, std::stoi(t)); // Set time limits
-  auto n = 0, total_ms = 0;
+  auto n = 0, total_ms = 0, correct = 0;
   for (const auto &fen : kBench) {
     std::cout << "[ " << (++n) << "/" << kBench.size() << " ; "  << fen << " ]" << std::endl;
     Fen(fen);
@@ -2251,11 +2259,13 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
     total_ms += Now() - start;
     nodes    += g_nodes;
     std::cout << std::endl;
+    if (g_boards[0][0].movename() == fen.substr(fen.rfind(" bm ") + 4)) ++correct;
   }
   g_noise     = NOISE;
   g_max_depth = MAX_DEPTH;
   std::cout << "===========================\n\n" <<
     "Mode:     " << (g_nnue_exist ? "NNUE" : "HCE") << '\n' <<
+    "Result:   " << correct << " / " << kBench.size() << '\n' <<
     "Nodes:    " << nodes << '\n' <<
     "Time(ms): " << total_ms << '\n' <<
     "NPS:      " << Nps(nodes, total_ms) << std::endl;
