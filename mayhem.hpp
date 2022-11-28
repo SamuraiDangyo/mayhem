@@ -1473,18 +1473,18 @@ struct ClassicalEval { // Finish the game or no NNUE
   inline void eval_w(const int p) { this->piece_sum += kPiece[p]; ++this->white_total; ++this->w_pieces[p]; }
   inline void eval_b(const int p) { this->piece_sum += kPiece[p]; ++this->black_total; ++this->b_pieces[p]; }
 
-  void pawn_w(const int sq)   { this->pesto_w(0, sq)->eval_w(0);}
-  void pawn_b(const int sq)   { this->pesto_b(0, sq)->eval_b(0);}
-  void knight_w(const int sq) { this->eval_score_w(1, 2, sq, g_knight_moves[sq])->eval_w(1);}
-  void knight_b(const int sq) { this->eval_score_b(1, 2, sq, g_knight_moves[sq])->eval_b(1);}
-  void bishop_w(const int sq) { this->eval_score_w(2, 3, sq, BishopMagicMoves(sq, this->both))->eval_w(2);}
-  void bishop_b(const int sq) { this->eval_score_b(2, 3, sq, BishopMagicMoves(sq, this->both))->eval_b(2);}
-  void rook_w(const int sq)   { this->eval_score_w(3, 3, sq, RookMagicMoves(sq, this->both))->eval_w(3);}
-  void rook_b(const int sq)   { this->eval_score_b(3, 3, sq, RookMagicMoves(sq, this->both))->eval_b(3);}
-  void queen_w(const int sq)  { this->eval_score_w(4, 2, sq, BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both))->eval_w(4);}
-  void queen_b(const int sq)  { this->eval_score_b(4, 2, sq, BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both))->eval_b(4);}
-  void king_w(const int sq)   { this->eval_score_w(5, 1, sq, g_king_moves[sq])->wk = sq;}
-  void king_b(const int sq)   { this->eval_score_b(5, 1, sq, g_king_moves[sq])->bk = sq;}
+  void pawn_w(const int sq)   { this->pesto_w(0, sq)->eval_w(0); }
+  void pawn_b(const int sq)   { this->pesto_b(0, sq)->eval_b(0); }
+  void knight_w(const int sq) { this->eval_score_w(1, 2, sq, g_knight_moves[sq])->eval_w(1); }
+  void knight_b(const int sq) { this->eval_score_b(1, 2, sq, g_knight_moves[sq])->eval_b(1); }
+  void bishop_w(const int sq) { this->eval_score_w(2, 3, sq, BishopMagicMoves(sq, this->both))->eval_w(2); }
+  void bishop_b(const int sq) { this->eval_score_b(2, 3, sq, BishopMagicMoves(sq, this->both))->eval_b(2); }
+  void rook_w(const int sq)   { this->eval_score_w(3, 3, sq, RookMagicMoves(sq, this->both))->eval_w(3); }
+  void rook_b(const int sq)   { this->eval_score_b(3, 3, sq, RookMagicMoves(sq, this->both))->eval_b(3); }
+  void queen_w(const int sq)  { this->eval_score_w(4, 2, sq, BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both))->eval_w(4); }
+  void queen_b(const int sq)  { this->eval_score_b(4, 2, sq, BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both))->eval_b(4); }
+  void king_w(const int sq)   { this->eval_score_w(5, 1, sq, g_king_moves[sq])->wk = sq; }
+  void king_b(const int sq)   { this->eval_score_b(5, 1, sq, g_king_moves[sq])->bk = sq; }
 
   void eval_piece(const int sq) {
     switch (g_board->pieces[sq]) {
@@ -1509,15 +1509,15 @@ struct ClassicalEval { // Finish the game or no NNUE
   }
 
   void bonus_knbk_w() {
-    this->score += (2 * CloseBonus(this->wk, this->bk)) +
-      (10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
-                                                           std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk))));
+    this->score += 2 * CloseBonus(this->wk, this->bk) +
+                  10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
+                                                                      std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk)));
   }
 
   void bonus_knbk_b() {
-    this->score -= (2 * CloseBonus(this->wk, this->bk)) +
-      (10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
-                                                           std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk))));
+    this->score -= 2 * CloseBonus(this->wk, this->bk) +
+                  10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
+                                                                      std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk)));
   }
 
   void bonus_tempo() {
