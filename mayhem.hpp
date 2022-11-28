@@ -1444,56 +1444,62 @@ struct ClassicalEval { // Finish the game or no NNUE
     if ((!color && bpx == 7) || (color && bpx == 0)) this->scale_factor = 4;
   }
 
-  template<bool wtm, int p>
-  inline void pesto(const int sq) {
-    if constexpr (wtm) {
-      this->mg += kPestoPsqt[p][0][sq]        + kPestoMaterial[0][p];
-      this->eg += kPestoPsqt[p][1][sq]        + kPestoMaterial[1][p];
-    } else {
-      this->mg -= kPestoPsqt[p][0][FlipY(sq)] + kPestoMaterial[0][p];
-      this->eg -= kPestoPsqt[p][1][FlipY(sq)] + kPestoMaterial[1][p];
-    }
+  ClassicalEval* pesto_w(const int p, const int sq) {
+    this->mg += kPestoPsqt[p][0][sq] + kPestoMaterial[0][p];
+    this->eg += kPestoPsqt[p][1][sq] + kPestoMaterial[1][p];
+    return this;
   }
 
-  // Squares not having own pieces are reachable
-  template<bool wtm> inline std::uint64_t reachable() const { return wtm ? ~this->white : ~this->black; }
-
-  template<bool wtm, int k>
-  inline void mobility(const std::uint64_t m) {
-    if constexpr (wtm) this->score += k * std::popcount(m); // Population Count ( of 1 )
-    else               this->score -= k * std::popcount(m);
+  ClassicalEval* pesto_b(const int p, const int sq) {
+    this->mg -= kPestoPsqt[p][0][FlipY(sq)] + kPestoMaterial[0][p];
+    this->eg -= kPestoPsqt[p][1][FlipY(sq)] + kPestoMaterial[1][p];
+    return this;
   }
 
-  template<bool wtm, int piece, int k>
-  inline void eval_score(const int sq, const std::uint64_t m) {
-    this->pesto<wtm, piece>(sq);
-    this->mobility<wtm, k>(m & this->reachable<wtm>());
+  std::uint64_t reachable_w() const { return ~this->white; } // Squares not having own pieces are reachable
+  std::uint64_t reachable_b() const { return ~this->black; }
+
+  ClassicalEval* mobility_w(const int k, const std::uint64_t m) { this->score += k * std::popcount(m); return this; }
+  ClassicalEval* mobility_b(const int k, const std::uint64_t m) { this->score -= k * std::popcount(m); return this; }
+
+  inline ClassicalEval* eval_score_w(const int piece, const int k, const int sq, const std::uint64_t m) {
+    return this->pesto_w(piece, sq)->mobility_w(k, m & this->reachable_w());
   }
 
-  template<bool wtm> void pawn(const int sq)   { this->pesto<wtm, 0>(sq); }
-  template<bool wtm> void knight(const int sq) { this->eval_score<wtm, 1, 2>(sq, g_knight_moves[sq]); }
-  template<bool wtm> void bishop(const int sq) { this->eval_score<wtm, 2, 3>(sq, BishopMagicMoves(sq, this->both)); }
-  template<bool wtm> void rook(const int sq)   { this->eval_score<wtm, 3, 3>(sq, RookMagicMoves(sq, this->both)); }
-  template<bool wtm> void queen(const int sq)  { this->eval_score<wtm, 4, 2>(sq, BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both)); }
-  template<bool wtm> void king(const int sq)   { this->eval_score<wtm, 5, 1>(sq, g_king_moves[sq]); }
+  inline ClassicalEval* eval_score_b(const int piece, const int k, const int sq, const std::uint64_t m) {
+    return this->pesto_b(piece, sq)->mobility_b(k, m & this->reachable_b());
+  }
 
-  template<int p> void eval_w() { this->piece_sum += kPiece[p]; ++this->white_total; ++this->w_pieces[p]; }
-  template<int p> void eval_b() { this->piece_sum += kPiece[p]; ++this->black_total; ++this->b_pieces[p]; }
+  inline void eval_w(const int p) { this->piece_sum += kPiece[p]; ++this->white_total; ++this->w_pieces[p]; }
+  inline void eval_b(const int p) { this->piece_sum += kPiece[p]; ++this->black_total; ++this->b_pieces[p]; }
+
+  void pawn_w(const int sq)   { this->pesto_w(0, sq)->eval_w(0);}
+  void pawn_b(const int sq)   { this->pesto_b(0, sq)->eval_b(0);}
+  void knight_w(const int sq) { this->eval_score_w(1, 2, sq, g_knight_moves[sq])->eval_w(1);}
+  void knight_b(const int sq) { this->eval_score_b(1, 2, sq, g_knight_moves[sq])->eval_b(1);}
+  void bishop_w(const int sq) { this->eval_score_w(2, 3, sq, BishopMagicMoves(sq, this->both))->eval_w(2);}
+  void bishop_b(const int sq) { this->eval_score_b(2, 3, sq, BishopMagicMoves(sq, this->both))->eval_b(2);}
+  void rook_w(const int sq)   { this->eval_score_w(3, 3, sq, RookMagicMoves(sq, this->both))->eval_w(3);}
+  void rook_b(const int sq)   { this->eval_score_b(3, 3, sq, RookMagicMoves(sq, this->both))->eval_b(3);}
+  void queen_w(const int sq)  { this->eval_score_w(4, 2, sq, BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both))->eval_w(4);}
+  void queen_b(const int sq)  { this->eval_score_b(4, 2, sq, BishopMagicMoves(sq, this->both) | RookMagicMoves(sq, this->both))->eval_b(4);}
+  void king_w(const int sq)   { this->eval_score_w(5, 1, sq, g_king_moves[sq])->wk = sq;}
+  void king_b(const int sq)   { this->eval_score_b(5, 1, sq, g_king_moves[sq])->bk = sq;}
 
   void eval_piece(const int sq) {
     switch (g_board->pieces[sq]) {
-      case +1: this->pawn  <true>(sq);  this->eval_w<0>(); break;
-      case +2: this->knight<true>(sq);  this->eval_w<1>(); break;
-      case +3: this->bishop<true>(sq);  this->eval_w<2>(); break;
-      case +4: this->rook  <true>(sq);  this->eval_w<3>(); break;
-      case +5: this->queen <true>(sq);  this->eval_w<4>(); break;
-      case +6: this->king  <true>(sq);  this->wk = sq;     break; // White king (+1) is already in
-      case -1: this->pawn  <false>(sq); this->eval_b<0>(); break;
-      case -2: this->knight<false>(sq); this->eval_b<1>(); break;
-      case -3: this->bishop<false>(sq); this->eval_b<2>(); break;
-      case -4: this->rook  <false>(sq); this->eval_b<3>(); break;
-      case -5: this->queen <false>(sq); this->eval_b<4>(); break;
-      case -6: this->king  <false>(sq); this->bk = sq;     break; // Black king (+1) is already in
+      case +1: this->pawn_w(sq);   break;
+      case +2: this->knight_w(sq); break;
+      case +3: this->bishop_w(sq); break;
+      case +4: this->rook_w(sq);   break;
+      case +5: this->queen_w(sq);  break;
+      case +6: this->king_w(sq);   break; // White king (+1) is already in
+      case -1: this->pawn_b(sq);   break;
+      case -2: this->knight_b(sq); break;
+      case -3: this->bishop_b(sq); break;
+      case -4: this->rook_b(sq);   break;
+      case -5: this->queen_b(sq);  break;
+      case -6: this->king_b(sq);   break; // Black king (+1) is already in
     }
   }
 
@@ -2244,7 +2250,7 @@ void UciPerft(const std::string &d, const std::string &fen) {
 void UciBench(const std::string &d, const std::string &t, const std::string &h, const std::string &nnue) {
   const Save save{};
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
-  g_max_depth         = !d.length() ? 11 : (d == "inf" ? MAX_DEPTH : std::clamp(std::stoi(d), 0, MAX_DEPTH)); // Set depth limits
+  g_max_depth         = !d.length() ? 12 : (d == "inf" ? MAX_DEPTH : std::clamp(std::stoi(d), 0, MAX_DEPTH)); // Set depth limits
   g_noise             = 0; // Make search deterministic
   g_book_exist        = false; // Disable book
   g_nnue_exist        = g_nnue_exist && nnue != "0"; // Use nnue ?
@@ -2293,8 +2299,8 @@ void UciHelp() {
     "            > perft ( 119060324 )\n" <<
     "bench [depth] [time] [hash] [nnue]\n"  <<
     "            Bench signature and speed of the program\n" <<
-    "            > bench              ( 16021954  | NNUE )\n" <<
-    "            > bench 11 inf 256 0 ( 17222277  | HCE )\n" <<
+    "            > bench              ( 30730735  | NNUE )\n" <<
+    "            > bench 12 inf 256 0 ( 27928734  | HCE )\n" <<
     "            > bench inf 10000    ( 577714586 | Speed )" << std::endl;
 }
 
