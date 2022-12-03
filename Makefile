@@ -31,8 +31,8 @@ clean:
 	rm -f $(EXE)
 
 help:
-	@echo '+-+-+-+-+ Compiling help +-+-+-+-+'
-	@echo '-DWINDOWS, [CXX, CXXFLAGS, EXE, [BWN]FLAGS]= # Flags'
+	@echo '+-+-+-+-+ Compiling Help +-+-+-+-+'
+	@echo '-D(WINDOWS|CLASSIC), (CXX|CXXFLAGS|EXE|(BWN)FLAGS)= # Flags'
 	@echo 'make -j # Simple build'
 	@echo 'make -j NFLAGS="-DUSE_SSE2 -msse2" # Old CPU build'
 

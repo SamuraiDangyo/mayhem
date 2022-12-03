@@ -71,8 +71,14 @@ namespace mayhem {
 #define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // UCI startpos
 #define WEEK          (7 * 24 * 60 * 60 * 1000) // ms
 #define MAX_PIECES    (2 * (8 * 1 + 2 * 3 + 2 * 3 + 2 * 5 + 1 * 9 + 1 * 0)) // Max pieces on board (Kings always exist)
-#define EVAL_FILE     "nn-cb80fb9393af.nnue" // Default NNUE ("x" to disable)
-#define BOOK_FILE     "final-book.bin"       // Default Book ("x" to disable)
+
+#ifdef CLASSIC
+#define EVAL_FILE     "x" // Disable NNUE
+#define BOOK_FILE     "x" // Disable Book
+#else
+#define EVAL_FILE     "nn-cb80fb9393af.nnue" // Default NNUE
+#define BOOK_FILE     "final-book.bin"       // Default Book
+#endif
 
 // Constants
 
@@ -1380,7 +1386,7 @@ void MgenRoot() {
 
 // Evaluation
 
-#define FRC_PENALTY        400
+#define FRC_PENALTY        100
 #define TEMPO_BONUS        25
 #define BISHOP_PAIR_BONUS  20
 #define CHECKS_BONUS       17
@@ -1404,8 +1410,6 @@ bool EasyDraw(const bool wtm) {
   return pawns_n == 1 ? ProbeKPK(wtm) : (pawns_n == 0); // Check KPK ? / Bare kings ? -> Draw
 }
 
-// Cornered bishop penalty in FRC
-// Bishop on a1/h1/a8/h8 blocked by own pawn
 int FixFRC() {
   // No bishop in corner -> Speedup
   constexpr std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
@@ -1419,14 +1423,14 @@ int FixFRC() {
   return s;
 }
 
-// Classical evaluation (HCE)
+// Classical Evaluation (HCE)
 
 inline int FlipY(const int sq) { return sq ^ 56; } // Mirror horizontal
 inline int Square(const int x) { return x * x; } // x ^ 2
 int CloseBonus(const int a, const int b) { return Square(7 - std::abs(Xaxl(a) - Xaxl(b))) + Square(7 - std::abs(Yaxl(a) - Yaxl(b))); }
 int CloseAnyCornerBonus(const int sq) { return std::max({CloseBonus(sq, 0), CloseBonus(sq, 7), CloseBonus(sq, 56), CloseBonus(sq, 63)}); }
 
-struct ClassicalEval { // Finish the game or no NNUE
+struct Evaluation {
   const std::uint64_t white{0}, black{0}, both{0};
   const bool wtm{true};
   int w_pieces[5]{}, b_pieces[5]{}, white_total{1}, black_total{1}, both_total{0}, piece_sum{0},
@@ -1444,13 +1448,13 @@ struct ClassicalEval { // Finish the game or no NNUE
     if ((!color && bpx == 7) || (color && bpx == 0)) this->scale_factor = 4;
   }
 
-  ClassicalEval* pesto_w(const int p, const int sq) {
+  Evaluation* pesto_w(const int p, const int sq) {
     this->mg += kPestoPsqt[p][0][sq] + kPestoMaterial[0][p];
     this->eg += kPestoPsqt[p][1][sq] + kPestoMaterial[1][p];
     return this;
   }
 
-  ClassicalEval* pesto_b(const int p, const int sq) {
+  Evaluation* pesto_b(const int p, const int sq) {
     this->mg -= kPestoPsqt[p][0][FlipY(sq)] + kPestoMaterial[0][p];
     this->eg -= kPestoPsqt[p][1][FlipY(sq)] + kPestoMaterial[1][p];
     return this;
@@ -1459,14 +1463,14 @@ struct ClassicalEval { // Finish the game or no NNUE
   std::uint64_t reachable_w() const { return ~this->white; } // Squares not having own pieces are reachable
   std::uint64_t reachable_b() const { return ~this->black; }
 
-  ClassicalEval* mobility_w(const int k, const std::uint64_t m) { this->score += k * std::popcount(m); return this; }
-  ClassicalEval* mobility_b(const int k, const std::uint64_t m) { this->score -= k * std::popcount(m); return this; }
+  Evaluation* mobility_w(const int k, const std::uint64_t m) { this->score += k * std::popcount(m); return this; }
+  Evaluation* mobility_b(const int k, const std::uint64_t m) { this->score -= k * std::popcount(m); return this; }
 
-  inline ClassicalEval* eval_score_w(const int piece, const int k, const int sq, const std::uint64_t m) {
+  inline Evaluation* eval_score_w(const int piece, const int k, const int sq, const std::uint64_t m) {
     return this->pesto_w(piece, sq)->mobility_w(k, m & this->reachable_w());
   }
 
-  inline ClassicalEval* eval_score_b(const int piece, const int k, const int sq, const std::uint64_t m) {
+  inline Evaluation* eval_score_b(const int piece, const int k, const int sq, const std::uint64_t m) {
     return this->pesto_b(piece, sq)->mobility_b(k, m & this->reachable_b());
   }
 
@@ -1503,9 +1507,10 @@ struct ClassicalEval { // Finish the game or no NNUE
     }
   }
 
-  void evaluate_pieces() {
+  Evaluation* evaluate_pieces() {
     for (auto b = this->both; b; ) this->eval_piece(CtzPop(&b));
     this->both_total = this->white_total + this->black_total;
+    return this;
   }
 
   void bonus_knbk_w() {
@@ -1520,13 +1525,15 @@ struct ClassicalEval { // Finish the game or no NNUE
                                                                       std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk)));
   }
 
-  void bonus_tempo() {
+  Evaluation* bonus_tempo() {
     this->score += this->wtm ? +TEMPO_BONUS : -TEMPO_BONUS;
+    return this;
   }
 
-  void bonus_checks() {
+  Evaluation* bonus_checks() {
     if (     ChecksW()) this->score += CHECKS_BONUS;
     else if (ChecksB()) this->score -= CHECKS_BONUS;
+    return this;
   }
 
   // Force enemy king in the corner and get closer
@@ -1536,9 +1543,10 @@ struct ClassicalEval { // Finish the game or no NNUE
 #define WP(x) this->w_pieces[(x)]
 #define BP(x) this->b_pieces[(x)]
 
-  void bonus_bishop_pair() {
+  Evaluation* bonus_bishop_pair() {
     if (WP(2) >= 2) this->score += BISHOP_PAIR_BONUS;
     if (BP(2) >= 2) this->score -= BISHOP_PAIR_BONUS;
+    return this;
   }
 
   // 1. KQvK(PNBR) -> White Checkmate
@@ -1584,26 +1592,27 @@ struct ClassicalEval { // Finish the game or no NNUE
   }
 
   // Special EG functions. Avoid always doing "Tabula rasa"
-  void bonus_endgame() {
+  Evaluation* bonus_endgame() {
     if (     this->black_total == 1) this->white_is_mating();
     else if (this->white_total == 1) this->black_is_mating();
     else if (this->both_total  == 4) this->bonus_special_4men();
     else if (this->both_total  == 5) this->bonus_special_5men();
+    return this;
   }
 
-  int calculate_score() const { // 96 phases for HCE
+  int calculate_score() const { // 78 phases for HCE
     const float n = static_cast<float>(std::clamp(this->piece_sum, 0, MAX_PIECES)) / static_cast<float>(MAX_PIECES);
     const int s   = static_cast<int>(n * static_cast<float>(this->mg) + (1.0f - n) * static_cast<float>(this->eg));
     return (this->score + s) / this->scale_factor;
   }
 
   int evaluate() {
-    this->evaluate_pieces();
-    this->bonus_tempo();
-    this->bonus_checks();
-    this->bonus_bishop_pair();
-    this->bonus_endgame();
-    return this->calculate_score() + (FixFRC() / 4);
+    return this->evaluate_pieces()
+               ->bonus_tempo()
+               ->bonus_checks()
+               ->bonus_bishop_pair()
+               ->bonus_endgame()
+               ->calculate_score() + FixFRC();
   }
 };
 
@@ -1641,16 +1650,16 @@ struct NnueEval {
   }
 
   int evaluate() {
-    return this->probe() + FixFRC();
+    return this->probe() / 4 + FixFRC(); // NNUE evals are 4x
   }
 };
 
 int EvaluateClassical(const bool wtm) {
-  return ClassicalEval { .white = White(), .black = Black(), .both = Both(), .wtm = wtm } .evaluate();
+  return Evaluation { .white = White(), .black = Black(), .both = Both(), .wtm = wtm } .evaluate();
 }
 
 int EvaluateNNUE(const bool wtm) {
-  return NnueEval { .wtm = wtm } .evaluate() / 4; // NNUE evals are 4x
+  return NnueEval { .wtm = wtm } .evaluate();
 }
 
 // Add noise to eval for different playing levels ( -5 -> +5 pawns )
@@ -2168,7 +2177,7 @@ void UciGoDepth() {
 
 // Calculate needed time then think
 // Make sure we never lose on time
-// Thus small overhead buffer to prevent time losses
+// Thus small overheadbuffer (100 ms) to prevent time losses
 void UciGo() {
   auto wtime = 0, btime = 0, winc = 0, binc = 0, mtg = 26;
 
@@ -2301,7 +2310,7 @@ void UciHelp() {
     "            Bench signature and speed of the program\n" <<
     "            > bench              ( 30730735  | NNUE )\n" <<
     "            > bench 12 inf 256 0 ( 27928734  | HCE )\n" <<
-    "            > bench inf 10000    ( 577714586 | Speed )" << std::endl;
+    "            > bench inf 10000    ( 570055381 | Speed )" << std::endl;
 }
 
 bool UciCommands() {
