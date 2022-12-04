@@ -83,7 +83,7 @@ namespace mayhem {
 // Constants
 
 // Tactical fens to pressure search
-const std::array<const std::string, 15> kBench = {
+const std::vector<std::string> kBench = {
   "R7/P4k2/8/8/8/8/r7/6K1 w - - 0 1 ; bm a8h8",
   "2kr3r/pp1q1ppp/5n2/1Nb5/2Pp1B2/7Q/P4PPP/1R3RK1 w - - 0 1 ; bm b5a7",
   "2R5/2R4p/5p1k/6n1/8/1P2QPPq/r7/6K1 w - - 0 1 ; bm c7h7",
@@ -1423,7 +1423,7 @@ int FixFRC() {
   return s;
 }
 
-// Classical Evaluation (HCE)
+// HCE
 
 inline int FlipY(const int sq) { return sq ^ 56; } // Mirror horizontal
 inline int Square(const int x) { return x * x; } // x ^ 2
@@ -1612,7 +1612,7 @@ struct Evaluation {
                ->bonus_checks()
                ->bonus_bishop_pair()
                ->bonus_endgame()
-               ->calculate_score() + FixFRC();
+               ->calculate_score();
   }
 };
 
@@ -1650,7 +1650,7 @@ struct NnueEval {
   }
 
   int evaluate() {
-    return this->probe() / 4 + FixFRC(); // NNUE evals are 4x
+    return this->probe() / 4; // NNUE evals are 4x
   }
 };
 
@@ -1673,7 +1673,7 @@ float GetScale() { return g_board->fifty < 30 ? 1.0f : (1.0f - ((static_cast<flo
 
 int Evaluate(const bool wtm) {
   return LevelNoise() +
-    (EasyDraw(wtm) ? 0 : (GetScale() * (static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)))));
+    (EasyDraw(wtm) ? 0 : (GetScale() * (FixFRC() + static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)))));
 }
 
 // Search
@@ -1971,21 +1971,30 @@ int BestB() {
 
 // Material detection for classical activation
 struct Material {
-  const int white_n{0}, black_n{0}, both_n{0};
+  const int white_n{0}, black_n{0};
 
   // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
-  bool is_rook_ending() const { return this->both_n == 5 && (std::popcount(g_board->white[3] | g_board->black[3]) == 3); }
+  bool is_rook_ending() const { return this->white_n + this->black_n == 5 && (std::popcount(g_board->white[3] | g_board->black[3]) == 3); }
 
   // Vs king + (PNBRQ) ?
   bool is_easy() const { return g_wtm ? this->black_n <= 2 : this->white_n <= 2; }
 
   // 5 pieces or less both side -> Endgame
   bool is_endgame() const { return g_wtm ? this->black_n <= 5 : this->white_n <= 5; }
+
+  // Non-usual piece setups
+  bool is_weird() const {
+    if (std::popcount(g_board->white[0]) >= 9 || std::popcount(g_board->black[0]) >= 9) return true; // 8+ pawns
+    for (std::size_t i : {1, 2, 3, 4}) // 3+ [=n, =b, =r, =q]
+      if (std::popcount(g_board->white[i]) >= 3 || std::popcount(g_board->black[i]) >= 3) return true;
+    return (0xFF000000000000FFULL & (g_board->white[0] | g_board->black[0])) || // Pawns on 1st or 8th rank
+           this->white_n >= 17 || this->black_n >= 17; // Lots of pieces
+  }
 };
 
-// Activate HCE when ... No NNUE / Easy / Rook ending / 16+ pieces each color
-bool HCEActivation(const Material &m) {
-  return (!g_nnue_exist) || m.is_easy() || m.is_rook_ending() || (m.white_n >= 17 || m.black_n >= 17);
+// Activate HCE when ... No NNUE / Easy / Rook ending / Weird piece counts
+bool ClassicalActivation(const Material &m) {
+  return (!g_nnue_exist) || m.is_easy() || m.is_rook_ending() || m.is_weird();
 }
 
 // Play the book move from root list
@@ -2076,8 +2085,8 @@ void Think(const int ms) {
   if (FastMove(ms)) return;
 
   const auto tmp = g_board;
-  const Material m{ .white_n = std::popcount(White()), .black_n = std::popcount(Black()), .both_n = std::popcount(Both()) };
-  g_classical = HCEActivation(m);
+  const Material m{ .white_n = std::popcount(White()), .black_n = std::popcount(Black()) };
+  g_classical = ClassicalActivation(m);
   EvalRootMoves();
   SortRootMoves();
 
