@@ -1673,7 +1673,7 @@ float GetScale() { return g_board->fifty < 30 ? 1.0f : (1.0f - ((static_cast<flo
 
 int Evaluate(const bool wtm) {
   return LevelNoise() +
-    (EasyDraw(wtm) ? 0 : (GetScale() * (FixFRC() + static_cast<float>(g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)))));
+    (EasyDraw(wtm) ? 0 : (GetScale() * static_cast<float>(FixFRC() + (g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)))));
 }
 
 // Search
