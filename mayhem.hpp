@@ -56,7 +56,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 7.8"
+#define VERSION       "Mayhem 7.9"
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
 #define MAX_Q_DEPTH   16       // Max Qsearch depth
@@ -320,7 +320,7 @@ int g_move_overhead = MOVEOVERHEAD, g_level = 100, g_root_n = 0, g_king_w = 0, g
 
 bool g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active = false,
   g_stop_search = false, g_is_pv = false, g_book_exist = false, g_nnue_exist = false,
-  g_classical = false, g_game_on = true, g_analyzing = false;
+  g_classical = true, g_game_on = true, g_analyzing = false;
 
 Board g_board_empty{}, *g_board = &g_board_empty, *g_moves = nullptr, *g_board_orig = nullptr,
   g_boards[MAX_DEPTH + MAX_Q_DEPTH][MAX_MOVES]{};
@@ -486,7 +486,7 @@ void SetBook(const std::string &book_file) { // book.bin
 // NNUE lib
 
 void SetNNUE(const std::string &eval_file) { // nn.nnue
-  g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str());
+  g_classical = !(g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str()));
 }
 
 // Hashtable
@@ -1671,10 +1671,8 @@ int LevelNoise() { return g_level == 100 ? 0 : Random(-5 * (100 - g_level), +5 *
 // Shuffle period 30 plies then scale
 float GetScale() { return g_board->fifty < 30 ? 1.0f : (1.0f - ((static_cast<float>(g_board->fifty - 30)) / 110.0f)); }
 
-int Evaluate(const bool wtm) {
-  return LevelNoise() +
-    (EasyDraw(wtm) ? 0 : (GetScale() * static_cast<float>(FixFRC() + (g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)))));
-}
+float GetEval(const bool wtm) { return FixFRC() + (g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)); }
+int Evaluate(const bool wtm) { return LevelNoise() + (EasyDraw(wtm) ? 0 : (GetScale() * GetEval(wtm))); }
 
 // Search
 
@@ -1985,7 +1983,7 @@ struct Material {
   // Non-usual piece setups
   bool is_weird() const {
     if (std::popcount(g_board->white[0]) >= 9 || std::popcount(g_board->black[0]) >= 9) return true; // 8+ pawns
-    for (std::size_t i : {1, 2, 3, 4}) // 3+ [=n, =b, =r, =q]
+    for (const std::size_t i : {1, 2, 3, 4}) // 3+ [=n, =b, =r, =q]
       if (std::popcount(g_board->white[i]) >= 3 || std::popcount(g_board->black[i]) >= 3) return true;
     return (0xFF000000000000FFULL & (g_board->white[0] | g_board->black[0])) || // Pawns on 1st or 8th rank
            this->white_n >= 17 || this->black_n >= 17; // Lots of pieces
@@ -2114,7 +2112,7 @@ void UciMake(const int root_i) {
   if (!g_wtm) ++g_fullmoves; // Increase fullmoves only after black move
   g_r50_positions[std::min<std::size_t>(g_board->fifty, 100)] = Hash(g_wtm); // Set hash
   g_board_empty = g_boards[0][root_i]; // Copy current board
-  g_board       = &g_board_empty; // Set pointer
+  g_board       = &g_board_empty; // Set pointer ( g_board must always point to smt )
   g_wtm         = !g_wtm; // Flip the board
 }
 
@@ -2233,9 +2231,7 @@ struct Save {
   }
 };
 
-// Print ASCII art board
-// Print board + some info (NNUE, Book, Eval (cp), Hash (entries))
-// Also used for debug in UCI mode
+// Print ASCII art board ( + Used for debug in UCI mode )
 void UciPrintBoard(const std::string &fen) {
   const Save save{};
   if (fen.length()) Fen(fen);
