@@ -118,54 +118,102 @@ constexpr int kPestoMaterial[2][6] = {
 
 // [Piece][Phase][Square]
 constexpr int kPestoPsqt[6][2][64] = {
-  {{ 0,   0,   0,   0,   0,   0,   0,   0, -35,  -1, -20, -23, -15,  24,  38, -22, // Pawn (MG)
-   -26,  -4,  -4, -10,   3,   3,  33, -12, -27,  -2,  -5,  12,  17,   6,  10, -25,
-   -14,  13,   6,  21,  23,  12,  17, -23,  -6,   7,  26,  31,  65,  56,  25, -20,
-    98, 134,  61,  95,  68, 126,  34, -11,   0,   0,   0,   0,   0,   0,   0,   0 },
-   { 0,   0,   0,   0,   0,   0,   0,   0,  13,   8,   8,  10,  13,   0,   2,  -7, // Pawn (EG)
-     4,   7,  -6,   1,   0,  -5,  -1,  -8,  13,   9,  -3,  -7,  -7,  -8,   3,  -1,
-    32,  24,  13,   5,  -2,   4,  17,  17,  94, 100,  85,  67,  56,  53,  82,  84,
-   178, 173, 158, 134, 147, 132, 165, 187,   0,   0,   0,   0,   0,   0,   0,   0 }},
-{{-105, -21, -58, -33, -17, -28, -19, -23, -29, -53, -12,  -3,  -1,  18, -14, -19, // Knight (MG)
-   -23,  -9,  12,  10,  19,  17,  25, -16, -13,   4,  16,  13,  28,  19,  21,  -8,
-    -9,  17,  19,  53,  37,  69,  18,  22, -47,  60,  37,  65,  84, 129,  73,  44,
-   -73, -41,  72,  36,  23,  62,   7, -17,-167, -89, -34, -49,  61, -97, -15,-107 },
- { -29, -51, -23, -15, -22, -18, -50, -64, -42, -20, -10,  -5,  -2, -20, -23, -44, // Knight (EG)
-   -23,  -3,  -1,  15,  10,  -3, -20, -22, -18,  -6,  16,  25,  16,  17,   4, -18,
-   -17,   3,  22,  22,  22,  11,   8, -18, -24, -20,  10,   9,  -1,  -9, -19, -41,
-   -25,  -8, -25,  -2,  -9, -25, -24, -52, -58, -38, -13, -28, -31, -27, -63, -99 }},
-{{ -33,  -3, -14, -21, -13, -12, -39, -21,   4,  15,  16,   0,   7,  21,  33,   1, // Bishop (MG)
-     0,  15,  15,  15,  14,  27,  18,  10,  -6,  13,  13,  26,  34,  12,  10,   4,
-    -4,   5,  19,  50,  37,  37,   7,  -2, -16,  37,  43,  40,  35,  50,  37,  -2,
-   -26,  16, -18, -13,  30,  59,  18, -47, -29,   4, -82, -37, -25, -42,   7,  -8 },
- { -23,  -9, -23,  -5,  -9, -16,  -5, -17, -14, -18,  -7,  -1,   4,  -9, -15, -27, // Bishop (EG)
-   -12,  -3,   8,  10,  13,   3,  -7, -15,  -6,   3,  13,  19,   7,  10,  -3,  -9,
-    -3,   9,  12,   9,  14,  10,   3,   2,   2,  -8,   0,  -1,  -2,   6,   0,   4,
-    -8,  -4,   7, -12,  -3, -13,  -4, -14, -14, -21, -11,  -8,  -7,  -9, -17, -24 }},
-{{ -19, -13,   1,  17,  16,   7, -37, -26, -44, -16, -20,  -9,  -1,  11,  -6, -71, // Rook (MG)
-   -45, -25, -16, -17,   3,   0,  -5, -33, -36, -26, -12,  -1,   9,  -7,   6, -23,
-   -24, -11,   7,  26,  24,  35,  -8, -20,  -5,  19,  26,  36,  17,  45,  61,  16,
-    27,  32,  58,  62,  80,  67,  26,  44,  32,  42,  32,  51,  63,   9,  31,  43 },
-  { -9,   2,   3,  -1,  -5, -13,   4, -20,  -6,  -6,   0,   2,  -9,  -9, -11,  -3, // Rook (EG)
-    -4,   0,  -5,  -1,  -7, -12,  -8, -16,   3,   5,   8,   4,  -5,  -6,  -8, -11,
-     4,   3,  13,   1,   2,   1,  -1,   2,   7,   7,   7,   5,   4,  -3,  -5,  -3,
-    11,  13,  13,  11,  -3,   3,   8,   3,  13,  10,  18,  15,  12,  12,   8,   5 }},
- {{ -1, -18,  -9,  10, -15, -25, -31, -50, -35,  -8,  11,   2,   8,  15,  -3,   1, // Queen (MG)
-   -14,   2, -11,  -2,  -5,   2,  14,   5,  -9, -26,  -9, -10,  -2,  -4,   3,  -3,
-   -27, -27, -16, -16,  -1,  17,  -2,   1, -13, -17,   7,   8,  29,  56,  47,  57,
-   -24, -39,  -5,   1, -16,  57,  28,  54, -28,   0,  29,  12,  59,  44,  43,  45 },
- { -33, -28, -22, -43,  -5, -32, -20, -41, -22, -23, -30, -16, -16, -23, -36, -32, // Queen (EG)
-   -16, -27,  15,   6,   9,  17,  10,   5, -18,  28,  19,  47,  31,  34,  39,  23,
-     3,  22,  24,  45,  57,  40,  57,  36, -20,   6,   9,  49,  47,  35,  19,   9,
-   -17,  20,  32,  41,  58,  25,  30,   0,  -9,  22,  22,  27,  27,  19,  10,  20 }},
-{{ -15,  36,  12, -54,   8, -28,  24,  14,   1,   7,  -8, -64, -43, -16,   9,   8, // King (MG)
-   -14, -14, -22, -46, -44, -30, -15, -27, -49,  -1, -27, -39, -46, -44, -33, -51,
-   -17, -20, -12, -27, -30, -25, -14, -36,  -9,  24,   2, -16, -20,   6,  22, -22,
-    29,  -1, -20,  -7,  -8,  -4, -38, -29, -65,  23,  16, -15, -56, -34,   2,  13 },
- { -53, -34, -21, -11, -28, -14, -24, -43, -27, -11,   4,  13,  14,   4,  -5, -17, // King (EG)
-   -19,  -3,  11,  21,  23,  16,   7,  -9, -18,  -4,  21,  24,  27,  23,   9, -11,
-    -8,  22,  24,  27,  26,  33,  26,   3,  10,  17,  23,  15,  20,  45,  44,  13,
-   -12,  17,  14,  17,  17,  38,  23,  11, -74, -35, -18, -18, -11,  15,   4, -17 }}
+{{ -55, -54, -53, -52, -52, -53, -54, -55, // Pawn (MG)
+   -35,  -1, -20, -23, -15,  24,  38, -22,
+   -26,  -4,  -4, -10,   3,   3,  33, -12,
+   -27,  -2,  -5,  12,  17,   6,  10, -25,
+   -14,  13,   6,  21,  23,  12,  17, -23,
+    -6,   7,  26,  31,  65,  56,  25, -20,
+    98, 134,  61,  95,  68, 126,  34, -11,
+     0,   0,   0,   0,   0,   0,   0,   0 },
+ { -55, -54, -53, -52, -52, -53, -54, -55, // Pawn (EG)
+    13,   8,   8,  10,  13,   0,   2,  -7,
+     4,   7,  -6,   1,   0,  -5,  -1,  -8,
+    13,   9,  -3,  -7,  -7,  -8,   3,  -1,
+    32,  24,  13,   5,  -2,   4,  17,  17,
+    94, 100,  85,  67,  56,  53,  82,  84,
+   178, 173, 158, 134, 147, 132, 165, 187,
+     0,   0,   0,   0,   0,   0,   0,   0 }},
+{{-105, -21, -58, -33, -17, -28, -19, -23, // Knight (MG)
+   -29, -53, -12,  -3,  -1,  18, -14, -19,
+   -23,  -9,  12,  10,  19,  17,  25, -16,
+   -13,   4,  16,  13,  28,  19,  21,  -8,
+    -9,  17,  19,  53,  37,  69,  18,  22,
+   -47,  60,  37,  65,  84, 129,  73,  44,
+   -73, -41,  72,  36,  23,  62,   7, -17,
+  -167, -89, -34, -49,  61, -97, -15,-107 },
+ { -29, -51, -23, -15, -22, -18, -50, -64, // Knight (EG)
+   -42, -20, -10,  -5,  -2, -20, -23, -44,
+   -23,  -3,  -1,  15,  10,  -3, -20, -22,
+   -18,  -6,  16,  25,  16,  17,   4, -18,
+   -17,   3,  22,  22,  22,  11,   8, -18,
+   -24, -20,  10,   9,  -1,  -9, -19, -41,
+   -25,  -8, -25,  -2,  -9, -25, -24, -52,
+   -58, -38, -13, -28, -31, -27, -63, -99 }},
+{{ -33,  -3, -14, -21, -13, -12, -39, -21, // Bishop (MG)
+     4,  15,  16,   0,   7,  21,  33,   1,
+     0,  15,  15,  15,  14,  27,  18,  10,
+    -6,  13,  13,  26,  34,  12,  10,   4,
+    -4,   5,  19,  50,  37,  37,   7,  -2,
+   -16,  37,  43,  40,  35,  50,  37,  -2,
+   -26,  16, -18, -13,  30,  59,  18, -47,
+   -29,   4, -82, -37, -25, -42,   7,  -8 },
+ { -23,  -9, -23,  -5,  -9, -16,  -5, -17, // Bishop (EG)
+   -14, -18,  -7,  -1,   4,  -9, -15, -27,
+   -12,  -3,   8,  10,  13,   3,  -7, -15,
+    -6,   3,  13,  19,   7,  10,  -3,  -9,
+    -3,   9,  12,   9,  14,  10,   3,   2,
+     2,  -8,   0,  -1,  -2,   6,   0,   4,
+    -8,  -4,   7, -12,  -3, -13,  -4, -14,
+   -14, -21, -11,  -8,  -7,  -9, -17, -24 }},
+{{ -19, -13,   1,  17,  16,   7, -37, -26, // Rook (MG)
+   -44, -16, -20,  -9,  -1,  11,  -6, -71,
+   -45, -25, -16, -17,   3,   0,  -5, -33,
+   -36, -26, -12,  -1,   9,  -7,   6, -23,
+   -24, -11,   7,  26,  24,  35,  -8, -20,
+    -5,  19,  26,  36,  17,  45,  61,  16,
+    27,  32,  58,  62,  80,  67,  26,  44,
+    32,  42,  32,  51,  63,   9,  31,  43 },
+  { -9,   2,   3,  -1,  -5, -13,   4, -20, // Rook (EG)
+    -6,  -6,   0,   2,  -9,  -9, -11,  -3,
+    -4,   0,  -5,  -1,  -7, -12,  -8, -16,
+     3,   5,   8,   4,  -5,  -6,  -8, -11,
+     4,   3,  13,   1,   2,   1,  -1,   2,
+     7,   7,   7,   5,   4,  -3,  -5,  -3,
+    11,  13,  13,  11,  -3,   3,   8,   3,
+    13,  10,  18,  15,  12,  12,   8,   5 }},
+ {{ -1, -18,  -9,  10, -15, -25, -31, -50, // Queen (MG)
+   -35,  -8,  11,   2,   8,  15,  -3,   1,
+   -14,   2, -11,  -2,  -5,   2,  14,   5,
+    -9, -26,  -9, -10,  -2,  -4,   3,  -3,
+   -27, -27, -16, -16,  -1,  17,  -2,   1,
+   -13, -17,   7,   8,  29,  56,  47,  57,
+   -24, -39,  -5,   1, -16,  57,  28,  54,
+   -28,   0,  29,  12,  59,  44,  43,  45 },
+ { -33, -28, -22, -43,  -5, -32, -20, -41, // Queen (EG)
+   -22, -23, -30, -16, -16, -23, -36, -32,
+   -16, -27,  15,   6,   9,  17,  10,   5,
+   -18,  28,  19,  47,  31,  34,  39,  23,
+     3,  22,  24,  45,  57,  40,  57,  36,
+   -20,   6,   9,  49,  47,  35,  19,   9,
+   -17,  20,  32,  41,  58,  25,  30,   0,
+    -9,  22,  22,  27,  27,  19,  10,  20 }},
+{{ -15,  36,  12, -54,   8, -28,  24,  14, // King (MG)
+     1,   7,  -8, -64, -43, -16,   9,   8,
+   -14, -14, -22, -46, -44, -30, -15, -27,
+   -49,  -1, -27, -39, -46, -44, -33, -51,
+   -17, -20, -12, -27, -30, -25, -14, -36,
+    -9,  24,   2, -16, -20,   6,  22, -22,
+    29,  -1, -20,  -7,  -8,  -4, -38, -29,
+   -65,  23,  16, -15, -56, -34,   2,  13 },
+ { -53, -34, -21, -11, -28, -14, -24, -43, // King (EG)
+   -27, -11,   4,  13,  14,   4,  -5, -17,
+   -19,  -3,  11,  21,  23,  16,   7,  -9,
+   -18,  -4,  21,  24,  27,  23,   9, -11,
+    -8,  22,  24,  27,  26,  33,  26,   3,
+    10,  17,  23,  15,  20,  45,  44,  13,
+   -12,  17,  14,  17,  17,  38,  23,  11,
+   -74, -35, -18, -18, -11,  15,   4, -17 }}
 };
 
 constexpr std::uint64_t kRookMagics[3][64] = {
@@ -316,7 +364,7 @@ std::uint64_t g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_s
 
 int g_move_overhead = MOVEOVERHEAD, g_level = 100, g_root_n = 0, g_king_w = 0, g_king_b = 0, g_moves_n = 0,
   g_max_depth = MAX_DEPTH, g_q_depth = 0, g_depth = 0, g_best_score = 0, g_noise = NOISE, g_last_eval = 0,
-  g_rook_w[2]{}, g_rook_b[2]{}, g_fullmoves = 1, g_nnue_pieces[64]{}, g_nnue_squares[64]{};
+  g_fullmoves = 1, g_rook_w[2]{}, g_rook_b[2]{}, g_nnue_pieces[64]{}, g_nnue_squares[64]{};
 
 bool g_chess960 = false, g_wtm = false, g_underpromos = true, g_nullmove_active = false,
   g_stop_search = false, g_is_pv = false, g_book_exist = false, g_nnue_exist = false,
@@ -374,17 +422,17 @@ inline int CtzPop(std::uint64_t *b) {
 
 // X axle of board
 inline int Xaxl(const int sq) {
-  return static_cast<int>(sq % 8);
+  return sq % 8;
 }
 
 // Y axle of board
 inline int Yaxl(const int sq) {
-  return static_cast<int>(sq / 8);
+  return sq / 8;
 }
 
 // Nodes Per Second
 std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
-  return static_cast<std::uint64_t>(1000 * nodes) / std::max<std::uint64_t>(1, ms);
+  return std::uint64_t(1000 * nodes) / std::max<std::uint64_t>(1, ms);
 }
 
 // Is (x, y) on board ? Slow, but only for init
@@ -394,12 +442,12 @@ bool OnBoard(const int x, const int y) {
 
 // X-coord to char
 char File2Char(const int f) {
-  return static_cast<char>('a' + f);
+  return char('a' + f);
 }
 
 // Y-coord to char
 char Rank2Char(const int r) {
-  return static_cast<char>('1' + r);
+  return char('1' + r);
 }
 
 // Convert int coords to string
@@ -451,9 +499,9 @@ std::uint64_t Random8x64() { // 8x deterministic random for zobrist
 
 // Nondeterministic Rand()
 int Random(const int min, const int max) {
-  static std::uint64_t seed = 0x202c7ULL + static_cast<std::uint64_t>(std::time(nullptr));
+  static std::uint64_t seed = 0x202c7ULL + std::uint64_t(std::time(nullptr));
   seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3);
-  return min + static_cast<int>(seed % std::max<std::uint64_t>(1, std::abs(max - min) + 1));
+  return min + int(seed % std::max<std::uint64_t>(1, std::abs(max - min) + 1));
 }
 
 // Split string by given str
@@ -493,7 +541,7 @@ void SetNNUE(const std::string &eval_file) { // nn.nnue
 
 void SetHashtable(int hash_mb) {
   hash_mb = std::clamp(hash_mb, 1, 1048576); // Limits 1MB -> 1TB
-  g_hash_entries = static_cast<std::uint32_t>((1 << 20) * hash_mb) / (sizeof(HashEntry)); // Hash(B) / Block(B)
+  g_hash_entries = std::uint32_t((1 << 20) * hash_mb) / (sizeof(HashEntry)); // Hash(B) / Block(B)
   g_hash.reset(new HashEntry[g_hash_entries]); // Claim space
 }
 
@@ -514,19 +562,19 @@ inline std::uint64_t Hash(const bool wtm) {
 template <MoveType type>
 void HashEntry::update(const std::uint64_t hash, const std::uint8_t index) {
   if constexpr (type == MoveType::kKiller) {
-    this->killer_hash = static_cast<std::uint32_t>(hash >> 32);
+    this->killer_hash = std::uint32_t(hash >> 32);
     this->killer      = index + 1;
   } else { // == MoveType::kGood !
-    this->good_hash = static_cast<std::uint32_t>(hash >> 32);
+    this->good_hash = std::uint32_t(hash >> 32);
     this->good      = index + 1;
   }
 }
 
 // Best moves put first for maximum cutoffs
 void HashEntry::put_hash_value_to_moves(const std::uint64_t hash, Board *moves) const {
-  if (this->killer && (this->killer_hash == static_cast<std::uint32_t>(hash >> 32)))
+  if (this->killer && (this->killer_hash == std::uint32_t(hash >> 32)))
     moves[this->killer - 1].score += 10000;
-  if (this->good && (this->good_hash == static_cast<std::uint32_t>(hash >> 32)))
+  if (this->good && (this->good_hash == std::uint32_t(hash >> 32)))
     moves[this->good - 1].score += 7000;
 }
 
@@ -565,13 +613,13 @@ const std::string Board::to_fen() const {
     if (r != 0) s << "/";
   }
   s << (g_wtm ? " w " : " b ");
-  if (this->castle & 0x1) s << static_cast<char>('A' + g_rook_w[0]);
-  if (this->castle & 0x2) s << static_cast<char>('A' + g_rook_w[1]);
-  if (this->castle & 0x4) s << static_cast<char>('a' + g_rook_b[0] - 56);
-  if (this->castle & 0x8) s << static_cast<char>('a' + g_rook_b[1] - 56);
+  if (this->castle & 0x1) s << char('A' + g_rook_w[0]);
+  if (this->castle & 0x2) s << char('A' + g_rook_w[1]);
+  if (this->castle & 0x4) s << char('a' + g_rook_b[0] - 56);
+  if (this->castle & 0x8) s << char('a' + g_rook_b[1] - 56);
   s << (this->castle ? " " : "- ");
-  this->epsq == -1 ? s << "-" : s << static_cast<char>('a' + Xaxl(this->epsq)) << static_cast<char>('1' + Yaxl(this->epsq));
-  s << " " << static_cast<int>(this->fifty) << " " << static_cast<int>(std::max(1, g_fullmoves));
+  this->epsq == -1 ? s << "-" : s << char('a' + Xaxl(this->epsq)) << char('1' + Yaxl(this->epsq));
+  s << " " << int(this->fifty) << " " << int(std::max(1, g_fullmoves));
   return s.str();
 }
 
@@ -1004,15 +1052,15 @@ void MgenCastlingMovesB() {
 }
 
 void CheckCastlingRightsW() {
-  if (g_board->pieces[g_king_w]    != +6) {g_board->castle &= 0x4 | 0x8; return;}
-  if (g_board->pieces[g_rook_w[0]] != +4) {g_board->castle &= 0x2 | 0x4 | 0x8;}
-  if (g_board->pieces[g_rook_w[1]] != +4) {g_board->castle &= 0x1 | 0x4 | 0x8;}
+  if (g_board->pieces[g_king_w]    != +6) { g_board->castle &= 0x4 | 0x8; return; }
+  if (g_board->pieces[g_rook_w[0]] != +4) { g_board->castle &= 0x2 | 0x4 | 0x8; }
+  if (g_board->pieces[g_rook_w[1]] != +4) { g_board->castle &= 0x1 | 0x4 | 0x8; }
 }
 
 void CheckCastlingRightsB() {
-  if (g_board->pieces[g_king_b]    != -6) {g_board->castle &= 0x1 | 0x2; return;}
-  if (g_board->pieces[g_rook_b[0]] != -4) {g_board->castle &= 0x1 | 0x2 | 0x8;}
-  if (g_board->pieces[g_rook_b[1]] != -4) {g_board->castle &= 0x1 | 0x2 | 0x4;}
+  if (g_board->pieces[g_king_b]    != -6) { g_board->castle &= 0x1 | 0x2; return; }
+  if (g_board->pieces[g_rook_b[0]] != -4) { g_board->castle &= 0x1 | 0x2 | 0x8; }
+  if (g_board->pieces[g_rook_b[1]] != -4) { g_board->castle &= 0x1 | 0x2 | 0x4; }
 }
 
 void HandleCastlingRights() {
@@ -1601,8 +1649,8 @@ struct Evaluation {
   }
 
   int calculate_score() const { // 78 phases for HCE
-    const float n = static_cast<float>(std::clamp(this->piece_sum, 0, MAX_PIECES)) / static_cast<float>(MAX_PIECES);
-    const int s   = static_cast<int>(n * static_cast<float>(this->mg) + (1.0f - n) * static_cast<float>(this->eg));
+    const float n = float(std::clamp(this->piece_sum, 0, MAX_PIECES)) / float(MAX_PIECES);
+    const int s   = int(n * float(this->mg) + (1.0f - n) * float(this->eg));
     return (this->score + s) / this->scale_factor;
   }
 
@@ -1669,7 +1717,7 @@ int EvaluateNNUE(const bool wtm) {
 int LevelNoise() { return g_level == 100 ? 0 : Random(-5 * (100 - g_level), +5 * (100 - g_level)); }
 
 // Shuffle period 30 plies then scale
-float GetScale() { return g_board->fifty < 30 ? 1.0f : (1.0f - ((static_cast<float>(g_board->fifty - 30)) / 110.0f)); }
+float GetScale() { return g_board->fifty < 30 ? 1.0f : (1.0f - ((float(g_board->fifty - 30)) / 110.0f)); }
 
 float GetEval(const bool wtm) { return FixFRC() + (g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)); }
 int Evaluate(const bool wtm) { return LevelNoise() + (EasyDraw(wtm) ? 0 : (GetScale() * GetEval(wtm))); }
@@ -1762,7 +1810,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8))) ++depth; // Extend interesting path (SRE / CE / PPE)
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
+  auto *entry       = &g_hash[std::uint32_t(hash % g_hash_entries)];
   entry->put_hash_value_to_moves(hash, g_boards[ply]);
 
   // Tiny speedup since not all moves are scored (lots of pointless shuffling ...)
@@ -1796,7 +1844,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8))) ++depth;
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
+  auto *entry       = &g_hash[std::uint32_t(hash % g_hash_entries)];
   entry->put_hash_value_to_moves(hash, g_boards[ply]);
 
   auto sort = true;
@@ -1832,7 +1880,7 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
     auto *tmp         = g_board;
     g_board->epsq     = -1;
     g_nullmove_active = true;
-    const auto score  = SearchB(*alpha, beta, depth - static_cast<int>(depth / 4 + 3), ply);
+    const auto score  = SearchB(*alpha, beta, depth - int(depth / 4 + 3), ply);
     g_nullmove_active = false;
     g_board           = tmp;
     g_board->epsq     = ep;
@@ -1856,7 +1904,7 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
     auto *tmp         = g_board;
     g_board->epsq     = -1;
     g_nullmove_active = true;
-    const auto score  = SearchW(alpha, *beta, depth - static_cast<int>(depth / 4 + 3), ply);
+    const auto score  = SearchW(alpha, *beta, depth - int(depth / 4 + 3), ply);
     g_nullmove_active = false;
     g_board           = tmp;
     g_board->epsq     = ep;
@@ -1982,7 +2030,7 @@ struct Material {
 
   // Non-usual piece setups
   bool is_weird() const {
-    if (std::popcount(g_board->white[0]) >= 9 || std::popcount(g_board->black[0]) >= 9) return true; // 8+ pawns
+    if (std::popcount(g_board->white[0]) >= 9 || std::popcount(g_board->black[0]) >= 9) return true; // 9+ pawns
     for (const std::size_t i : {1, 2, 3, 4}) // 3+ [=n, =b, =r, =q]
       if (std::popcount(g_board->white[i]) >= 3 || std::popcount(g_board->black[i]) >= 3) return true;
     return (0xFF000000000000FFULL & (g_board->white[0] | g_board->black[0])) || // Pawns on 1st or 8th rank
@@ -2077,7 +2125,7 @@ void ThinkReset() { // Reset search status
 }
 
 void Think(const int ms) {
-  g_stop_search_time = Now() + static_cast<std::uint64_t>(ms); // Start clock early
+  g_stop_search_time = Now() + std::uint64_t(ms); // Start clock early
   ThinkReset();
   MgenRoot();
   if (FastMove(ms)) return;
