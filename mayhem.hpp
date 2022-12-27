@@ -56,7 +56,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 7.9"
+#define VERSION       "Mayhem 8.0"
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
 #define MAX_Q_DEPTH   16       // Max Qsearch depth
@@ -442,12 +442,12 @@ bool OnBoard(const int x, const int y) {
 
 // X-coord to char
 char File2Char(const int f) {
-  return char('a' + f);
+  return 'a' + f;
 }
 
 // Y-coord to char
 char Rank2Char(const int r) {
-  return char('1' + r);
+  return '1' + r;
 }
 
 // Convert int coords to string
@@ -534,7 +534,7 @@ void SetBook(const std::string &book_file) { // book.bin
 // NNUE lib
 
 void SetNNUE(const std::string &eval_file) { // nn.nnue
-  g_classical = !(g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str()));
+  g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str()), g_classical = !g_nnue_exist;
 }
 
 // Hashtable
@@ -2253,7 +2253,8 @@ void UciGo() {
 }
 
 void UciUci() {
-  std::cout << "id name " << VERSION << '\n' <<
+  std::cout <<
+    "id name " << VERSION << '\n' <<
     "id author Toni Helminen\n" <<
     "option name UCI_Chess960 type check default false\n" <<
     "option name Level type spin default 100 min 0 max 100\n" <<
