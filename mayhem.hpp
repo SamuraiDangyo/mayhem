@@ -60,12 +60,12 @@ namespace mayhem {
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
 #define MAX_Q_DEPTH   16       // Max Qsearch depth
-#define BOOK_MS       100      // At least 100ms+ for the book lookup
 #define INF           1048576  // System max number
 #define MAX_ARR       101      // Enough space for arrays
 #define HASH_MB       256      // MB
 #define NOISE         2        // Noise for opening moves
 #define MOVEOVERHEAD  100      // ms
+#define BOOK_MS       100      // At least 100ms+ for the book lookup
 #define BOOK_BEST     false    // Nondeterministic opening play
 #define READ_CLOCK    0x1FFULL // Read clock every 512 ticks (white / 2 x both)
 #define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // UCI startpos
@@ -2128,7 +2128,7 @@ void Think(const int ms) {
   g_stop_search_time = Now() + std::uint64_t(ms); // Start clock early
   ThinkReset();
   MgenRoot();
-  if (FastMove(ms)) return;
+  if (!g_analyzing && FastMove(ms)) return;
 
   const auto tmp = g_board;
   const Material m{ .white_n = std::popcount(White()), .black_n = std::popcount(Black()) };
@@ -2350,7 +2350,7 @@ void UciHelp() {
     "stop        Stop the search and report a bestmove\n" <<
     "quit        Exits the engine ASAP\n" <<
     "setoption name [str] value [str]\n" <<
-    "            Sets a given option\n" <<
+    "            Sets a given option ( See 'uci' )\n" <<
     "go wtime [int] btime [int] winc [int] binc [int]\n" <<
     "            ... movestogo [int] movetime [int] depth [int] [infinite]\n" <<
     "            Search the current position with the provided settings\n" <<
