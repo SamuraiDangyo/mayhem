@@ -1,6 +1,6 @@
 /*
 Mayhem. Linux UCI Chess960 engine. Written in C++20 language
-Copyright (C) 2020-2022 Toni Helminen
+Copyright (C) 2020-2023 Toni Helminen
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 8.0"
+#define VERSION       "Mayhem 8.1"
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
 #define MAX_Q_DEPTH   16       // Max Qsearch depth
@@ -182,7 +182,7 @@ constexpr int kPestoPsqt[6][2][64] = {
      7,   7,   7,   5,   4,  -3,  -5,  -3,
     11,  13,  13,  11,  -3,   3,   8,   3,
     13,  10,  18,  15,  12,  12,   8,   5 }},
- {{ -1, -18,  -9,  10, -15, -25, -31, -50, // Queen (MG)
+{{  -1, -18,  -9,  10, -15, -25, -31, -50, // Queen (MG)
    -35,  -8,  11,   2,   8,  15,  -3,   1,
    -14,   2, -11,  -2,  -5,   2,  14,   5,
     -9, -26,  -9, -10,  -2,  -4,   3,  -3,
@@ -499,6 +499,7 @@ std::uint64_t Random8x64() { // 8x deterministic random for zobrist
 
 // Nondeterministic Rand()
 int Random(const int min, const int max) {
+  if (min == max) return 0;
   static std::uint64_t seed = 0x202c7ULL + std::uint64_t(std::time(nullptr));
   seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3);
   return min + int(seed % std::max<std::uint64_t>(1, std::abs(max - min) + 1));
@@ -534,7 +535,7 @@ void SetBook(const std::string &book_file) { // book.bin
 // NNUE lib
 
 void SetNNUE(const std::string &eval_file) { // nn.nnue
-  g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str()), g_classical = !g_nnue_exist;
+  g_classical = !(g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str()));
 }
 
 // Hashtable
@@ -901,7 +902,7 @@ void EvalRootMoves() {
     g_board->score += (g_board->type == 8 ? 1000 : 0) + // =q
                       (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) + // ( OO, OOO )
                       (g_board->is_underpromo() ? -5000 : 0) + // ( =r, =b, =n )
-                      (g_noise ? Random(-g_noise, +g_noise) : 0) + // Add noise -> Make unpredictable
+                      (Random(-g_noise, +g_noise)) + // Add noise -> Make unpredictable
                       (g_wtm ? +1 : -1) * Evaluate(g_wtm); // Full eval
 }
 
@@ -1714,7 +1715,7 @@ int EvaluateNNUE(const bool wtm) {
 // 0    (Random Mover)
 // 1-99 (Levels)
 // 100  (Full Strength)
-int LevelNoise() { return g_level == 100 ? 0 : Random(-5 * (100 - g_level), +5 * (100 - g_level)); }
+int LevelNoise() { return Random(-5 * (100 - g_level), +5 * (100 - g_level)); }
 
 // Shuffle period 30 plies then scale
 float GetScale() { return g_board->fifty < 30 ? 1.0f : (1.0f - ((float(g_board->fifty - 30)) / 110.0f)); }
@@ -2362,9 +2363,9 @@ void UciHelp() {
     "            > perft ( 119060324 )\n" <<
     "bench [depth] [time] [hash] [nnue]\n"  <<
     "            Bench signature and speed of the program\n" <<
-    "            > bench              ( 30730735  | NNUE )\n" <<
-    "            > bench 12 inf 256 0 ( 27928734  | HCE )\n" <<
-    "            > bench inf 10000    ( 570055381 | Speed )" << std::endl;
+    "            > bench              ( 30730723  | NNUE )\n" <<
+    "            > bench 12 inf 256 0 ( 27920906  | HCE )\n" <<
+    "            > bench inf 10000    ( 586990934 | Speed )" << std::endl;
 }
 
 bool UciCommands() {
