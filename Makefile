@@ -1,5 +1,5 @@
 # Mayhem. Linux UCI Chess960 engine. Written in C++20 language
-# Copyright (C) 2020-2022 Toni Helminen
+# Copyright (C) 2020-2023 Toni Helminen
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 CXX    = clang++
 EXE    = mayhem
-BFLAGS = -std=c++20 -flto -O3 -march=native -DNDEBUG
+BFLAGS = -std=c++20 -flto -O3 -march=native -DNDEBUG -DMAYHEMBOOK -DMAYHEMNNUE
 WFLAGS = -Wall -Wextra -Wshadow -Wcast-qual -pedantic
 NFLAGS = -DUSE_AVX2 -mavx2
 
@@ -31,9 +31,12 @@ clean:
 	rm -f $(EXE)
 
 help:
-	@echo '+-+-+-+-+ Compiling Help +-+-+-+-+'
-	@echo '-D(WINDOWS|CLASSIC), (CXX|CXXFLAGS|EXE|(BWN)FLAGS)= # Flags'
-	@echo 'make -j # Simple build'
-	@echo 'make -j NFLAGS="-DUSE_SSE2 -msse2" # Old CPU build'
+	@echo '+-+ How To Compile Mayhem +-+'
+	@echo '-DWINDOWS                          # Windows Build'
+	@echo '-DMAYHEMBOOK                       # Use PolyGlot Book'
+	@echo '-DMAYHEMNNUE                       # Use NNUE Evaluation'
+	@echo '(CXX(FLAGS)|EXE|[BWN]FLAGS)=...    # Build Flags'
+	@echo 'make -j                            # > Simple Build'
+	@echo 'make -j NFLAGS="-DUSE_SSE2 -msse2" # > Old CPU Build'
 
 .PHONY: all clean help

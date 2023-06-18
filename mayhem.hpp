@@ -56,28 +56,35 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 8.1"
-#define MAX_MOVES     256      // Max chess moves
-#define MAX_DEPTH     64       // Max search depth (stack frame problems ...)
-#define MAX_Q_DEPTH   16       // Max Qsearch depth
-#define INF           1048576  // System max number
-#define MAX_ARR       101      // Enough space for arrays
-#define HASH_MB       256      // MB
-#define NOISE         2        // Noise for opening moves
-#define MOVEOVERHEAD  100      // ms
-#define BOOK_MS       100      // At least 100ms+ for the book lookup
-#define BOOK_BEST     false    // Nondeterministic opening play
-#define READ_CLOCK    0x1FFULL // Read clock every 512 ticks (white / 2 x both)
-#define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // UCI startpos
-#define WEEK          (7 * 24 * 60 * 60 * 1000) // ms
-#define MAX_PIECES    (2 * (8 * 1 + 2 * 3 + 2 * 3 + 2 * 5 + 1 * 9 + 1 * 0)) // Max pieces on board (Kings always exist)
+#define VERSION      "Mayhem 8.2" // Program version
+#define MAX_MOVES    256      // Max chess moves
+#define MAX_DEPTH    64       // Max search depth (stack frame problems ...)
+#define MAX_Q_DEPTH  16       // Max Qsearch depth
+#define INF          1048576  // System max number
+#define HASH_MB      256      // MB
+#define NOISE        2        // Noise for opening moves
+#define MOVEOVERHEAD 100      // ms
+#define REPS_DRAW    3        // 3rd? repetition is a draw
+#define FIFTY        100      // 100? moves w/o progress is a draw (256 max)
+#define BOOK_MS      100      // At least 100ms+ for the book lookup
+#define BOOK_BEST    false    // Nondeterministic opening play
+#define READ_CLOCK   0x1FFULL // Read clock every 512 ticks (white / 2 x both)
+#define STARTPOS     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // UCI startpos
+#define WEEK         (7 * 24 * 60 * 60 * 1000) // ms
+#define MAX_PIECES   (2 * (8 * 1 + 2 * 3 + 2 * 3 + 2 * 5 + 1 * 9 + 1 * 0)) // Max pieces on board (Kings always exist)
+#define EVAL_FILE    "nn-cb80fb9393af.nnue" // Default NNUE evaluation file
+#define BOOK_FILE    "final-book.bin"       // Default Polyglot book file
 
-#ifdef CLASSIC
-#define EVAL_FILE     "x" // Disable NNUE
-#define BOOK_FILE     "x" // Disable Book
+#ifdef MAYHEMNNUE
+#define NNUE true // Use NNUE evaluation
 #else
-#define EVAL_FILE     "nn-cb80fb9393af.nnue" // Default NNUE
-#define BOOK_FILE     "final-book.bin"       // Default Book
+#define NNUE false
+#endif
+
+#ifdef MAYHEMBOOK
+#define BOOK true // Use Polyglot book
+#else
+#define BOOK false
 #endif
 
 // Constants
@@ -360,7 +367,7 @@ std::uint64_t g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_s
   g_pawn_2_moves_b[64]{}, g_knight_moves[64]{}, g_king_moves[64]{}, g_pawn_checks_w[64]{}, g_pawn_checks_b[64]{},
   g_castle_w[2]{}, g_castle_b[2]{}, g_castle_empty_w[2]{}, g_castle_empty_b[2]{}, g_bishop_magic_moves[64][512]{},
   g_rook_magic_moves[64][4096]{}, g_zobrist_ep[64]{}, g_zobrist_castle[16]{}, g_zobrist_wtm[2]{},
-  g_r50_positions[MAX_ARR]{}, g_zobrist_board[13][64]{};
+  g_r50_positions[FIFTY + 1]{}, g_zobrist_board[13][64]{};
 
 int g_move_overhead = MOVEOVERHEAD, g_level = 100, g_root_n = 0, g_king_w = 0, g_king_b = 0, g_moves_n = 0,
   g_max_depth = MAX_DEPTH, g_q_depth = 0, g_depth = 0, g_best_score = 0, g_noise = NOISE, g_last_eval = 0,
@@ -529,13 +536,13 @@ void ReadInput() {
 // PolyGlot Book lib
 
 void SetBook(const std::string &book_file) { // book.bin
-  g_book_exist = book_file.length() <= 1 ? false : g_book.open_book(book_file);
+  g_book_exist = BOOK && (book_file.length() <= 1 ? false : g_book.open_book(book_file));
 }
 
 // NNUE lib
 
 void SetNNUE(const std::string &eval_file) { // nn.nnue
-  g_classical = !(g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str()));
+  g_classical = NNUE && (!(g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str())));
 }
 
 // Hashtable
@@ -838,7 +845,7 @@ void FenReset() {
   for (auto i = 0; i < 6; ++i) g_board->white[i] = g_board->black[i] = 0;
 }
 
-void Fen(const std::string &fen) {
+void SetFen(const std::string &fen) {
   FenReset();
   FenGen(fen);
 }
@@ -1718,8 +1725,7 @@ int EvaluateNNUE(const bool wtm) {
 int LevelNoise() { return Random(-5 * (100 - g_level), +5 * (100 - g_level)); }
 
 // Shuffle period 30 plies then scale
-float GetScale() { return g_board->fifty < 30 ? 1.0f : (1.0f - ((float(g_board->fifty - 30)) / 110.0f)); }
-
+float GetScale() { return g_board->fifty < 30 ? 1.0f : (1.0f - ((float(g_board->fifty - 30)) / (FIFTY + 10.0f))); }
 float GetEval(const bool wtm) { return FixFRC() + (g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)); }
 int Evaluate(const bool wtm) { return LevelNoise() + (EasyDraw(wtm) ? 0 : (GetScale() * GetEval(wtm))); }
 
@@ -1735,11 +1741,11 @@ void SpeakUci(const int score, const std::uint64_t ms) {
 }
 
 bool Draw(const bool wtm) {
-  if (g_board->fifty > 100 || EasyDraw(wtm)) return true; // Checkmate overrules rule50 ( == 100 )
+  if (g_board->fifty > FIFTY || EasyDraw(wtm)) return true; // Checkmate overrules rule50 ( == 100? )
 
   const auto hash = g_r50_positions[g_board->fifty]; // g_r50_positions.pop() must contain hash !
   for (int i = g_board->fifty - 2, reps = 0; i >= 0; i -= 2)
-    if (g_r50_positions[i] == hash && ++reps == 2) // 3 reps is draw
+    if (g_r50_positions[i] == hash && ++reps == REPS_DRAW - 1)
       return true;
 
   return false;
@@ -2181,11 +2187,11 @@ void UciTakeSpecialFen() {
   std::stringstream fen{};
   for ( ; TokenOk() && !TokenPeek("moves"); TokenPop())
     fen << TokenNth() << " ";
-  Fen(fen.str());
+  SetFen(fen.str());
 }
 
 void UciFen() {
-  Token("startpos") ? Fen(STARTPOS) : UciTakeSpecialFen();
+  Token("startpos") ? SetFen(STARTPOS) : UciTakeSpecialFen();
 }
 
 void UciMoves() {
@@ -2277,14 +2283,14 @@ struct Save {
   ~Save() { // Restore stuff in destructor
     g_nnue_exist = this->nnue;
     g_book_exist = this->book;
-    Fen(this->fen);
+    SetFen(this->fen);
   }
 };
 
 // Print ASCII art board ( + Used for debug in UCI mode )
 void UciPrintBoard(const std::string &fen) {
   const Save save{};
-  if (fen.length()) Fen(fen);
+  if (fen.length()) SetFen(fen);
   std::cout << '\n' << g_board->to_s() << std::endl;
 }
 
@@ -2293,7 +2299,7 @@ void UciPerft(const std::string &d, const std::string &fen) {
   const Save save{};
   const auto depth = d.length() ? std::max(0, std::stoi(d)) : 6;
   std::uint64_t nodes = depth >= 1 ? 0 : 1, total_ms = 0;
-  Fen(fen.length() ? fen : STARTPOS);
+  SetFen(fen.length() ? fen : STARTPOS);
   MgenRoot();
   for (auto i = 0; i < g_root_n; ++i) {
     g_board           = g_boards[0] + i;
@@ -2311,19 +2317,18 @@ void UciPerft(const std::string &d, const std::string &fen) {
 }
 
 // Bench signature and speed of the program
-void UciBench(const std::string &d, const std::string &t, const std::string &h, const std::string &nnue) {
+void UciBench(const std::string &d, const std::string &t, const std::string &h) {
   const Save save{};
   SetHashtable(h.length() ? std::stoi(h) : 256); // Set hash and reset
-  g_max_depth         = !d.length() ? 12 : (d == "inf" ? MAX_DEPTH : std::clamp(std::stoi(d), 0, MAX_DEPTH)); // Set depth limits
+  g_max_depth         = !d.length() ? 14 : (d == "inf" ? MAX_DEPTH : std::clamp(std::stoi(d), 0, MAX_DEPTH)); // Set depth limits
   g_noise             = 0; // Make search deterministic
-  g_book_exist        = false; // Disable book
-  g_nnue_exist        = g_nnue_exist && nnue != "0"; // Use nnue ?
+  g_nnue_exist = g_book_exist = false; // Disable book + nnue
   std::uint64_t nodes = 0;
   const auto time     = !t.length() || t == "inf" ? INF : std::max(0, std::stoi(t)); // Set time limits
   auto n = 0, total_ms = 0, correct = 0;
   for (const auto &fen : kBench) {
     std::cout << "[ " << (++n) << "/" << kBench.size() << " ; "  << fen << " ]" << std::endl;
-    Fen(fen);
+    SetFen(fen);
     const auto start = Now();
     Think(time);
     total_ms += Now() - start;
@@ -2334,7 +2339,6 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h, 
   g_noise     = NOISE;
   g_max_depth = MAX_DEPTH;
   std::cout << "===========================\n\n" <<
-    "Mode:     " << (g_nnue_exist ? "NNUE" : "HCE") << '\n' <<
     "Result:   " << correct << " / " << kBench.size() << '\n' <<
     "Nodes:    " << nodes << '\n' <<
     "Time(ms): " << total_ms << '\n' <<
@@ -2361,11 +2365,10 @@ void UciHelp() {
     "perft [depth] [fen]\n" <<
     "            Calculate perft split numbers\n" <<
     "            > perft ( 119060324 )\n" <<
-    "bench [depth] [time] [hash] [nnue]\n"  <<
+    "bench [depth] [time] [hash]\n"  <<
     "            Bench signature and speed of the program\n" <<
-    "            > bench              ( 30730723  | NNUE )\n" <<
-    "            > bench 12 inf 256 0 ( 27920906  | HCE )\n" <<
-    "            > bench inf 10000    ( 586990934 | Speed )" << std::endl;
+    "            > bench           ( 110101687 | Signature )\n" <<
+    "            > bench inf 10000 ( 586990934 | Speed )" << std::endl;
 }
 
 bool UciCommands() {
@@ -2380,7 +2383,7 @@ bool UciCommands() {
   else if (Token("quit"))       return false;
   // Extra ...
   else if (Token("help"))       UciHelp();
-  else if (Token("bench"))      UciBench(TokenNth(0), TokenNth(1), TokenNth(2), TokenNth(3));
+  else if (Token("bench"))      UciBench(TokenNth(0), TokenNth(1), TokenNth(2));
   else if (Token("perft"))      UciPerft(TokenNth(0), TokenNth(1));
   else if (Token("p"))          UciPrintBoard(TokenNth(0));
   else                          std::cout << "Unknown command: " << TokenNth(0) << std::endl;
@@ -2447,33 +2450,37 @@ void InitRookMagics() {
   }
 }
 
-std::uint64_t MakeJumpMoves(const int sq, const int dy, const std::vector<int> &jump_vectors) {
+std::uint64_t MakeJumpMoves(const int sq, const std::vector<int> &jump_vectors) {
   std::uint64_t moves = 0;
   const auto x_pos = Xaxl(sq), y_pos = Yaxl(sq);
   for (std::size_t i = 0; i < jump_vectors.size() / 2; ++i)
-    if (const auto x = x_pos + jump_vectors[2 * i], y = y_pos + dy * jump_vectors[2 * i + 1]; OnBoard(x, y))
+    if (const auto x = x_pos + jump_vectors[2 * i], y = y_pos + jump_vectors[2 * i + 1]; OnBoard(x, y))
       moves |= Bit(8 * y + x);
   return moves;
 }
 
 void InitJumpMoves() {
-  const std::vector<int> king_vectors       = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1};
-  const std::vector<int> knight_vectors     = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2};
-  const std::vector<int> pawn_check_vectors = {-1, +1, +1, +1};
-  const std::vector<int> pawn_1_vectors     = { 0, +1};
+  const std::vector<int> king_vectors         = {+1,  0,  0, +1,  0, -1, -1,  0, +1, +1, -1, -1, +1, -1, -1, +1};
+  const std::vector<int> knight_vectors       = {+2, +1, -2, +1, +2, -1, -2, -1, +1, +2, -1, +2, +1, -2, -1, -2};
+  const std::vector<int> pawn_check_vectors_w = {-1, +1, +1, +1};
+  const std::vector<int> pawn_check_vectors_b = {-1, -1, +1, -1};
+  const std::vector<int> pawn_1_vectors_w     = { 0, +1};
+  const std::vector<int> pawn_1_vectors_b     = { 0, -1};
+  const std::vector<int> pawn_2_vectors_w     = { 0, +2};
+  const std::vector<int> pawn_2_vectors_b     = { 0, -2};
 
   for (auto i = 0; i < 64; ++i) {
-    g_king_moves[i]     = MakeJumpMoves(i, +1, king_vectors);
-    g_knight_moves[i]   = MakeJumpMoves(i, +1, knight_vectors);
-    g_pawn_checks_w[i]  = MakeJumpMoves(i, +1, pawn_check_vectors);
-    g_pawn_checks_b[i]  = MakeJumpMoves(i, -1, pawn_check_vectors);
-    g_pawn_1_moves_w[i] = MakeJumpMoves(i, +1, pawn_1_vectors);
-    g_pawn_1_moves_b[i] = MakeJumpMoves(i, -1, pawn_1_vectors);
+    g_king_moves[i]     = MakeJumpMoves(i, king_vectors);
+    g_knight_moves[i]   = MakeJumpMoves(i, knight_vectors);
+    g_pawn_checks_w[i]  = MakeJumpMoves(i, pawn_check_vectors_w);
+    g_pawn_checks_b[i]  = MakeJumpMoves(i, pawn_check_vectors_b);
+    g_pawn_1_moves_w[i] = MakeJumpMoves(i, pawn_1_vectors_w);
+    g_pawn_1_moves_b[i] = MakeJumpMoves(i, pawn_1_vectors_b);
   }
 
   for (auto i = 0; i < 8; ++i) {
-    g_pawn_2_moves_w[ 8 + i] = MakeJumpMoves( 8 + i, +1, pawn_1_vectors) | MakeJumpMoves( 8 + i, +2, pawn_1_vectors);
-    g_pawn_2_moves_b[48 + i] = MakeJumpMoves(48 + i, -1, pawn_1_vectors) | MakeJumpMoves(48 + i, -2, pawn_1_vectors);
+    g_pawn_2_moves_w[ 8 + i] = MakeJumpMoves( 8 + i, pawn_1_vectors_w) | MakeJumpMoves( 8 + i, pawn_2_vectors_w);
+    g_pawn_2_moves_b[48 + i] = MakeJumpMoves(48 + i, pawn_1_vectors_b) | MakeJumpMoves(48 + i, pawn_2_vectors_b);
   }
 }
 
@@ -2497,7 +2504,7 @@ void Init() {
   SetHashtable(HASH_MB);
   SetNNUE(EVAL_FILE);
   SetBook(BOOK_FILE);
-  Fen(STARTPOS);
+  SetFen(STARTPOS);
 }
 
 void UciLoop() {
