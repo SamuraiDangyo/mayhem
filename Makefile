@@ -32,10 +32,18 @@ clean:
 
 help:
 	@echo '+-+ How To Compile Mayhem +-+'
-	@echo '-DWINDOWS                          # Windows Build'
-	@echo '-DMAYHEMBOOK                       # Use PolyGlot Book'
-	@echo '-DMAYHEMNNUE                       # Use NNUE Evaluation'
-	@echo '(CXX(FLAGS)|EXE|[BWN]FLAGS)=...    # Build Flags'
+	@echo '-DWINDOWS             # Windows Build'
+	@echo '-DMAYHEMBOOK          # Use PolyGlot Book'
+	@echo '-DMAYHEMNNUE          # Use NNUE Evaluation'
+	@echo 'CXX                   # Compiler (g++ / clang++ / ...)'
+	@echo 'EXE                   # Exe name'
+	@echo 'CXXFLAGS              # Extra flags'
+	@echo 'BFLAGS                # Build flags'
+	@echo 'WFLAGS                # Warning flags'
+	@echo 'NFLAGS                # NN flags'
+	@echo '-DUSE_AVX2 -mavx2     # Use avx2'
+	@echo '-DUSE_SSE41 -msse4.1  # Use sse4.1'
+	@echo '-DUSE_SSSE3 -mssse3   # Use sse3'
 	@echo 'make -j                            # > Simple Build'
 	@echo 'make -j NFLAGS="-DUSE_SSE2 -msse2" # > Old CPU Build'
 

@@ -327,7 +327,9 @@ constexpr std::uint64_t kBishopMagics[3][64] = {
 
 // Enums
 
-enum class MoveType { kKiller, kGood };
+enum class MoveValueType { kKiller, kGood };
+enum MoveType : std::uint8_t { NORMAL = 0, OOW = 1, OOOW = 2, OOB = 3, OOOB = 4, PROMO_N = 5, PROMO_B = 6, PROMO_R = 7, PROMO_Q = 8 };
+enum CastlingRight : std::uint8_t { K = 0x1, Q = 0x2, k = 0x4, q = 0x8 };
 
 // Structs
 
@@ -356,7 +358,7 @@ struct HashEntry { // 10B
   std::uint8_t  killer{0};      // Killer move index
   std::uint8_t  good{0};        // Good move index
 
-  template <MoveType> void update(const std::uint64_t, const std::uint8_t);
+  template <MoveValueType> void update(const std::uint64_t, const std::uint8_t);
   void put_hash_value_to_moves(const std::uint64_t, Board*) const;
 };
 
@@ -567,12 +569,12 @@ inline std::uint64_t Hash(const bool wtm) {
 // HashEntry
 
 // Update hashtable sorting algorithm
-template <MoveType type>
+template <MoveValueType type>
 void HashEntry::update(const std::uint64_t hash, const std::uint8_t index) {
-  if constexpr (type == MoveType::kKiller) {
+  if constexpr (type == MoveValueType::kKiller) {
     this->killer_hash = std::uint32_t(hash >> 32);
     this->killer      = index + 1;
-  } else { // == MoveType::kGood !
+  } else { // == MoveValueType::kGood !
     this->good_hash = std::uint32_t(hash >> 32);
     this->good      = index + 1;
   }
@@ -589,18 +591,23 @@ void HashEntry::put_hash_value_to_moves(const std::uint64_t hash, Board *moves) 
 // Board
 
 inline bool Board::is_underpromo() const { // =n / =b / =r
-  return this->type >= 5 && this->type <= 7;
+  return this->type == MoveType::PROMO_N ||
+         this->type == MoveType::PROMO_B ||
+         this->type == MoveType::PROMO_R;
 }
 
 const std::string Board::movename() const {
   auto from2 = this->from, to2 = this->to;
   switch (this->type) {
-    case 1: from2 = g_king_w; to2 = g_chess960 ? g_rook_w[0] : 6;      break;
-    case 2: from2 = g_king_w; to2 = g_chess960 ? g_rook_w[1] : 2;      break;
-    case 3: from2 = g_king_b; to2 = g_chess960 ? g_rook_b[0] : 56 + 6; break;
-    case 4: from2 = g_king_b; to2 = g_chess960 ? g_rook_b[1] : 56 + 2; break;
-    case 5: case 6: case 7: case 8:
-            return Move2Str(from2, to2) + PromoLetter(this->pieces[to2]);
+    case MoveType::OOW:  from2 = g_king_w; to2 = g_chess960 ? g_rook_w[0] : 6;      break;
+    case MoveType::OOOW: from2 = g_king_w; to2 = g_chess960 ? g_rook_w[1] : 2;      break;
+    case MoveType::OOB:  from2 = g_king_b; to2 = g_chess960 ? g_rook_b[0] : 56 + 6; break;
+    case MoveType::OOOB: from2 = g_king_b; to2 = g_chess960 ? g_rook_b[1] : 56 + 2; break;
+    case MoveType::PROMO_N:
+    case MoveType::PROMO_B:
+    case MoveType::PROMO_R:
+    case MoveType::PROMO_Q:
+      return Move2Str(from2, to2) + PromoLetter(this->pieces[to2]);
   }
   return Move2Str(from2, to2);
 }
@@ -621,10 +628,10 @@ const std::string Board::to_fen() const {
     if (r != 0) s << "/";
   }
   s << (g_wtm ? " w " : " b ");
-  if (this->castle & 0x1) s << char('A' + g_rook_w[0]);
-  if (this->castle & 0x2) s << char('A' + g_rook_w[1]);
-  if (this->castle & 0x4) s << char('a' + g_rook_b[0] - 56);
-  if (this->castle & 0x8) s << char('a' + g_rook_b[1] - 56);
+  if (this->castle & CastlingRight::K) s << char('A' + g_rook_w[0]);
+  if (this->castle & CastlingRight::Q) s << char('A' + g_rook_w[1]);
+  if (this->castle & CastlingRight::k) s << char('a' + g_rook_b[0] - 56);
+  if (this->castle & CastlingRight::q) s << char('a' + g_rook_b[1] - 56);
   s << (this->castle ? " " : "- ");
   this->epsq == -1 ? s << "-" : s << char('a' + Xaxl(this->epsq)) << char('1' + Yaxl(this->epsq));
   s << " " << int(this->fifty) << " " << int(std::max(1, g_fullmoves));
@@ -690,24 +697,24 @@ std::uint64_t Fill(int from, const int to) { // from / to -> Always good
 }
 
 void BuildCastlingBitboard1W() {
-  if (g_board->castle & 0x1) { // White: O-O
+  if (g_board->castle & CastlingRight::K) { // White: O-O
     g_castle_w[0]       = Fill(g_king_w, 6);
     g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5)) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
   }
 
-  if (g_board->castle & 0x2) { // White: O-O-O
+  if (g_board->castle & CastlingRight::Q) { // White: O-O-O
     g_castle_w[1]       = Fill(g_king_w, 2);
     g_castle_empty_w[1] = (g_castle_w[1] | Fill(g_rook_w[1], 3)) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
   }
 }
 
 void BuildCastlingBitboard1B() {
-  if (g_board->castle & 0x4) { // Black: O-O
+  if (g_board->castle & CastlingRight::k) { // Black: O-O
     g_castle_b[0]       = Fill(g_king_b, 56 + 6);
     g_castle_empty_b[0] = (g_castle_b[0] | Fill(g_rook_b[0], 56 + 5)) ^ (Bit(g_king_b) | Bit(g_rook_b[0]));
   }
 
-  if (g_board->castle & 0x8) { // Black: O-O-O
+  if (g_board->castle & CastlingRight::q) { // Black: O-O-O
     g_castle_b[1]       = Fill(g_king_b, 56 + 2);
     g_castle_empty_b[1] = (g_castle_b[1] | Fill(g_rook_b[1], 56 + 3)) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
   }
@@ -906,8 +913,11 @@ inline void LazySort(const int ply, const int nth, const int total_moves) {
 void EvalRootMoves() {
   for (auto i = 0; i < g_root_n; ++i)
     g_board         = g_boards[0] + i, // Pointer to this board
-    g_board->score += (g_board->type == 8 ? 1000 : 0) + // =q
-                      (g_board->type >= 1 && g_board->type <= 4 ? 100 : 0) + // ( OO, OOO )
+    g_board->score += (g_board->type == MoveType::PROMO_Q ? 1000 : 0) + // =q
+                      (g_board->type == MoveType::OOW ||
+                         g_board->type == MoveType::OOOW ||
+                         g_board->type == MoveType::OOB ||
+                         g_board->type == MoveType::OOOB ? 100 : 0) + // ( OO, OOO )
                       (g_board->is_underpromo() ? -5000 : 0) + // ( =r, =b, =n )
                       (Random(-g_noise, +g_noise)) + // Add noise -> Make unpredictable
                       (g_wtm ? +1 : -1) * Evaluate(g_wtm); // Full eval
@@ -957,7 +967,7 @@ void HandleCastlingW(const int mtype, const int from, const int to) {
   g_board->from      = from;
   g_board->to        = to;
   g_board->type      = mtype;
-  g_board->castle   &= 0x4 | 0x8;
+  g_board->castle   &= CastlingRight::k | CastlingRight::q;
   g_board->fifty     = 0;
 }
 
@@ -969,7 +979,7 @@ void HandleCastlingB(const int mtype, const int from, const int to) {
   g_board->from      = from;
   g_board->to        = to;
   g_board->type      = mtype;
-  g_board->castle   &= 0x1 | 0x2;
+  g_board->castle   &= CastlingRight::K | CastlingRight::Q;
   g_board->fifty     = 0;
 }
 
@@ -1030,12 +1040,12 @@ void AddCastleOOOB() {
 }
 
 void AddOOW() {
-  if ((g_board->castle & 0x1) && !(g_castle_empty_w[0] & g_both))
+  if ((g_board->castle & CastlingRight::K) && !(g_castle_empty_w[0] & g_both))
     AddCastleOOW(), g_board = g_board_orig;
 }
 
 void AddOOOW() {
-  if ((g_board->castle & 0x2) && !(g_castle_empty_w[1] & g_both))
+  if ((g_board->castle & CastlingRight::Q) && !(g_castle_empty_w[1] & g_both))
     AddCastleOOOW(), g_board = g_board_orig;
 }
 
@@ -1045,12 +1055,12 @@ void MgenCastlingMovesW() {
 }
 
 void AddOOB() {
-  if ((g_board->castle & 0x4) && !(g_castle_empty_b[0] & g_both))
+  if ((g_board->castle & CastlingRight::k) && !(g_castle_empty_b[0] & g_both))
     AddCastleOOB(), g_board = g_board_orig;
 }
 
 void AddOOOB() {
-  if ((g_board->castle & 0x8) && !(g_castle_empty_b[1] & g_both))
+  if ((g_board->castle & CastlingRight::q) && !(g_castle_empty_b[1] & g_both))
     AddCastleOOOB(), g_board = g_board_orig;
 }
 
@@ -1060,15 +1070,15 @@ void MgenCastlingMovesB() {
 }
 
 void CheckCastlingRightsW() {
-  if (g_board->pieces[g_king_w]    != +6) { g_board->castle &= 0x4 | 0x8; return; }
-  if (g_board->pieces[g_rook_w[0]] != +4) { g_board->castle &= 0x2 | 0x4 | 0x8; }
-  if (g_board->pieces[g_rook_w[1]] != +4) { g_board->castle &= 0x1 | 0x4 | 0x8; }
+  if (g_board->pieces[g_king_w]    != +6) { g_board->castle &= CastlingRight::k | CastlingRight::q; return; }
+  if (g_board->pieces[g_rook_w[0]] != +4) { g_board->castle &= CastlingRight::Q | CastlingRight::k | CastlingRight::q; }
+  if (g_board->pieces[g_rook_w[1]] != +4) { g_board->castle &= CastlingRight::K | CastlingRight::k | CastlingRight::q; }
 }
 
 void CheckCastlingRightsB() {
-  if (g_board->pieces[g_king_b]    != -6) { g_board->castle &= 0x1 | 0x2; return; }
-  if (g_board->pieces[g_rook_b[0]] != -4) { g_board->castle &= 0x1 | 0x2 | 0x8; }
-  if (g_board->pieces[g_rook_b[1]] != -4) { g_board->castle &= 0x1 | 0x2 | 0x4; }
+  if (g_board->pieces[g_king_b]    != -6) { g_board->castle &= CastlingRight::K | CastlingRight::Q; return; }
+  if (g_board->pieces[g_rook_b[0]] != -4) { g_board->castle &= CastlingRight::K | CastlingRight::Q | CastlingRight::q; }
+  if (g_board->pieces[g_rook_b[1]] != -4) { g_board->castle &= CastlingRight::K | CastlingRight::Q | CastlingRight::k; }
 }
 
 void HandleCastlingRights() {
@@ -1193,7 +1203,7 @@ void AddNormalStuffW(const int from, const int to) {
   g_board->from          = from;
   g_board->to            = to;
   g_board->score         = 0;
-  g_board->type          = 0;
+  g_board->type          = MoveType::NORMAL;
   g_board->epsq          = -1;
   g_board->pieces[from]  = 0;
   g_board->pieces[to]    = me;
@@ -1214,7 +1224,7 @@ void AddNormalStuffB(const int from, const int to) {
   g_board->from           = from;
   g_board->to             = to;
   g_board->score          = 0;
-  g_board->type           = 0;
+  g_board->type           = MoveType::NORMAL;
   g_board->epsq           = -1;
   g_board->pieces[to]     = me;
   g_board->pieces[from]   = 0;
@@ -1814,7 +1824,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   const auto moves_n = MgenW(g_boards[ply]);
 
   if (!moves_n) return checks ? -INF : 0; // Checkmate or stalemate
-  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8))) ++depth; // Extend interesting path (SRE / CE / PPE)
+  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == MoveType::PROMO_Q))) ++depth; // Extend interesting path (SRE / CE / PPE)
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *entry       = &g_hash[std::uint32_t(hash % g_hash_entries)];
@@ -1832,10 +1842,10 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
     }
     if (const auto score = SearchB(alpha, beta, depth - 1, ply + 1); score > alpha) { // Improved scope
       if ((alpha = score) >= beta) {
-        entry->update<MoveType::kKiller>(hash, g_boards[ply][i].index);
+        entry->update<MoveValueType::kKiller>(hash, g_boards[ply][i].index);
         return alpha;
       }
-      entry->update<MoveType::kGood>(hash, g_boards[ply][i].index);
+      entry->update<MoveValueType::kGood>(hash, g_boards[ply][i].index);
     }
   }
 
@@ -1848,7 +1858,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   const auto moves_n = MgenB(g_boards[ply]);
 
   if (!moves_n) return checks ? +INF : 0;
-  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8))) ++depth;
+  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == MoveType::PROMO_Q))) ++depth;
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *entry       = &g_hash[std::uint32_t(hash % g_hash_entries)];
@@ -1864,10 +1874,10 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
     }
     if (const auto score = SearchW(alpha, beta, depth - 1, ply + 1); score < beta) {
       if (alpha >= (beta = score)) {
-        entry->update<MoveType::kKiller>(hash, g_boards[ply][i].index);
+        entry->update<MoveValueType::kKiller>(hash, g_boards[ply][i].index);
         return beta;
       }
-      entry->update<MoveType::kGood>(hash, g_boards[ply][i].index);
+      entry->update<MoveValueType::kGood>(hash, g_boards[ply][i].index);
     }
   }
 
@@ -2367,8 +2377,8 @@ void UciHelp() {
     "            > perft ( 119060324 )\n" <<
     "bench [depth] [time] [hash]\n"  <<
     "            Bench signature and speed of the program\n" <<
-    "            > bench           ( 110101687 | Signature )\n" <<
-    "            > bench inf 10000 ( 586990934 | Speed )" << std::endl;
+    "            > bench           ( 110101687  | Signature )\n" <<
+    "            > bench inf 10000 ( 1552839896 | Speed )" << std::endl;
 }
 
 bool UciCommands() {
