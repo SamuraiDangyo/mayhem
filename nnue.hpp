@@ -126,7 +126,7 @@ size_t file_size(FD fd)
 #ifndef _WIN32
   struct stat statbuf;
   fstat(fd, &statbuf);
-  return statbuf.st_size;
+  return (unsigned long) statbuf.st_size;
 #else
   DWORD sizeLow, sizeHigh;
   sizeLow = GetFileSize(fd, &sizeHigh);
@@ -204,13 +204,13 @@ void unmap_file(const void *data, map_t map);
 INLINE uint32_t readu_le_u32(const void *p)
 {
   const uint8_t *q = (const uint8_t*) p;
-  return q[0] | (q[1] << 8) | (q[2] << 16) | (q[3] << 24);
+  return (uint32_t) (q[0] | (q[1] << 8) | (q[2] << 16) | (q[3] << 24));
 }
 
 INLINE uint16_t readu_le_u16(const void *p)
 {
   const uint8_t *q = (const uint8_t*) p;
-  return q[0] | (q[1] << 8);
+  return (uint16_t)(q[0] | (q[1] << 8));
 }
 
 #if defined (_WIN32)
@@ -428,7 +428,7 @@ INLINE int orient(int c, int s)
 
 INLINE unsigned make_index(int c, int s, int pc, int ksq)
 {
-  return orient(c, s) + PieceToIndex[c][pc] + PS_END * ksq;
+  return (unsigned int) orient(c, s) + PieceToIndex[c][pc] + PS_END * (unsigned int) ksq;
 }
 
 static void half_kp_append_active_indices(const Position *pos, const int c,
@@ -446,7 +446,7 @@ static void half_kp_append_active_indices(const Position *pos, const int c,
 static void append_active_indices(const Position *pos, IndexList active[2])
 {
   for (unsigned c = 0; c < 2; ++c)
-    half_kp_append_active_indices(pos, c, &active[c]);
+    half_kp_append_active_indices(pos, (int) c, &active[c]);
 }
 
 // InputLayer = InputSlice<256 * 2>
@@ -559,9 +559,9 @@ INLINE bool next_idx(unsigned *idx, unsigned *offset, mask2_t *v,
     memcpy(v, (char *)mask + (*offset / 8), sizeof(mask2_t));
   }
 #ifdef IS_64BIT
-  *idx = *offset + __builtin_ctzll(*v);
+  *idx = *offset + (unsigned int) __builtin_ctzll(*v);
 #else
-  *idx = *offset + __builtin_ctzl(*v);
+  *idx = *offset + (unsigned int) __builtin_ctzl(*v);
 #endif
   *v &= *v - 1;
   return true;
@@ -785,14 +785,14 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
     if (!next_idx(&idx, &offset, &v, inMask, inDims))
       break;
     const __m128i *first = (__m128i *)&weights[outDims * idx];
-    uint32_t factor = input[idx];
+    uint32_t factor = (uint32_t) input[idx];
     if (next_idx(&idx, &offset, &v, inMask, inDims)) {
       second = (__m128i *)&weights[outDims * idx];
-      factor |= input[idx] << 16;
+      factor |= (unsigned int) (input[idx] << 16);
     } else {
       second = kZeros;
     }
-    __m128i mul = _mm_set1_epi32(factor);
+    __m128i mul = _mm_set1_epi32((int)factor);
     out_0 = _mm_add_epi32(out_0, _mm_madd_epi16(mul, _mm_unpacklo_epi16(first[0], second[0])));
     out_1 = _mm_add_epi32(out_1, _mm_madd_epi16(mul, _mm_unpackhi_epi16(first[0], second[0])));
     out_2 = _mm_add_epi32(out_2, _mm_madd_epi16(mul, _mm_unpacklo_epi16(first[1], second[1])));
@@ -810,10 +810,10 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
 
   __m128i *outVec = (__m128i *)output;
   if (pack8_and_calc_mask) {
-    outVec[0] = _mm_packs_epi16(out16_0, out16_1);
-    outMask[0] = _mm_movemask_epi8(_mm_cmpgt_epi8(outVec[0], kZeros[0]));
-    outVec[1] = _mm_packs_epi16(out16_2, out16_3);
-    outMask[1] = _mm_movemask_epi8(_mm_cmpgt_epi8(outVec[1], kZeros[0]));
+    outVec[0]  = _mm_packs_epi16(out16_0, out16_1);
+    outMask[0] = (unsigned short) _mm_movemask_epi8(_mm_cmpgt_epi8(outVec[0], kZeros[0]));
+    outVec[1]  = _mm_packs_epi16(out16_2, out16_3);
+    outMask[1] = (unsigned short) _mm_movemask_epi8(_mm_cmpgt_epi8(outVec[1], kZeros[0]));
   } else {
     const __m128i kx07f = _mm_set1_epi16(127);
     outVec[0] = _mm_min_epi16(_mm_max_epi16(out16_0, kZeros[0]), kx07f);
@@ -1087,7 +1087,7 @@ INLINE void transform(Position *pos, clipped_t *output, mask_t *outMask)
     vec16_t s0 = ((vec16_t *)(*accumulation)[perspectives[p]])[i * 2];
     vec16_t s1 = ((vec16_t *)(*accumulation)[perspectives[p]])[i * 2 + 1];
     out[i] = vec_packs(s0, s1);
-    *outMask++ = vec_mask_pos(out[i]);
+    *outMask++ = (unsigned short) vec_mask_pos(out[i]);
   }
 
 #else
@@ -1252,20 +1252,20 @@ static void init_weights(const void *evalData)
 
   // Read transformer
   for (unsigned i = 0; i < kHalfDimensions; ++i, d += 2)
-    ft_biases[i] = readu_le_u16(d);
+    ft_biases[i] = (int16_t)readu_le_u16(d);
   for (unsigned i = 0; i < kHalfDimensions * FtInDims; ++i, d += 2)
-    ft_weights[i] = readu_le_u16(d);
+    ft_weights[i] = (int16_t)readu_le_u16(d);
 
   // Read network
   d += 4;
   for (unsigned i = 0; i < 32; ++i, d += 4)
-    hidden1_biases[i] = readu_le_u32(d);
+    hidden1_biases[i] = (int32_t)readu_le_u32(d);
   d = read_hidden_weights(hidden1_weights, 512, d);
   for (unsigned i = 0; i < 32; ++i, d += 4)
-    hidden2_biases[i] = readu_le_u32(d);
+    hidden2_biases[i] = (int32_t)readu_le_u32(d);
   d = read_hidden_weights(hidden2_weights, 32, d);
   for (unsigned i = 0; i < 1; ++i, d += 4)
-    output_biases[i] = readu_le_u32(d);
+    output_biases[i] = (int32_t)readu_le_u32(d);
   read_output_weights(output_weights, d);
 
 #ifdef USE_AVX2

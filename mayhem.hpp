@@ -328,8 +328,10 @@ constexpr std::uint64_t kBishopMagics[3][64] = {
 // Enums
 
 enum class MoveValueType { kKiller, kGood };
-enum MoveType : std::uint8_t { NORMAL = 0, OOW = 1, OOOW = 2, OOB = 3, OOOB = 4, PROMO_N = 5, PROMO_B = 6, PROMO_R = 7, PROMO_Q = 8 };
-enum CastlingRight : std::uint8_t { K = 0x1, Q = 0x2, k = 0x4, q = 0x8 };
+enum MoveType : std::uint8_t { NORMAL = 0, OOW = 1, OOOW = 2, OOB = 3, OOOB = 4,
+                               PROMO_N = 5, PROMO_B = 6, PROMO_R = 7, PROMO_Q = 8 };
+enum CastlingRight : std::uint8_t { K_WHITE = 0x1, Q_WHITE = 0x2, K_BLACK= 0x4, Q_BLACK = 0x8 };
+enum Coords : std::size_t { A1 = 0, H1 = 7, B2 = 9, G2 = 14, B7 = 49, G7 = 54, A8 = 56, H8 = 63 };
 
 // Structs
 
@@ -486,8 +488,8 @@ bool InputAvailable() { // See if std::cin has smt
 
 // ms since 1.1.1970
 inline std::uint64_t Now() {
-  return std::chrono::duration_cast<std::chrono::milliseconds>(
-      std::chrono::system_clock::now().time_since_epoch()) .count();
+  return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::system_clock::now().time_since_epoch()) .count());
 }
 
 // Deterministic Random()
@@ -511,7 +513,7 @@ int Random(const int min, const int max) {
   if (min == max) return 0;
   static std::uint64_t seed = 0x202c7ULL + std::uint64_t(std::time(nullptr));
   seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3);
-  return min + int(seed % std::max<std::uint64_t>(1, std::abs(max - min) + 1));
+  return min + int(seed % std::max<std::uint64_t>(1, static_cast<std::uint64_t>(std::abs(max - min) + 1)));
 }
 
 // Split string by given str
@@ -628,10 +630,10 @@ const std::string Board::to_fen() const {
     if (r != 0) s << "/";
   }
   s << (g_wtm ? " w " : " b ");
-  if (this->castle & CastlingRight::K) s << char('A' + g_rook_w[0]);
-  if (this->castle & CastlingRight::Q) s << char('A' + g_rook_w[1]);
-  if (this->castle & CastlingRight::k) s << char('a' + g_rook_b[0] - 56);
-  if (this->castle & CastlingRight::q) s << char('a' + g_rook_b[1] - 56);
+  if (this->castle & CastlingRight::K_WHITE) s << char('A' + g_rook_w[0]);
+  if (this->castle & CastlingRight::Q_WHITE) s << char('A' + g_rook_w[1]);
+  if (this->castle & CastlingRight::K_BLACK) s << char('a' + g_rook_b[0] - 56);
+  if (this->castle & CastlingRight::Q_BLACK) s << char('a' + g_rook_b[1] - 56);
   s << (this->castle ? " " : "- ");
   this->epsq == -1 ? s << "-" : s << char('a' + Xaxl(this->epsq)) << char('1' + Yaxl(this->epsq));
   s << " " << int(this->fifty) << " " << int(std::max(1, g_fullmoves));
@@ -697,24 +699,24 @@ std::uint64_t Fill(int from, const int to) { // from / to -> Always good
 }
 
 void BuildCastlingBitboard1W() {
-  if (g_board->castle & CastlingRight::K) { // White: O-O
+  if (g_board->castle & CastlingRight::K_WHITE) { // White: O-O
     g_castle_w[0]       = Fill(g_king_w, 6);
     g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5)) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
   }
 
-  if (g_board->castle & CastlingRight::Q) { // White: O-O-O
+  if (g_board->castle & CastlingRight::Q_WHITE) { // White: O-O-O
     g_castle_w[1]       = Fill(g_king_w, 2);
     g_castle_empty_w[1] = (g_castle_w[1] | Fill(g_rook_w[1], 3)) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
   }
 }
 
 void BuildCastlingBitboard1B() {
-  if (g_board->castle & CastlingRight::k) { // Black: O-O
+  if (g_board->castle & CastlingRight::K_BLACK) { // Black: O-O
     g_castle_b[0]       = Fill(g_king_b, 56 + 6);
     g_castle_empty_b[0] = (g_castle_b[0] | Fill(g_rook_b[0], 56 + 5)) ^ (Bit(g_king_b) | Bit(g_rook_b[0]));
   }
 
-  if (g_board->castle & CastlingRight::q) { // Black: O-O-O
+  if (g_board->castle & CastlingRight::Q_BLACK) { // Black: O-O-O
     g_castle_b[1]       = Fill(g_king_b, 56 + 2);
     g_castle_empty_b[1] = (g_castle_b[1] | Fill(g_rook_b[1], 56 + 3)) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
   }
@@ -785,22 +787,22 @@ void FenAddCastle(int *rooks, const int sq, const int castle) {
 
 void FenAddChess960Castling(const char file) {
   if (file >= 'A' && file <= 'H') {
-    if (const auto tmp = file - 'A'; tmp > g_king_w) FenAddCastle(g_rook_w + 0, tmp, 0x1);
-    else if (tmp < g_king_w)                         FenAddCastle(g_rook_w + 1, tmp, 0x2);
+    if (const auto tmp = file - 'A'; tmp > g_king_w) FenAddCastle(g_rook_w + 0, tmp, CastlingRight::K_WHITE);
+    else if (tmp < g_king_w)                         FenAddCastle(g_rook_w + 1, tmp, CastlingRight::Q_WHITE);
   } else if (file >= 'a' && file <= 'h') {
-    if (const auto tmp = (file - 'a') + 56; tmp > g_king_b) FenAddCastle(g_rook_b + 0, tmp, 0x4);
-    else if (tmp < g_king_b)                                FenAddCastle(g_rook_b + 1, tmp, 0x8);
+    if (const auto tmp = (file - 'a') + 56; tmp > g_king_b) FenAddCastle(g_rook_b + 0, tmp, CastlingRight::K_BLACK);
+    else if (tmp < g_king_b)                                FenAddCastle(g_rook_b + 1, tmp, CastlingRight::Q_BLACK);
   }
 }
 
 void FenKQkq(const std::string &KQkq) {
   for (std::size_t i = 0; i < KQkq.length(); ++i)
     switch (const auto f = KQkq[i]) {
-      case 'K': FenAddCastle(g_rook_w + 0, 7,      0x1); break;
-      case 'Q': FenAddCastle(g_rook_w + 1, 0,      0x2); break;
-      case 'k': FenAddCastle(g_rook_b + 0, 56 + 7, 0x4); break;
-      case 'q': FenAddCastle(g_rook_b + 1, 56 + 0, 0x8); break;
-      default:  FenAddChess960Castling(f);               break;
+      case 'K': FenAddCastle(g_rook_w + 0, 7,      CastlingRight::K_WHITE); break;
+      case 'Q': FenAddCastle(g_rook_w + 1, 0,      CastlingRight::Q_WHITE); break;
+      case 'k': FenAddCastle(g_rook_b + 0, 56 + 7, CastlingRight::K_BLACK); break;
+      case 'q': FenAddCastle(g_rook_b + 1, 56 + 0, CastlingRight::Q_BLACK); break;
+      default:  FenAddChess960Castling(f);                                  break;
     }
 }
 
@@ -967,7 +969,7 @@ void HandleCastlingW(const int mtype, const int from, const int to) {
   g_board->from      = from;
   g_board->to        = to;
   g_board->type      = mtype;
-  g_board->castle   &= CastlingRight::k | CastlingRight::q;
+  g_board->castle   &= CastlingRight::K_BLACK | CastlingRight::Q_BLACK;
   g_board->fifty     = 0;
 }
 
@@ -979,7 +981,7 @@ void HandleCastlingB(const int mtype, const int from, const int to) {
   g_board->from      = from;
   g_board->to        = to;
   g_board->type      = mtype;
-  g_board->castle   &= CastlingRight::K | CastlingRight::Q;
+  g_board->castle   &= CastlingRight::K_WHITE | CastlingRight::Q_WHITE;
   g_board->fifty     = 0;
 }
 
@@ -1040,12 +1042,12 @@ void AddCastleOOOB() {
 }
 
 void AddOOW() {
-  if ((g_board->castle & CastlingRight::K) && !(g_castle_empty_w[0] & g_both))
+  if ((g_board->castle & CastlingRight::K_WHITE) && !(g_castle_empty_w[0] & g_both))
     AddCastleOOW(), g_board = g_board_orig;
 }
 
 void AddOOOW() {
-  if ((g_board->castle & CastlingRight::Q) && !(g_castle_empty_w[1] & g_both))
+  if ((g_board->castle & CastlingRight::Q_WHITE) && !(g_castle_empty_w[1] & g_both))
     AddCastleOOOW(), g_board = g_board_orig;
 }
 
@@ -1055,12 +1057,12 @@ void MgenCastlingMovesW() {
 }
 
 void AddOOB() {
-  if ((g_board->castle & CastlingRight::k) && !(g_castle_empty_b[0] & g_both))
+  if ((g_board->castle & CastlingRight::K_BLACK) && !(g_castle_empty_b[0] & g_both))
     AddCastleOOB(), g_board = g_board_orig;
 }
 
 void AddOOOB() {
-  if ((g_board->castle & CastlingRight::q) && !(g_castle_empty_b[1] & g_both))
+  if ((g_board->castle & CastlingRight::Q_BLACK) && !(g_castle_empty_b[1] & g_both))
     AddCastleOOOB(), g_board = g_board_orig;
 }
 
@@ -1070,15 +1072,15 @@ void MgenCastlingMovesB() {
 }
 
 void CheckCastlingRightsW() {
-  if (g_board->pieces[g_king_w]    != +6) { g_board->castle &= CastlingRight::k | CastlingRight::q; return; }
-  if (g_board->pieces[g_rook_w[0]] != +4) { g_board->castle &= CastlingRight::Q | CastlingRight::k | CastlingRight::q; }
-  if (g_board->pieces[g_rook_w[1]] != +4) { g_board->castle &= CastlingRight::K | CastlingRight::k | CastlingRight::q; }
+  if (g_board->pieces[g_king_w]    != +6) { g_board->castle &= CastlingRight::K_BLACK | CastlingRight::Q_BLACK; return; }
+  if (g_board->pieces[g_rook_w[0]] != +4) { g_board->castle &= CastlingRight::Q_WHITE | CastlingRight::K_BLACK | CastlingRight::Q_BLACK; }
+  if (g_board->pieces[g_rook_w[1]] != +4) { g_board->castle &= CastlingRight::K_WHITE | CastlingRight::K_BLACK | CastlingRight::Q_BLACK; }
 }
 
 void CheckCastlingRightsB() {
-  if (g_board->pieces[g_king_b]    != -6) { g_board->castle &= CastlingRight::K | CastlingRight::Q; return; }
-  if (g_board->pieces[g_rook_b[0]] != -4) { g_board->castle &= CastlingRight::K | CastlingRight::Q | CastlingRight::q; }
-  if (g_board->pieces[g_rook_b[1]] != -4) { g_board->castle &= CastlingRight::K | CastlingRight::Q | CastlingRight::k; }
+  if (g_board->pieces[g_king_b]    != -6) { g_board->castle &= CastlingRight::K_WHITE | CastlingRight::Q_WHITE; return; }
+  if (g_board->pieces[g_rook_b[0]] != -4) { g_board->castle &= CastlingRight::K_WHITE | CastlingRight::Q_WHITE | CastlingRight::Q_BLACK; }
+  if (g_board->pieces[g_rook_b[1]] != -4) { g_board->castle &= CastlingRight::K_WHITE | CastlingRight::Q_WHITE | CastlingRight::K_BLACK; }
 }
 
 void HandleCastlingRights() {
@@ -1478,14 +1480,14 @@ bool EasyDraw(const bool wtm) {
 
 int FixFRC() {
   // No bishop in corner -> Speedup
-  constexpr std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
+  constexpr std::uint64_t corners = Bit(Coords::A1) | Bit(Coords::H1) | Bit(Coords::A8) | Bit(Coords::H8);
   if (!((g_board->white[2] | g_board->black[2]) & corners)) return 0;
 
   auto s = 0;
-  if (g_board->pieces[0]  == +3 && g_board->pieces[9]  == +1) s -= FRC_PENALTY;
-  if (g_board->pieces[7]  == +3 && g_board->pieces[14] == +1) s -= FRC_PENALTY;
-  if (g_board->pieces[56] == -3 && g_board->pieces[49] == -1) s += FRC_PENALTY;
-  if (g_board->pieces[63] == -3 && g_board->pieces[54] == -1) s += FRC_PENALTY;
+  if (g_board->pieces[Coords::A1] == +3 && g_board->pieces[Coords::B2] == +1) s -= FRC_PENALTY;
+  if (g_board->pieces[Coords::H1] == +3 && g_board->pieces[Coords::G2] == +1) s -= FRC_PENALTY;
+  if (g_board->pieces[Coords::A8] == -3 && g_board->pieces[Coords::B7] == -1) s += FRC_PENALTY;
+  if (g_board->pieces[Coords::H8] == -3 && g_board->pieces[Coords::G7] == -1) s += FRC_PENALTY;
   return s;
 }
 
@@ -1494,7 +1496,7 @@ int FixFRC() {
 inline int FlipY(const int sq) { return sq ^ 56; } // Mirror horizontal
 inline int Square(const int x) { return x * x; } // x ^ 2
 int CloseBonus(const int a, const int b) { return Square(7 - std::abs(Xaxl(a) - Xaxl(b))) + Square(7 - std::abs(Yaxl(a) - Yaxl(b))); }
-int CloseAnyCornerBonus(const int sq) { return std::max({CloseBonus(sq, 0), CloseBonus(sq, 7), CloseBonus(sq, 56), CloseBonus(sq, 63)}); }
+int CloseAnyCornerBonus(const int sq) { return std::max({CloseBonus(sq, Coords::A1), CloseBonus(sq, Coords::H1), CloseBonus(sq, Coords::A8), CloseBonus(sq, Coords::H8)}); }
 
 struct Evaluation {
   const std::uint64_t white{0}, black{0}, both{0};
@@ -2048,7 +2050,7 @@ struct Material {
   // Non-usual piece setups
   bool is_weird() const {
     if (std::popcount(g_board->white[0]) >= 9 || std::popcount(g_board->black[0]) >= 9) return true; // 9+ pawns
-    for (const std::size_t i : {1, 2, 3, 4}) // 3+ [=n, =b, =r, =q]
+    for (const std::size_t i : {1u, 2u, 3u, 4u}) // 3+ [=n, =b, =r, =q]
       if (std::popcount(g_board->white[i]) >= 3 || std::popcount(g_board->black[i]) >= 3) return true;
     return (0xFF000000000000FFULL & (g_board->white[0] | g_board->black[0])) || // Pawns on 1st or 8th rank
            this->white_n >= 17 || this->black_n >= 17; // Lots of pieces
@@ -2165,7 +2167,7 @@ void Think(const int ms) {
 std::uint64_t Perft(const bool wtm, const int depth, const int ply) {
   if (depth <= 0) return 1;
   const auto moves_n = wtm ? MgenW(g_boards[ply]) : MgenB(g_boards[ply]);
-  if (depth == 1) return moves_n; // Bulk counting
+  if (depth == 1) return static_cast<std::uint64_t>(moves_n); // Bulk counting
   std::uint64_t nodes = 0;
   for (auto i = 0; i < moves_n; ++i) g_board = g_boards[ply] + i, nodes += Perft(!wtm, depth - 1, ply + 1);
   return nodes;
@@ -2333,9 +2335,9 @@ void UciBench(const std::string &d, const std::string &t, const std::string &h) 
   g_max_depth         = !d.length() ? 14 : (d == "inf" ? MAX_DEPTH : std::clamp(std::stoi(d), 0, MAX_DEPTH)); // Set depth limits
   g_noise             = 0; // Make search deterministic
   g_nnue_exist = g_book_exist = false; // Disable book + nnue
-  std::uint64_t nodes = 0;
+  std::uint64_t nodes = 0, total_ms = 0;
   const auto time     = !t.length() || t == "inf" ? INF : std::max(0, std::stoi(t)); // Set time limits
-  auto n = 0, total_ms = 0, correct = 0;
+  auto n = 0, correct = 0;
   for (const auto &fen : kBench) {
     std::cout << "[ " << (++n) << "/" << kBench.size() << " ; "  << fen << " ]" << std::endl;
     SetFen(fen);
