@@ -363,7 +363,7 @@ constexpr union {
 // polyglotbook.cpp start
 
 PolyglotBook::PolyglotBook() : polyboard{} {
-  std::srand(static_cast<unsigned int>(std::time(nullptr)));
+  std::srand((unsigned int)(std::time(nullptr)));
 }
 
 PolyglotBook::~PolyglotBook() {
@@ -379,7 +379,7 @@ template<typename T>
 PolyglotBook& PolyglotBook::operator>>(T& n) {
   n = 0;
   for (std::size_t i = 0; i < sizeof(T); ++i)
-    n = T(static_cast<T>(n << 8) + static_cast<T>(std::ifstream::get()));
+    n = T((n << 8) + std::ifstream::get());
   return *this;
 }
 
@@ -448,6 +448,7 @@ bool PolyglotBook::open_book(const std::string &file) {
   return this->open(file);
 }
 
+
 bool PolyglotBook::is_ep_legal() const {
   // -1 means no en passant possible
   if (this->polyboard.epsq < 0 || this->polyboard.epsq > 63)
@@ -485,7 +486,7 @@ int PolyglotBook::probe(const bool pick_best) {
   int move           = 0;
   const auto key     = this->polyglot_key();
 
-  this->seekg(static_cast<long>(this->find_first(key) * sizeof(Entry)), std::ios_base::beg);
+  this->seekg(this->find_first(key) * sizeof(Entry), std::ios_base::beg);
 
   while (*this >> e, e.key == key && this->good()) {
       best = std::max(best, e.count);
@@ -494,7 +495,7 @@ int PolyglotBook::probe(const bool pick_best) {
       // Choose book move according to its score. If a move has a very high
       // score it has a higher probability of being choosen than a move with
       // a lower score. Note that first entry is always chosen.
-      if (  (!pick_best && sum && (static_cast<unsigned int>(std::rand()) % sum) < e.count) ||
+      if (  (!pick_best && sum && (std::rand() % sum) < e.count) ||
             ( pick_best && e.count == best))
         move = e.move;
   }
@@ -527,7 +528,7 @@ std::size_t PolyglotBook::find_first(const std::uint64_t key) {
 
     const std::size_t mid = (low + high) / 2;
 
-    this->seekg(static_cast<long>(mid * sizeof(Entry)), std::ios_base::beg);
+    this->seekg(mid * sizeof(Entry), std::ios_base::beg);
     *this >> e;
 
     if (key <= e.key)
