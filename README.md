@@ -9,9 +9,9 @@ Programmed in self-documenting style.
 Mayhem uses EvalFile and BookFile for maximum strength.
 Works well w/o them of course.
 
-Install: `make all install clean`
-Build:   `make -j`
-`> perft / bench` commands should be used to verify the program.
+- Install:     `make all install clean`
+- MoveGen sig: `> perft` -> 119060324
+- Engine sig:  `> bench` -> 241132990
 
 If needed adjust _MoveOverhead_ and _Hash_ values accordingly.
 See `Makefile` and `mayhem.hpp` for more information.

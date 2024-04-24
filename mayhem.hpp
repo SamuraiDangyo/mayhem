@@ -569,7 +569,6 @@ void SplitString(const std::string &str, T &cont, const std::string &delims = " 
   cont.push_back(str.substr(prev, cur - prev));
 }
 
-
 // Flips the fen and bm. Fully legal FEN expected.
 // 8/5P1p/6kr/7p/7P/5K2/8/8 w - - 0 1 ; bm f7f8b
 // -->
