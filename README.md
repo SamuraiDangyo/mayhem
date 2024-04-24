@@ -9,7 +9,7 @@ Programmed in self-documenting style.
 Mayhem uses EvalFile and BookFile for maximum strength.
 Works well w/o them of course.
 
-- Install:     `make all install clean`
+- Install:     `> make all install clean`
 - MoveGen sig: `> perft` -> 119060324
 - Engine sig:  `> bench` -> 241132990
 
