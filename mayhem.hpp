@@ -1803,7 +1803,8 @@ int EvaluateNNUE(const bool wtm) {
 // 1-99 (Levels)
 // 100  (Full Strength)
 int LevelNoise() { return Random(-5 * (100 - g_level), +5 * (100 - g_level)); }
-float GetScale() { return std::clamp(g_board->fifty < SHUFFLE ? 1.0f : 1.0f - ((float(g_board->fifty - SHUFFLE)) / float(FIFTY + 10.0f)), 0.0f, 1.0f); }
+float GetScale() { return std::clamp(g_board->fifty < SHUFFLE ?
+    1.0f : 1.0f - ((float(g_board->fifty - SHUFFLE)) / float(FIFTY + 10.0f)), 0.0f, 1.0f); }
 int GetEval(const bool wtm) { return FixFRC() + (g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)); }
 int Evaluate(const bool wtm) { return LevelNoise() + (EasyDraw(wtm) ? 0 : (GetScale() * float(GetEval(wtm)))); }
 
@@ -1854,7 +1855,8 @@ int QSearchW(int alpha, const int beta, int depth, const int ply) {
   ++g_nodes; // Increase visited nodes count
 
   if (g_stop_search || (g_stop_search = CheckTime())) return 0; // Search is stopped. Return ASAP
-  if (((alpha = std::max(alpha, Evaluate(true))) >= beta) || depth <= 0 || ply >= MAX_SEARCH_DEPTH + MAX_Q_SEARCH_DEPTH) return alpha; // Better / terminal node -> Done
+  if (((alpha = std::max(alpha, Evaluate(true))) >= beta) ||
+      depth <= 0 || ply >= MAX_SEARCH_DEPTH + MAX_Q_SEARCH_DEPTH) return alpha; // Better / terminal node -> Done
 
   const auto moves_n = MgenTacticalW(g_boards[ply]);
   if (moves_n == 1) ++depth;
@@ -1871,7 +1873,8 @@ int QSearchB(const int alpha, int beta, int depth, const int ply) {
   ++g_nodes;
 
   if (g_stop_search) return 0;
-  if ((alpha >= (beta = std::min(beta, Evaluate(false)))) || depth <= 0 || ply >= MAX_SEARCH_DEPTH + MAX_Q_SEARCH_DEPTH) return beta;
+  if ((alpha >= (beta = std::min(beta, Evaluate(false)))) ||
+      depth <= 0 || ply >= MAX_SEARCH_DEPTH + MAX_Q_SEARCH_DEPTH) return beta;
 
   const auto moves_n = MgenTacticalB(g_boards[ply]);
   if (moves_n == 1) ++depth;
@@ -1919,7 +1922,6 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksW()) {
       if (SearchB(alpha, beta, depth - 2 - CalcLMR(depth, i), ply + 1) <= alpha) continue;
       SetMoveAndPv(ply, i);
-      //g_board = g_boards[ply] + i;
     }
     if (const auto score = SearchB(alpha, beta, depth - 1, ply + 1); score > alpha) { // Improved scope
       if ((alpha = score) >= beta) {
@@ -1955,7 +1957,6 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
     if (ok_lmr && i >= 1 && !g_board->score && !ChecksB()) {
       if (SearchW(alpha, beta, depth - 2 - CalcLMR(depth, i), ply + 1) >= beta) continue;
       SetMoveAndPv(ply, i);
-      //g_board = g_boards[ply] + i;
     }
     if (const auto score = SearchW(alpha, beta, depth - 1, ply + 1); score < beta) {
       if (alpha >= (beta = score)) {
