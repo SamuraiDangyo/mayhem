@@ -2412,12 +2412,6 @@ void UciPerft(const std::string &d, const std::string &fen) {
     "NPS:      " << Nps(nodes, total_ms) << std::endl;
 }
 
-/*
-Result:   60 / 60
-Nodes:    5274324264
-Time(ms): 498423
-NPS:      10582024
-*/
 // Bench signature and speed of the program
 void UciBench(const std::string &d, const std::string &ms) {
   const Save save{};
@@ -2452,14 +2446,14 @@ void UciBench(const std::string &d, const std::string &ms) {
 
 void PrintLogo() {
   std::cout <<
-    " ___  ___            _ \n"
-    " |  \\/  |           | | \n"
-    " | .  . | __ _ _   _| |__   ___ _ __ ___ \n"
-    " | |\\/| |/ _` | | | | '_ \\ / _ \\ '_ ` _ \\ \n"
-    " | |  | | (_| | |_| | | | |  __/ | | | | | \n"
-    " \\_|  |_/\\__,_|\\__, |_| |_|\\___|_| |_| |_| \n"
-    "                __/ | \n"
-    "               |___/ " << std::endl;
+    "___  ___            _ \n"
+    "|  \\/  |           | | \n"
+    "| .  . | __ _ _   _| |__   ___ _ __ ___ \n"
+    "| |\\/| |/ _` | | | | '_ \\ / _ \\ '_ ` _ \\ \n"
+    "| |  | | (_| | |_| | | | |  __/ | | | | | \n"
+    "\\_|  |_/\\__,_|\\__, |_| |_|\\___|_| |_| |_| \n"
+    "               __/ | \n"
+    "              |___/ " << std::endl;
 }
 
 void UciHelp() {
@@ -2467,7 +2461,7 @@ void UciHelp() {
     "Mayhem. Linux UCI Chess960 engine. Written in C++20 language\n\n" <<
     "Supported commands:\n\n" <<
     "help\n  This help\n\n" <<
-    "logo\n  Print logo\n\n" <<
+    "logo\n  Print ASCII art logo\n\n" <<
     "uci\n  Outputs the engine info\n\n" <<
     "isready\n  Synchronization of the engine. Responded w/ 'readyok'\n\n" <<
     "ucinewgame\n  Sent before the game\n\n" <<
