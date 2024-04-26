@@ -19,9 +19,9 @@
 CXX        = clang++
 EXE        = mayhem
 BIN_FOLDER = /usr/bin/
-BFLAGS     = -std=c++20 -O3 -flto=auto -march=native -DNDEBUG -DMAYHEMBOOK -DMAYHEMNNUE
+BFLAGS     = -std=c++20 -O3 -flto -march=native -DNDEBUG -DMAYHEMBOOK -DMAYHEMNNUE
 WFLAGS     = -Wall -Wextra -Wshadow -pedantic
-NFLAGS     = -DUSE_AVX2 -mavx2
+NFLAGS     = -DUSE_AVX2 -mavx2 -DUSE_SSE41 -msse4.1 -DUSE_SSSE3 -mssse3 -DUSE_SSE2 -msse2
 
 # Targets
 
@@ -38,30 +38,38 @@ clean:
 	rm -f $(EXE)
 
 help:
-	@echo '+-+ Mayhem compilation +-+'
+	@echo '+-+ Mayhem Compilation +-+'
 	@echo ''
-	@echo '-DWINDOWS             # Windows build flag'
-	@echo '-DMAYHEMBOOK          # Use PolyGlot book'
-	@echo '-DMAYHEMNNUE          # Use NNUE evaluation'
-	@echo '-DUSE_AVX2 -mavx2     # Use avx2'
-	@echo '-DUSE_SSE41 -msse4.1  # Use sse4.1'
-	@echo '-DUSE_SSSE3 -mssse3   # Use sse3'
+	@echo 'To compile Mayhem, type:'
 	@echo ''
-	@echo 'make all              # Simple build target'
-	@echo 'make install          # Install Mayhem on your system'
-	@echo 'make clean            # Clean up'
-	@echo 'make help             # This help'
+	@echo '> make [target] [OPT=option...] [-FLAG...]'
 	@echo ''
-	@echo 'CXX=                  # Compiler option'
-	@echo 'EXE=                  # Exe name'
-	@echo 'BIN_FOLDER=           # Where to install Mayhem'
-	@echo 'BFLAGS=               # Build flags'
-	@echo 'WFLAGS=               # Warning flags'
-	@echo 'NFLAGS=               # NN flags'
-	@echo 'CXXFLAGS=             # Extra flags'
+	@echo 'Supported targets:'
 	@echo ''
-	@echo '> make -j                         # > Simple build'
-	@echo '> make all install clean          # > Install'
-	@echo '> make NFLAGS="-DUSE_SSE2 -msse2" # > Old CPU build'
+	@echo 'all                      # Build'
+	@echo 'install                  # Installation'
+	@echo 'clean                    # Clean up'
+	@echo 'help                     # This help'
+	@echo ''
+	@echo 'Supported flags:'
+	@echo ''
+	@echo '-DWINDOWS                # Windows build flag'
+	@echo '-DMAYHEMBOOK             # Use PolyGlot book'
+	@echo '-DMAYHEMNNUE             # Use NNUE evaluation'
+	@echo ''
+	@echo 'Supported options:'
+	@echo ''
+	@echo 'CXX=                     # Compiler option'
+	@echo 'EXE=                     # Exe name'
+	@echo 'BIN_FOLDER=              # Where to install Mayhem'
+	@echo 'BFLAGS=                  # Build opts'
+	@echo 'WFLAGS=                  # Warning opts'
+	@echo 'NFLAGS=                  # NN opts'
+	@echo 'CXXFLAGS=                # Extra opts'
+	@echo ''
+	@echo 'Simple examples:'
+	@echo ''
+	@echo '> make -j                # Just build'
+	@echo '> make all install clean # Install'
 
 .PHONY: all install clean help

@@ -661,7 +661,7 @@ INLINE void affine_txfm(int8_t *input, void *output, unsigned inDims,
     uint16_t factor = input[idx];
     if (next_idx(&idx, &offset, &v, inMask, inDims)) {
       second = ((__m256i *)weights)[idx];
-      factor |= (uint16_t) (input[idx] << 8);
+      factor |= input[idx] << 8;
     } else {
       second = kZero;
     }
@@ -714,7 +714,7 @@ INLINE void affine_txfm(int8_t *input, void *output, unsigned inDims,
     uint16_t factor = input[idx];
     if (next_idx(&idx, &offset, &v, inMask, inDims)) {
       second = (__m128i *)&weights[outDims * idx];
-      factor |= (uint16_t) (input[idx] << 8);
+      factor |= input[idx] << 8;
     } else {
       second = kZeros;
     }
@@ -788,7 +788,7 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
     uint32_t factor = input[idx];
     if (next_idx(&idx, &offset, &v, inMask, inDims)) {
       second = (__m128i *)&weights[outDims * idx];
-      factor |= (uint32_t) (input[idx] << 16);
+      factor |= input[idx] << 16;
     } else {
       second = kZeros;
     }
@@ -858,7 +858,7 @@ INLINE void affine_txfm(clipped_t *input, void *output, unsigned inDims,
     uint32_t factor = input[idx];
     if (next_idx(&idx, &offset, &v, inMask, inDims)) {
       second = (__m64 *)&weights[outDims * idx];
-      factor |= (uint32_t) (input[idx] << 16);
+      factor |= input[idx] << 16;
     } else {
       second = kZeros;
     }

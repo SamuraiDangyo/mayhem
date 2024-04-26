@@ -9,12 +9,13 @@ Programmed in self-documenting style.
 Mayhem uses EvalFile and BookFile for maximum strength.
 Works well w/o them of course.
 
-- Install:     `> make all install clean`
-- MoveGen sig: `> perft` -> 119060324
-- Engine sig:  `> bench` -> 241132990
+Strength ( Blitz ): *HCE* ~2300 _Elo_ and *NNUE* ~3000 _Elo_.
+
+Simple `make -j` should build a good binary.
+`perft/bench/p` commands should be used to verify the program.
+See `Makefile` and `mayhem.hpp` for more information.
 
 If needed adjust _MoveOverhead_ and _Hash_ values accordingly.
-See `Makefile` and `mayhem.hpp` for more information.
 Credit for _PolyGlot_ and _NNUE_ stuff.
 
 Happy hacking !
