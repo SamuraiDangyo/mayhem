@@ -18,7 +18,7 @@
 
 CXX        = clang++
 EXE        = mayhem
-BIN_FOLDER = /usr/bin/
+BIN_FOLDER = /usr/bin
 BFLAGS     = -std=c++20 -O3 -flto -march=native -DNDEBUG -DMAYHEMBOOK -DMAYHEMNNUE
 WFLAGS     = -Wall -Wextra -Wshadow -pedantic
 NFLAGS     = -DUSE_AVX2 -mavx2 -DUSE_SSE41 -msse4.1 -DUSE_SSSE3 -mssse3 -DUSE_SSE2 -msse2
@@ -29,8 +29,8 @@ all:
 	$(CXX) $(BFLAGS) $(WFLAGS) $(NFLAGS) $(CXXFLAGS) -o $(EXE) main.cpp
 
 install:
-	chmod 555 mayhem
 	sudo cp mayhem $(BIN_FOLDER)
+	sudo chmod 555 $(BIN_FOLDER)/mayhem
 	sudo cp final-book.bin $(BIN_FOLDER)
 	sudo cp nn-cb80fb9393af.nnue $(BIN_FOLDER)
 
