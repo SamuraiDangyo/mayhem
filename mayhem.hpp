@@ -645,15 +645,15 @@ void HashEntry::put_hash_value_to_moves(const std::uint64_t hash, Board *moves) 
 
 // Board
 
-inline bool Board::is_queen_promo() const {
+bool Board::is_queen_promo() const {
   return this->type == 8;
 }
 
-inline bool Board::is_castling() const {
+bool Board::is_castling() const {
   return this->type >= 1 && this->type <= 4;
 }
 
-inline bool Board::is_underpromo() const { // =n / =b / =r
+bool Board::is_underpromo() const { // =n / =b / =r
   return this->type >= 5 && this->type <= 7;
 }
 
@@ -1277,7 +1277,7 @@ void AddNormalStuffW(const int from, const int to) {
   g_board->pieces[from]  = 0;
   g_board->pieces[to]    = me;
   g_board->white[me - 1] = (g_board->white[me - 1] ^ Bit(from)) | Bit(to);
-  ++g_board->fifty; // Rule50 counter increased after non-decisive move
+  g_board->fifty        += 1; // Rule50 counter increased after non-decisive move
 
   CheckNormalCapturesW(me, eat, to);
   ModifyPawnStuffW(from, to);
@@ -1298,7 +1298,7 @@ void AddNormalStuffB(const int from, const int to) {
   g_board->pieces[to]     = me;
   g_board->pieces[from]   = 0;
   g_board->black[-me - 1] = (g_board->black[-me - 1] ^ Bit(from)) | Bit(to);
-  ++g_board->fifty;
+  g_board->fifty         += 1;
 
   CheckNormalCapturesB(me, eat, to);
   ModifyPawnStuffB(from, to);
@@ -1531,8 +1531,10 @@ inline int FlipY(const int sq) { return sq ^ 56; } // Mirror horizontal
 // Probe Eucalyptus KPK bitbases -> true: draw / false: not draw
 inline bool ProbeKPK(const bool wtm) {
   return g_board->white[0] ?
-    eucalyptus::IsDraw(      std::countr_zero(g_board->white[5]),        std::countr_zero(g_board->white[0]),        std::countr_zero(g_board->black[5]),   wtm) :
-    eucalyptus::IsDraw(FlipY(std::countr_zero(g_board->black[5])), FlipY(std::countr_zero(g_board->black[0])), FlipY(std::countr_zero(g_board->white[5])), !wtm);
+    eucalyptus::IsDraw(      std::countr_zero(g_board->white[5]),
+      std::countr_zero(g_board->white[0]),        std::countr_zero(g_board->black[5]),   wtm) :
+    eucalyptus::IsDraw(FlipY(std::countr_zero(g_board->black[5])),
+      FlipY(std::countr_zero(g_board->black[0])), FlipY(std::countr_zero(g_board->white[5])), !wtm);
 }
 
 // Detect trivial draws really fast
@@ -1859,7 +1861,7 @@ int QSearchW(int alpha, const int beta, int depth, const int ply) {
       depth <= 0 || ply >= MAX_SEARCH_DEPTH + MAX_Q_SEARCH_DEPTH) return alpha; // Better / terminal node -> Done
 
   const auto moves_n = MgenTacticalW(g_boards[ply]);
-  if (moves_n == 1) ++depth;
+  if (moves_n == 1 && ply < MAX_SEARCH_DEPTH) ++depth;
   for (auto i = 0; i < moves_n; ++i) {
     LazySort(ply, i, moves_n); // Very few moves, sort them all
     g_board = g_boards[ply] + i;
@@ -1877,7 +1879,7 @@ int QSearchB(const int alpha, int beta, int depth, const int ply) {
       depth <= 0 || ply >= MAX_SEARCH_DEPTH + MAX_Q_SEARCH_DEPTH) return beta;
 
   const auto moves_n = MgenTacticalB(g_boards[ply]);
-  if (moves_n == 1) ++depth;
+  if (moves_n == 1 && ply < MAX_SEARCH_DEPTH) ++depth;
   for (auto i = 0; i < moves_n; ++i) {
     LazySort(ply, i, moves_n);
     g_board = g_boards[ply] + i;
@@ -2123,13 +2125,19 @@ struct Material {
   const int white_n{0}, black_n{0};
 
   // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
-  bool is_rook_ending() const { return this->white_n + this->black_n == 5 && (std::popcount(g_board->white[3] | g_board->black[3]) == 3); }
+  bool is_rook_ending() const {
+    return this->white_n + this->black_n == 5 && (std::popcount(g_board->white[3] | g_board->black[3]) == 3);
+  }
 
   // Vs king + (PNBRQ) ?
-  bool is_easy() const { return g_wtm ? this->black_n <= 2 : this->white_n <= 2; }
+  bool is_easy() const {
+    return g_wtm ? this->black_n <= 2 : this->white_n <= 2;
+  }
 
   // 5 pieces or less both side -> Endgame
-  bool is_endgame() const { return g_wtm ? this->black_n <= 5 : this->white_n <= 5; }
+  bool is_endgame() const {
+    return g_wtm ? this->black_n <= 5 : this->white_n <= 5;
+  }
 
   // Non-usual piece setups
   bool is_weird() const {
@@ -2253,7 +2261,10 @@ std::uint64_t Perft(const bool wtm, const int depth, const int ply) {
   const auto moves_n = wtm ? MgenW(g_boards[ply]) : MgenB(g_boards[ply]);
   if (depth == 1) return moves_n; // Bulk counting
   std::uint64_t nodes = 0;
-  for (auto i = 0; i < moves_n; ++i) g_board = g_boards[ply] + i, nodes += Perft(!wtm, depth - 1, ply + 1);
+  for (auto i = 0; i < moves_n; ++i) {
+    g_board = g_boards[ply] + i;
+    nodes  += Perft(!wtm, depth - 1, ply + 1);
+  }
   return nodes;
 }
 
@@ -2391,9 +2402,9 @@ void UciPrintBoard(const std::string &fen) {
 }
 
 // Calculate perft split numbers
-void UciPerft(const std::string &d, const std::string &fen) {
+void UciPerft(const std::string &depth2, const std::string &fen) {
   const Save save{};
-  const auto depth = d.length() ? std::max(0, std::stoi(d)) : 6;
+  const auto depth = depth2.length() ? std::max(0, std::stoi(depth2)) : 6;
   std::uint64_t nodes = depth >= 1 ? 0 : 1, total_ms = 0;
   SetFen(fen.length() ? fen : STARTPOS);
   MgenRoot();
@@ -2413,10 +2424,11 @@ void UciPerft(const std::string &d, const std::string &fen) {
 }
 
 // Bench signature and speed of the program
-void UciBench(const std::string &d, const std::string &ms) {
+void UciBench(const std::string &depth, const std::string &ms) {
   const Save save{};
   SetHashtable(DEF_HASH_MB); // Set hash and reset
-  g_max_depth         = !d.length() ? 14 : (d == "inf" ? MAX_SEARCH_DEPTH : std::clamp(std::stoi(d), 0, MAX_SEARCH_DEPTH)); // Set depth limits
+  g_max_depth         = !depth.length() ? 14 :
+      (depth == "inf" ? MAX_SEARCH_DEPTH : std::clamp(std::stoi(depth), 0, MAX_SEARCH_DEPTH)); // Set depth limits
   g_noise             = 0; // Make search deterministic
   g_nnue_exist = g_book_exist = false; // Disable book + nnue
   std::uint64_t nodes = 0, total_ms = 0;
@@ -2480,7 +2492,7 @@ void UciHelp() {
     "bench [depth] [time]\n"  <<
     "  Bench signature and speed of the program\n" <<
     "  > bench           ( 241133476  | Signature )\n" <<
-    "  > bench inf 10000 ( 5620725387 | Speed )" << std::endl;
+    "  > bench inf 10000 ( 5472166705 | Speed )" << std::endl;
 }
 
 bool UciCommands() {
