@@ -34,42 +34,46 @@ install:
 	sudo cp final-book.bin $(BIN_FOLDER)
 	sudo cp nn-cb80fb9393af.nnue $(BIN_FOLDER)
 
+strip:
+	strip $(EXE)
+
 clean:
 	rm -f $(EXE)
 
 help:
-	@echo '+-+ Mayhem Compilation +-+'
-	@echo ''
-	@echo 'To compile Mayhem, type:'
-	@echo ''
-	@echo '> make [target] [OPT=option...] [-FLAG...]'
-	@echo ''
-	@echo 'Supported targets:'
-	@echo ''
-	@echo 'all                      # Build'
-	@echo 'install                  # Installation'
-	@echo 'clean                    # Clean up'
-	@echo 'help                     # This help'
-	@echo ''
-	@echo 'Supported flags:'
-	@echo ''
-	@echo '-DWINDOWS                # Windows build flag'
-	@echo '-DMAYHEMBOOK             # Use PolyGlot book'
-	@echo '-DMAYHEMNNUE             # Use NNUE evaluation'
-	@echo ''
-	@echo 'Supported options:'
-	@echo ''
-	@echo 'CXX=                     # Compiler option'
-	@echo 'EXE=                     # Exe name'
-	@echo 'BIN_FOLDER=              # Where to install Mayhem'
-	@echo 'BFLAGS=                  # Build opts'
-	@echo 'WFLAGS=                  # Warning opts'
-	@echo 'NFLAGS=                  # NN opts'
-	@echo 'CXXFLAGS=                # Extra opts'
-	@echo ''
-	@echo 'Simple examples:'
-	@echo ''
-	@echo '> make -j                # Just build'
-	@echo '> make all install clean # Install'
+	@echo "+-+ Mayhem Compilation +-+"
+	@echo ""
+	@echo "To compile Mayhem, type:"
+	@echo ""
+	@echo "> make [target] [OPT=option ...] [-FLAG ...]"
+	@echo ""
+	@echo "Supported targets:"
+	@echo ""
+	@echo "all           # Build"
+	@echo "install       # Installation"
+	@echo "strip         # Strip executable"
+	@echo "clean         # Clean up"
+	@echo "help          # This help"
+	@echo ""
+	@echo "Supported flags:"
+	@echo ""
+	@echo "-DWINDOWS      # Windows build flag"
+	@echo "-DMAYHEMBOOK   # Use PolyGlot book"
+	@echo "-DMAYHEMNNUE   # Use NNUE evaluation"
+	@echo ""
+	@echo "Supported options:"
+	@echo ""
+	@echo "CXX=           # Compiler option"
+	@echo "EXE=           # Executable name"
+	@echo "BIN_FOLDER=    # Where to install Mayhem"
+	@echo "BFLAGS=        # Build opts"
+	@echo "WFLAGS=        # Warning opts"
+	@echo "NFLAGS=        # NN opts"
+	@echo "CXXFLAGS=      # Extra opts"
+	@echo ""
+	@echo "Simple examples:"
+	@echo ""
+	@echo "> make -j                      # Just build"
+	@echo "> make all strip install clean # Install"
 
 .PHONY: all install clean help

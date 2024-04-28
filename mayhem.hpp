@@ -56,12 +56,12 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 8.2"
+#define VERSION       "Mayhem 8.2" // Version
 #define MAX_MOVES     256      // Max chess moves
 #define MAX_SEARCH_DEPTH   64  // Max search depth (stack frame problems ...)
 #define MAX_Q_SEARCH_DEPTH 16  // Max Qsearch depth
 #define INF           1048576  // System max number
-#define DEF_HASH_MB   256      // MB
+#define DEF_HASH_MB   256      // MiB
 #define NOISE         2        // Noise for opening moves
 #define MOVEOVERHEAD  100      // ms
 #define REPS_DRAW     3        // 3rd repetition is a draw
@@ -527,7 +527,7 @@ int Random(const int min, const int max) {
   if (min == max) return 0;
   static std::uint64_t seed = 0x202c7ULL + std::uint64_t(std::time(nullptr));
   seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3);
-  return min + int(seed % std::max<std::uint64_t>(1, std::abs(max - min) + 1));
+  return min + static_cast<int>(seed % static_cast<std::uint64_t>(std::max(1, std::abs(max - min) + 1)));
 }
 
 // Split string by given str
@@ -686,13 +686,13 @@ const std::string Board::to_fen() const {
     if (r != 0) s << "/";
   }
   s << (g_wtm ? " w " : " b ");
-  if (this->castle & 0x1) s << char('A' + g_rook_w[0]);
-  if (this->castle & 0x2) s << char('A' + g_rook_w[1]);
-  if (this->castle & 0x4) s << char('a' + g_rook_b[0] - 56);
-  if (this->castle & 0x8) s << char('a' + g_rook_b[1] - 56);
+  if (this->castle & 0x1) s << static_cast<char>('A' + g_rook_w[0]);
+  if (this->castle & 0x2) s << static_cast<char>('A' + g_rook_w[1]);
+  if (this->castle & 0x4) s << static_cast<char>('a' + g_rook_b[0] - 56);
+  if (this->castle & 0x8) s << static_cast<char>('a' + g_rook_b[1] - 56);
   s << (this->castle ? " " : "- ");
-  this->epsq == -1 ? s << "-" : s << char('a' + Xaxl(this->epsq)) << char('1' + Yaxl(this->epsq));
-  s << " " << int(this->fifty) << " " << int(std::max(1, g_fullmoves));
+  this->epsq == -1 ? s << "-" : s << static_cast<char>('a' + Xaxl(this->epsq)) << static_cast<char>('1' + Yaxl(this->epsq));
+  s << " " << static_cast<int>(this->fifty) << " " << static_cast<int>(std::max(1, g_fullmoves));
   return s.str();
 }
 
@@ -1554,7 +1554,7 @@ int FixFRC() {
   static const std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
   if (!((g_board->white[2] | g_board->black[2]) & corners)) return 0;
 
-  auto s = 0;
+  int s = 0;
   if (g_board->pieces[0]  == +3 && g_board->pieces[9]  == +1) s -= FRC_PENALTY;
   if (g_board->pieces[7]  == +3 && g_board->pieces[14] == +1) s -= FRC_PENALTY;
   if (g_board->pieces[56] == -3 && g_board->pieces[49] == -1) s += FRC_PENALTY;
@@ -1739,8 +1739,8 @@ struct Evaluation {
   }
 
   int calculate_score() const { // 78 phases for HCE
-    const float n = float(std::clamp(this->piece_sum, 0, MAX_PIECES)) / float(MAX_PIECES);
-    const int s   = int(n * float(this->mg) + (1.0f - n) * float(this->eg));
+    const float n = static_cast<float>(std::clamp(this->piece_sum, 0, MAX_PIECES)) / static_cast<float>(MAX_PIECES);
+    const int s   = static_cast<int>(n * static_cast<float>(this->mg) + (1.0f - n) * static_cast<float>(this->eg));
     return (this->score + s) / this->scale_factor;
   }
 
@@ -1805,10 +1805,10 @@ int EvaluateNNUE(const bool wtm) {
 // 1-99 (Levels)
 // 100  (Full Strength)
 int LevelNoise() { return Random(-5 * (100 - g_level), +5 * (100 - g_level)); }
-float GetScale() { return std::clamp(g_board->fifty < SHUFFLE ?
-    1.0f : 1.0f - ((float(g_board->fifty - SHUFFLE)) / float(FIFTY + 10.0f)), 0.0f, 1.0f); }
+float GetScale() { return std::clamp(g_board->fifty < SHUFFLE ? 1.0f :
+                       1.0f - ((static_cast<float>(g_board->fifty - SHUFFLE)) / static_cast<float>(FIFTY + 10.0f)), 0.0f, 1.0f); }
 int GetEval(const bool wtm) { return FixFRC() + (g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)); }
-int Evaluate(const bool wtm) { return LevelNoise() + (EasyDraw(wtm) ? 0 : (GetScale() * float(GetEval(wtm)))); }
+int Evaluate(const bool wtm) { return LevelNoise() + (EasyDraw(wtm) ? 0 : (GetScale() * static_cast<float>(GetEval(wtm)))); }
 
 // Search
 
@@ -1853,15 +1853,13 @@ inline bool CheckTime() { // Time checking
 
 // 1. Check against standpat to see whether we are better -> Done
 // 2. Iterate deeper
-int QSearchW(int alpha, const int beta, int depth, const int ply) {
+int QSearchW(int alpha, const int beta, const int depth, const int ply) {
   ++g_nodes; // Increase visited nodes count
 
   if (g_stop_search || (g_stop_search = CheckTime())) return 0; // Search is stopped. Return ASAP
-  if (((alpha = std::max(alpha, Evaluate(true))) >= beta) ||
-      depth <= 0 || ply >= MAX_SEARCH_DEPTH + MAX_Q_SEARCH_DEPTH) return alpha; // Better / terminal node -> Done
+  if (((alpha = std::max(alpha, Evaluate(true))) >= beta) || depth <= 0) return alpha; // Better / terminal node -> Done
 
   const auto moves_n = MgenTacticalW(g_boards[ply]);
-  if (moves_n == 1 && ply < MAX_SEARCH_DEPTH) ++depth;
   for (auto i = 0; i < moves_n; ++i) {
     LazySort(ply, i, moves_n); // Very few moves, sort them all
     g_board = g_boards[ply] + i;
@@ -1871,15 +1869,13 @@ int QSearchW(int alpha, const int beta, int depth, const int ply) {
   return alpha;
 }
 
-int QSearchB(const int alpha, int beta, int depth, const int ply) {
+int QSearchB(const int alpha, int beta, const int depth, const int ply) {
   ++g_nodes;
 
   if (g_stop_search) return 0;
-  if ((alpha >= (beta = std::min(beta, Evaluate(false)))) ||
-      depth <= 0 || ply >= MAX_SEARCH_DEPTH + MAX_Q_SEARCH_DEPTH) return beta;
+  if ((alpha >= (beta = std::min(beta, Evaluate(false)))) || depth <= 0) return beta;
 
   const auto moves_n = MgenTacticalB(g_boards[ply]);
-  if (moves_n == 1 && ply < MAX_SEARCH_DEPTH) ++depth;
   for (auto i = 0; i < moves_n; ++i) {
     LazySort(ply, i, moves_n);
     g_board = g_boards[ply] + i;
@@ -1895,7 +1891,7 @@ void SetMoveAndPv(const int ply, const int move_i) {
 }
 
 int CalcLMR(const int depth, const int move_i) {
-  return (depth <= 0 || move_i <= 0) ? 1 : std::clamp<int>(0.25 * std::log(depth) * std::log(move_i), 1, 6);
+  return depth <= 0 || move_i <= 0 ? 1 : std::clamp<int>(0.25 * std::log(depth) * std::log(move_i), 1, 6);
 }
 
 // a >= b -> Minimizer won't pick any better move anyway.
@@ -1985,7 +1981,7 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
     auto *tmp         = g_board;
     g_board->epsq     = -1;
     g_nullmove_active = true;
-    const auto score  = SearchB(*alpha, beta, depth - int(depth / 4 + 3), ply);
+    const auto score  = SearchB(*alpha, beta, depth - static_cast<int>(depth / 4 + 3), ply);
     g_nullmove_active = false;
     g_board           = tmp;
     g_board->epsq     = ep;
@@ -2009,7 +2005,7 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
     auto *tmp         = g_board;
     g_board->epsq     = -1;
     g_nullmove_active = true;
-    const auto score  = SearchW(alpha, *beta, depth - int(depth / 4 + 3), ply);
+    const auto score  = SearchW(alpha, *beta, depth - static_cast<int>(depth / 4 + 3), ply);
     g_nullmove_active = false;
     g_board           = tmp;
     g_board->epsq     = ep;
@@ -2126,7 +2122,7 @@ struct Material {
 
   // KRRvKR / KRvKRR / KRRRvK / KvKRRR ?
   bool is_rook_ending() const {
-    return this->white_n + this->black_n == 5 && (std::popcount(g_board->white[3] | g_board->black[3]) == 3);
+    return this->white_n + this->black_n == 5 && std::popcount(g_board->white[3] | g_board->black[3]) == 3;
   }
 
   // Vs king + (PNBRQ) ?
@@ -2491,7 +2487,7 @@ void UciHelp() {
     "  > perft ( 119060324 )\n\n" <<
     "bench [depth] [time]\n"  <<
     "  Bench signature and speed of the program\n" <<
-    "  > bench           ( 241133476  | Signature )\n" <<
+    "  > bench           ( 241185678  | Signature )\n" <<
     "  > bench inf 10000 ( 5472166705 | Speed )" << std::endl;
 }
 
