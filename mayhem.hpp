@@ -779,7 +779,7 @@ void BuildCastlingBitboard1B() {
 }
 
 void BuildCastlingBitboard2() {
-  for (const std::size_t i : {0, 1}) {
+  for (std::size_t i = 0; i < 2; ++i) {
     g_castle_empty_w[i] &= 0xFFULL;
     g_castle_empty_b[i] &= 0xFF00000000000000ULL;
     g_castle_w[i]       &= 0xFFULL;
@@ -902,7 +902,7 @@ void FenReset() {
   g_king_w      = g_king_b = 0;
   g_fullmoves   = 1;
 
-  for (const std::size_t i : {0, 1}) {
+  for (std::size_t i = 0; i < 2; ++i) {
     g_castle_w[i] = g_castle_empty_w[i] = g_castle_b[i] = g_castle_empty_b[i] = 0;
     g_rook_w[i]   = g_rook_b[i] = 0;
   }
@@ -1141,10 +1141,9 @@ void CheckCastlingRightsB() {
 }
 
 void HandleCastlingRights() {
-  if (g_board->castle) {
-    CheckCastlingRightsW();
-    CheckCastlingRightsB();
-  }
+  if (!g_board->castle) return;
+  CheckCastlingRightsW();
+  CheckCastlingRightsB();
 }
 
 void ModifyPawnStuffW(const int from, const int to) {
@@ -1195,10 +1194,9 @@ void AddPromotionW(const int from, const int to, const int piece) {
 
   if (eat <= -1)  g_board->black[-eat - 1] ^= Bit(to);
 
-  if (!ChecksB()) {
-    HandleCastlingRights();
-    g_board->index = g_moves_n++;
-  }
+  if (ChecksB()) return;
+  HandleCastlingRights();
+  g_board->index = g_moves_n++;
 }
 
 void AddPromotionB(const int from, const int to, const int piece) {
@@ -1219,10 +1217,9 @@ void AddPromotionB(const int from, const int to, const int piece) {
 
   if (eat >= +1)  g_board->white[eat - 1] ^= Bit(to);
 
-  if (!ChecksW()) {
-    HandleCastlingRights();
-    g_board->index = g_moves_n++;
-  }
+  if (ChecksW()) return;
+  HandleCastlingRights();
+  g_board->index = g_moves_n++;
 }
 
 void AddPromotionStuffW(const int from, const int to) {
@@ -1236,19 +1233,17 @@ void AddPromotionStuffB(const int from, const int to) {
 }
 
 inline void CheckNormalCapturesW(const int me, const int eat, const int to) {
-  if (eat <= -1) {
-    g_board->black[-eat - 1] ^= Bit(to);
-    g_board->score            = kMvv[me - 1][-eat - 1];
-    g_board->fifty            = 0;
-  }
+  if (eat > -1) return;
+  g_board->black[-eat - 1] ^= Bit(to);
+  g_board->score            = kMvv[me - 1][-eat - 1];
+  g_board->fifty            = 0;
 }
 
 inline void CheckNormalCapturesB(const int me, const int eat, const int to) {
-  if (eat >= +1) {
-    g_board->white[eat - 1] ^= Bit(to);
-    g_board->score           = kMvv[-me - 1][eat - 1];
-    g_board->fifty           = 0;
-  }
+  if (eat < +1) return;
+  g_board->white[eat - 1] ^= Bit(to);
+  g_board->score           = kMvv[-me - 1][eat - 1];
+  g_board->fifty           = 0;
 }
 
 // If not under checks -> Handle castling rights -> Add move
@@ -1532,7 +1527,7 @@ inline int FlipY(const int sq) { return sq ^ 56; } // Mirror horizontal
 inline bool ProbeKPK(const bool wtm) {
   return g_board->white[0] ?
     eucalyptus::IsDraw(      std::countr_zero(g_board->white[5]),
-      std::countr_zero(g_board->white[0]),        std::countr_zero(g_board->black[5]),   wtm) :
+      std::countr_zero(g_board->white[0]),              std::countr_zero(g_board->black[5]),   wtm) :
     eucalyptus::IsDraw(FlipY(std::countr_zero(g_board->black[5])),
       FlipY(std::countr_zero(g_board->black[0])), FlipY(std::countr_zero(g_board->white[5])), !wtm);
 }
@@ -1564,7 +1559,7 @@ int FixFRC() {
 
 // HCE
 
-inline int Square(const int x) { return x * x; } // x ^ 2
+int Square(const int x) { return x * x; } // x ^ 2
 int CloseBonus(const int a, const int b) { return Square(7 - std::abs(Xaxl(a) - Xaxl(b))) + Square(7 - std::abs(Yaxl(a) - Yaxl(b))); }
 int CloseAnyCornerBonus(const int sq) { return std::max({CloseBonus(sq, 0), CloseBonus(sq, 7), CloseBonus(sq, 56), CloseBonus(sq, 63)}); }
 
@@ -1805,8 +1800,8 @@ int EvaluateNNUE(const bool wtm) {
 // 1-99 (Levels)
 // 100  (Full Strength)
 int LevelNoise() { return Random(-5 * (100 - g_level), +5 * (100 - g_level)); }
-float GetScale() { return std::clamp(g_board->fifty < SHUFFLE ? 1.0f :
-                       1.0f - ((static_cast<float>(g_board->fifty - SHUFFLE)) / static_cast<float>(FIFTY + 10.0f)), 0.0f, 1.0f); }
+float GetScale() { return std::clamp(g_board->fifty < SHUFFLE ?
+                       1.0f : 1.0f - ((static_cast<float>(g_board->fifty - SHUFFLE)) / static_cast<float>(FIFTY + 10.0f)), 0.0f, 1.0f); }
 int GetEval(const bool wtm) { return FixFRC() + (g_classical ? EvaluateClassical(wtm) : EvaluateNNUE(wtm)); }
 int Evaluate(const bool wtm) { return LevelNoise() + (EasyDraw(wtm) ? 0 : (GetScale() * static_cast<float>(GetEval(wtm)))); }
 
@@ -2398,6 +2393,10 @@ void UciPrintBoard(const std::string &fen) {
 }
 
 // Calculate perft split numbers
+// > perft
+//     Nodes:    119060324
+//     Time(ms): 1600
+//     NPS:      74412702
 void UciPerft(const std::string &depth2, const std::string &fen) {
   const Save save{};
   const auto depth = depth2.length() ? std::max(0, std::stoi(depth2)) : 6;
@@ -2420,6 +2419,16 @@ void UciPerft(const std::string &depth2, const std::string &fen) {
 }
 
 // Bench signature and speed of the program
+// > bench
+//     Result:   60 / 60
+//     Nodes:    241185678
+//     Time(ms): 17132
+//     NPS:      14078080
+// > bench inf 10000
+//     Result:   60 / 60
+//     Nodes:    7030957202
+//     Time(ms): 495962
+//     NPS:      14176403
 void UciBench(const std::string &depth, const std::string &ms) {
   const Save save{};
   SetHashtable(DEF_HASH_MB); // Set hash and reset
@@ -2483,12 +2492,9 @@ void UciHelp() {
     "position [startpos | fen] [moves]?\n" <<
     "  Sets the board position via an optional FEN and optional move list\n\n" <<
     "perft [depth] [fen]\n" <<
-    "  Calculate perft split numbers\n" <<
-    "  > perft ( 119060324 )\n\n" <<
+    "  Calculate perft split numbers\n\n" <<
     "bench [depth] [time]\n"  <<
-    "  Bench signature and speed of the program\n" <<
-    "  > bench           ( 241185678  | Signature )\n" <<
-    "  > bench inf 10000 ( 5472166705 | Speed )" << std::endl;
+    "  Bench signature and speed of the program" << std::endl;
 }
 
 bool UciCommands() {
