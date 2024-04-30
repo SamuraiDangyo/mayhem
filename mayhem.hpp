@@ -457,7 +457,7 @@ inline int Yaxl(const int sq) {
 
 // Nodes Per Second
 std::uint64_t Nps(const std::uint64_t nodes, const std::uint64_t ms) {
-  return std::uint64_t(1000 * nodes) / std::max<std::uint64_t>(1, ms);
+  return static_cast<std::uint64_t>(1000 * nodes) / std::max<std::uint64_t>(1, ms);
 }
 
 // Is (x, y) on board ? Slow, but only for init
@@ -524,8 +524,8 @@ std::uint64_t Random8x64() { // 8x deterministic random for zobrist
 
 // Nondeterministic Rand()
 int Random(const int min, const int max) {
-  if (min == max) return 0;
-  static std::uint64_t seed = 0x202c7ULL + std::uint64_t(std::time(nullptr));
+  if (min == max) return min;
+  static std::uint64_t seed = 0x202c7ULL + static_cast<std::uint64_t>(std::time(nullptr));
   seed = (seed << 5) ^ (seed + 1) ^ (seed >> 3);
   return min + static_cast<int>(seed % static_cast<std::uint64_t>(std::max(1, std::abs(max - min) + 1)));
 }
@@ -606,7 +606,7 @@ void SetNNUE(const std::string &eval_file) { // nn.nnue
 
 void SetHashtable(int hash_mb) {
   hash_mb = std::clamp(hash_mb, 1, 1048576); // Limits 1MB -> 1TB
-  g_hash_entries = std::uint32_t((1 << 20) * hash_mb) / (sizeof(HashEntry)); // Hash(B) / Block(B)
+  g_hash_entries = static_cast<std::uint32_t>((1 << 20) * hash_mb) / (sizeof(HashEntry)); // Hash(B) / Block(B)
   g_hash.reset(new HashEntry[g_hash_entries]); // Claim space
 }
 
@@ -627,19 +627,19 @@ inline std::uint64_t Hash(const bool wtm) {
 template <MoveType type>
 void HashEntry::update(const std::uint64_t hash, const std::uint8_t index) {
   if constexpr (type == MoveType::kKiller) {
-    this->killer_hash = std::uint32_t(hash >> 32);
+    this->killer_hash = static_cast<std::uint32_t>(hash >> 32);
     this->killer      = index + 1;
   } else { // == MoveType::kGood !
-    this->good_hash = std::uint32_t(hash >> 32);
+    this->good_hash = static_cast<std::uint32_t>(hash >> 32);
     this->good      = index + 1;
   }
 }
 
 // Best moves put first for maximum cutoffs
 void HashEntry::put_hash_value_to_moves(const std::uint64_t hash, Board *moves) const {
-  if (this->killer && (this->killer_hash == std::uint32_t(hash >> 32)))
+  if (this->killer && (this->killer_hash == static_cast<std::uint32_t>(hash >> 32)))
     moves[this->killer - 1].score += 10000;
-  if (this->good && (this->good_hash == std::uint32_t(hash >> 32)))
+  if (this->good && (this->good_hash == static_cast<std::uint32_t>(hash >> 32)))
     moves[this->good - 1].score += 7000;
 }
 
@@ -658,16 +658,15 @@ bool Board::is_underpromo() const { // =n / =b / =r
 }
 
 const std::string Board::movename() const {
-  auto from2 = this->from, to2 = this->to;
   switch (this->type) {
-    case 1: from2 = g_king_w; to2 = g_chess960 ? g_rook_w[0] : 6;      break;
-    case 2: from2 = g_king_w; to2 = g_chess960 ? g_rook_w[1] : 2;      break;
-    case 3: from2 = g_king_b; to2 = g_chess960 ? g_rook_b[0] : 56 + 6; break;
-    case 4: from2 = g_king_b; to2 = g_chess960 ? g_rook_b[1] : 56 + 2; break;
+    case 1: return Move2Str(g_king_w, g_chess960 ? g_rook_w[0] : 6);
+    case 2: return Move2Str(g_king_w, g_chess960 ? g_rook_w[1] : 2);
+    case 3: return Move2Str(g_king_b, g_chess960 ? g_rook_b[0] : 56 + 6);
+    case 4: return Move2Str(g_king_b, g_chess960 ? g_rook_b[1] : 56 + 2);
     case 5: case 6: case 7: case 8:
-            return Move2Str(from2, to2) + PromoLetter(this->pieces[to2]);
+            return Move2Str(this->from, this->to) + PromoLetter(this->pieces[this->to]);
   }
-  return Move2Str(from2, to2);
+  return Move2Str(this->from, this->to);
 }
 
 // Board presentation in FEN ( Forsyth–Edwards Notation )
@@ -863,15 +862,18 @@ void FenKQkq(const std::string &KQkq) {
 }
 
 void FenEp(const std::string &ep) {
-  if (ep.length() == 2) g_board->epsq = 8 * Rank2Num(ep[1]) + File2Num(ep[0]);
+  if (ep.length() != 2) return;
+  g_board->epsq = 8 * Rank2Num(ep[1]) + File2Num(ep[0]);
 }
 
 void FenRule50(const std::string &fifty) {
-  if (fifty.length() != 0 && fifty[0] != '-') g_board->fifty = std::clamp(std::stoi(fifty), 0, 100);
+  if (fifty.length() == 0 || fifty[0] == '-') return;
+  g_board->fifty = std::clamp(std::stoi(fifty), 0, 100);
 }
 
 void FenFullMoves(const std::string &fullmoves) {
-  if (fullmoves.length() != 0) g_fullmoves = std::max(std::stoi(fullmoves), 1);
+  if (fullmoves.length() == 0) return;
+  g_fullmoves = std::max(std::stoi(fullmoves), 1);
 }
 
 // Fully legal FEN expected
@@ -971,9 +973,9 @@ inline void LazySort(const int ply, const int nth, const int total_moves) {
 void EvalRootMoves() {
   for (auto i = 0; i < g_root_n; ++i) {
     g_board         = g_boards[0] + i; // Pointer to this board
-    g_board->score += (g_board->is_queen_promo() ? 1000  : 0) + // =q
-                      (g_board->is_castling()    ? 100   : 0) + // ( OO, OOO )
-                      (g_board->is_underpromo()  ? -5000 : 0) + // ( =r, =b, =n )
+    g_board->score += (g_board->is_queen_promo() ? 1000  : 0) +
+                      (g_board->is_castling()    ? 100   : 0) +
+                      (g_board->is_underpromo()  ? -5000 : 0) +
                       (Random(-g_noise, +g_noise)) + // Add noise -> Make unpredictable
                       (g_wtm ? +1 : -1) * Evaluate(g_wtm); // Full eval
   }
@@ -1049,7 +1051,8 @@ void AddCastleOOW() {
   g_board->white[3]            = (g_board->white[3] ^ Bit(g_rook_w[0])) | Bit(5);
   g_board->white[5]            = (g_board->white[5] ^ Bit(g_king_w))    | Bit(6);
 
-  if (!ChecksB()) g_board->index = g_moves_n++;
+  if (ChecksB()) return;
+  g_board->index = g_moves_n++;
 }
 
 void AddCastleOOB() {
@@ -1063,7 +1066,8 @@ void AddCastleOOB() {
   g_board->black[3]            = (g_board->black[3] ^ Bit(g_rook_b[0])) | Bit(56 + 5);
   g_board->black[5]            = (g_board->black[5] ^ Bit(g_king_b))    | Bit(56 + 6);
 
-  if (!ChecksW()) g_board->index = g_moves_n++;
+  if (ChecksW()) return;
+  g_board->index = g_moves_n++;
 }
 
 void AddCastleOOOW() {
@@ -1077,7 +1081,8 @@ void AddCastleOOOW() {
   g_board->white[3]            = (g_board->white[3] ^ Bit(g_rook_w[1])) | Bit(3);
   g_board->white[5]            = (g_board->white[5] ^ Bit(g_king_w))    | Bit(2);
 
-  if (!ChecksB()) g_board->index = g_moves_n++;
+  if (ChecksB()) return;
+  g_board->index = g_moves_n++;
 }
 
 void AddCastleOOOB() {
@@ -1091,7 +1096,8 @@ void AddCastleOOOB() {
   g_board->black[3]            = (g_board->black[3] ^ Bit(g_rook_b[1])) | Bit(56 + 3);
   g_board->black[5]            = (g_board->black[5] ^ Bit(g_king_b))    | Bit(56 + 2);
 
-  if (!ChecksW()) g_board->index = g_moves_n++;
+  if (ChecksW()) return;
+  g_board->index = g_moves_n++;
 }
 
 void AddOOW() {
@@ -1900,7 +1906,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8))) ++depth; // Extend interesting path (SRE / CE / PPE)
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  auto *entry       = &g_hash[std::uint32_t(hash % g_hash_entries)];
+  auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
   entry->put_hash_value_to_moves(hash, g_boards[ply]);
 
   // Tiny speedup since not all moves are scored (lots of pointless shuffling ...)
@@ -1937,7 +1943,7 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8))) ++depth;
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
-  auto *entry       = &g_hash[std::uint32_t(hash % g_hash_entries)];
+  auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
   entry->put_hash_value_to_moves(hash, g_boards[ply]);
 
   auto sort = true;
@@ -2227,7 +2233,7 @@ void ThinkReset() { // Reset search status
 }
 
 void Think(const int ms) {
-  g_stop_search_time = Now() + std::uint64_t(ms); // Start clock early
+  g_stop_search_time = Now() + static_cast<std::uint64_t>(ms); // Start clock early
   ThinkReset();
   MgenRoot();
   if (!g_analyzing && FastMove(ms)) return;
@@ -2422,8 +2428,8 @@ void UciPerft(const std::string &depth2, const std::string &fen) {
 // > bench
 //     Result:   60 / 60
 //     Nodes:    241185678
-//     Time(ms): 17132
-//     NPS:      14078080
+//     Time(ms): 16977
+//     NPS:      14206613
 // > bench inf 10000
 //     Result:   60 / 60
 //     Nodes:    7030957202

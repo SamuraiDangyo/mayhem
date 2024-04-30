@@ -2,7 +2,7 @@
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
   Copyright (C) 2008-2014 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2020-2022 Toni Helminen (Mayhem author / Modifications)
+  Copyright (C) 2020-2024 Toni Helminen (Mayhem author / Modifications)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -80,8 +80,11 @@ class PolyglotBook : private std::ifstream {
     std::size_t find_first(const std::uint64_t);
     bool is_ep_legal() const;
     inline int ctz(const std::uint64_t bb) const { return __builtin_ctzll(bb); }
-    inline int ctz_pop(std::uint64_t *bb) const { const auto ret = this->ctz(*bb);
-                                                  *bb = *bb & (*bb - 0x1ULL); return ret; }
+    inline int ctz_pop(std::uint64_t *bb) const {
+      const auto ret = this->ctz(*bb);
+      *bb = *bb & (*bb - 0x1ULL);
+      return ret;
+    }
     bool on_board(const int x) const { return x >= 0 && x <= 7; }
 };
 
@@ -363,7 +366,7 @@ constexpr union {
 // polyglotbook.cpp start
 
 PolyglotBook::PolyglotBook() : polyboard{} {
-  std::srand((unsigned int)(std::time(nullptr)));
+  std::srand(static_cast<unsigned int>(std::time(nullptr)));
 }
 
 PolyglotBook::~PolyglotBook() {
@@ -521,7 +524,7 @@ int PolyglotBook::probe(const bool pick_best) {
 std::size_t PolyglotBook::find_first(const std::uint64_t key) {
   this->seekg(0, std::ios::end); // Move pointer to end, so tellg() gets file's size
 
-  std::size_t low = 0, high = std::size_t(this->tellg()) / sizeof(Entry) - 1;
+  std::size_t low = 0, high = static_cast<std::size_t>(this->tellg()) / sizeof(Entry) - 1;
   Entry e{};
 
   while (low < high && this->good()) {
