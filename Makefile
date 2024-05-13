@@ -41,7 +41,7 @@ clean:
 	rm -f $(EXE)
 
 help:
-	@echo "#+# Mayhem Compiling #+#"
+	@echo "#+# Mayhem #+#"
 	@echo ""
 	@echo "To compile Mayhem, type:"
 	@echo ""

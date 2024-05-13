@@ -66,6 +66,7 @@ namespace mayhem {
 #define MOVEOVERHEAD  100      // ms
 #define REPS_DRAW     3        // 3rd repetition is a draw
 #define FIFTY         100      // 100 moves w/o progress is a draw (256 max)
+#define R50_ARR       (FIFTY + 2) // Checkmate overrules 50 move rep so extra space here
 #define SHUFFLE       30       // Allow shuffling then scale
 #define BOOK_MS       100      // At least 100ms+ for the book lookup
 #define BOOK_BEST     false    // Nondeterministic opening play
@@ -385,7 +386,7 @@ std::uint64_t g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_s
   g_pawn_2_moves_b[64]{}, g_knight_moves[64]{}, g_king_moves[64]{}, g_pawn_checks_w[64]{}, g_pawn_checks_b[64]{},
   g_castle_w[2]{}, g_castle_b[2]{}, g_castle_empty_w[2]{}, g_castle_empty_b[2]{}, g_bishop_magic_moves[64][512]{},
   g_rook_magic_moves[64][4096]{}, g_zobrist_ep[64]{}, g_zobrist_castle[16]{}, g_zobrist_wtm[2]{},
-  g_r50_positions[FIFTY + 2]{}, g_zobrist_board[13][64]{};
+  g_r50_positions[R50_ARR]{}, g_zobrist_board[13][64]{};
 
 int g_move_overhead = MOVEOVERHEAD, g_level = 100, g_root_n = 0, g_king_w = 0, g_king_b = 0, g_moves_n = 0,
   g_max_depth = MAX_SEARCH_DEPTH, g_q_depth = 0, g_depth = 0, g_best_score = 0, g_noise = NOISE, g_last_eval = 0,
@@ -794,7 +795,7 @@ void BuildCastlingBitboard1B() {
 }
 
 void BuildCastlingBitboard2() {
-  for (std::size_t i : {0, 1}) {
+  for (const std::size_t i : {0, 1}) {
     g_castle_empty_w[i] &= 0xFFULL;
     g_castle_empty_b[i] &= 0xFF00000000000000ULL;
     g_castle_w[i]       &= 0xFFULL;
@@ -891,7 +892,7 @@ void FenEp(const std::string &ep) {
 
 void FenRule50(const std::string &fifty) {
   if (fifty.length() == 0 || fifty[0] == '-') return;
-  g_board->fifty = std::clamp(std::stoi(fifty), 0, FIFTY);
+  g_board->fifty = static_cast<std::uint8_t>(std::min(std::stoi(fifty), FIFTY));
 }
 
 void FenFullMoves(const std::string &fullmoves) {
@@ -1213,6 +1214,7 @@ void ModifyPawnStuffB(const int from, const int to) {
   }
 }
 
+
 void AddPromotionW(const int from, const int to, const int piece) {
   const auto eat = g_board->pieces[to];
 
@@ -1259,14 +1261,24 @@ void AddPromotionB(const int from, const int to, const int piece) {
   g_board->index = g_moves_n++;
 }
 
+void AddPromotionW2(const int from, const int to, const int piece) {
+  AddPromotionW(from, to, piece);
+  g_board = g_board_orig;
+}
+
+void AddPromotionB2(const int from, const int to, const int piece) {
+  AddPromotionB(from, to, piece);
+  g_board = g_board_orig;
+}
+
 void AddPromotionStuffW(const int from, const int to) {
-  if (g_underpromos) { for (const auto p : {+5, +2, +4, +3}) { AddPromotionW(from, to, p); g_board = g_board_orig; } } // QNRB
-  else               { for (const auto p : {+5, +2})         { AddPromotionW(from, to, p); g_board = g_board_orig; } } // QN
+  if (g_underpromos) for (const auto p : {+5, +2, +4, +3}) AddPromotionW2(from, to, p); // QNRB
+  else               for (const auto p : {+5, +2})         AddPromotionW2(from, to, p); // QN
 }
 
 void AddPromotionStuffB(const int from, const int to) {
-  if (g_underpromos) { for (const auto p : {-5, -2, -4, -3}) { AddPromotionB(from, to, p); g_board = g_board_orig; } }
-  else               { for (const auto p : {-5, -2})         { AddPromotionB(from, to, p); g_board = g_board_orig; } }
+  if (g_underpromos) for (const auto p : {-5, -2, -4, -3}) AddPromotionB2(from, to, p);
+  else               for (const auto p : {-5, -2})         AddPromotionB2(from, to, p);
 }
 
 inline void CheckNormalCapturesW(const int me, const int eat, const int to) {
@@ -1881,7 +1893,7 @@ void SpeakUci(const int score, const std::uint64_t ms) {
 }
 
 bool Draw(const bool wtm) {
-  if (g_board->fifty > FIFTY || EasyDraw(wtm)) return true; // Checkmate overrules rule50 ( == 100 )
+  if (g_board->fifty > FIFTY || EasyDraw(wtm)) return true; // Checkmate overrules rule50
 
   const auto hash = g_r50_positions[g_board->fifty]; // g_r50_positions.pop() must contain hash !
   for (auto i = g_board->fifty - 2, reps = 1; i >= 0; i -= 2)
@@ -2335,7 +2347,7 @@ std::uint64_t Perft(const bool wtm, const int depth, const int ply) {
 
 void UciMake(const int root_i) {
   if (!g_wtm) ++g_fullmoves; // Increase fullmoves only after black move
-  g_r50_positions[std::min<std::size_t>(g_board->fifty, FIFTY)] = Hash(g_wtm); // Set hash
+  g_r50_positions[std::min(g_board->fifty, static_cast<std::uint8_t>(R50_ARR))] = Hash(g_wtm); // Set hash
   g_board_empty = g_boards[0][root_i]; // Copy current board
   g_board       = &g_board_empty; // Set pointer ( g_board must always point to smt )
   g_wtm         = !g_wtm; // Flip the board
@@ -2468,9 +2480,9 @@ void UciPrintBoard(const std::string &fen) {
 
 // Calculate perft split numbers
 // > perft
-//     Nodes:    119060324
-//     Time(ms): 1600
-//     NPS:      74412702
+//   Nodes:    119060324
+//   Time(ms): 1190
+//   NPS:      100050692
 void UciPerft(const std::string &depth2, const std::string &fen) {
   const Save save{};
   const auto depth = depth2.length() ? std::max(0, std::stoi(depth2)) : 6;
@@ -2496,18 +2508,13 @@ void UciPerft(const std::string &depth2, const std::string &fen) {
 // > bench
 //   Result:   60 / 60
 //   Nodes:    241185678
-//   Time(ms): 16977
-//   NPS:      14206613
-// Ryzen:
-//   Result:   60 / 60
-//   Nodes:    241185678
-//   Time(ms): 26889
-//   NPS:      8969678
+//   Time(ms): 17027
+//   NPS:      14164895
 // > bench inf 10000
 //   Result:   60 / 60
-//   Nodes:    7030957202
-//   Time(ms): 495962
-//   NPS:      14176403
+//   Nodes:    7565765060
+//   Time(ms): 496201
+//   NPS:      15247379
 void UciBench(const std::string &depth, const std::string &ms) {
   const Save save{};
   SetHashtable(DEF_HASH_MB); // Set hash and reset
