@@ -1711,14 +1711,16 @@ struct Evaluation {
 
   void bonus_knbk_w() {
     this->score += 2 * CloseBonus(this->wk, this->bk) +
-                  10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
-                                                                      std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk)));
+                  10 * ((g_board->white[2] & 0xaa55aa55aa55aa55ULL) ?
+                    std::max(CloseBonus(0, this->bk), CloseBonus(63, this->bk)) :
+                    std::max(CloseBonus(7, this->bk), CloseBonus(56, this->bk)));
   }
 
   void bonus_knbk_b() {
     this->score -= 2 * CloseBonus(this->wk, this->bk) +
-                  10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ? std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
-                                                                      std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk)));
+                  10 * ((g_board->black[2] & 0xaa55aa55aa55aa55ULL) ?
+                    std::max(CloseBonus(0, this->wk), CloseBonus(63, this->wk)) :
+                    std::max(CloseBonus(7, this->wk), CloseBonus(56, this->wk)));
   }
 
   Evaluation* bonus_tempo() {
@@ -1961,7 +1963,9 @@ void SetMoveAndPv(const int ply, const int move_i) {
 }
 
 int CalcLMR(const int depth, const int move_i) {
-  return depth <= 0 || move_i <= 0 ? 1 : std::clamp<int>(0.25 * std::log(depth) * std::log(move_i), 1, 6);
+  return depth <= 0 || move_i <= 0 ?
+    1 :
+    std::clamp<int>(0.25 * std::log(depth) * std::log(move_i), 1, 6);
 }
 
 // a >= b -> Minimizer won't pick any better move anyway.
@@ -2386,14 +2390,13 @@ void UciPosition() {
 }
 
 void UciSetoption() {
-  if (TokenPeek("name") && TokenPeek("value", 2)) {
-    if (     TokenPeek("UCI_Chess960", 1)) { g_chess960 = TokenPeek("true", 3); }
-    else if (TokenPeek("Hash", 1))         { SetHashtable(TokenNumber(3)); }
-    else if (TokenPeek("Level", 1))        { g_level = std::clamp(TokenNumber(3), 0, 100); }
-    else if (TokenPeek("MoveOverhead", 1)) { g_move_overhead = std::clamp(TokenNumber(3), 0, 10000); }
-    else if (TokenPeek("EvalFile", 1))     { SetNNUE(TokenNth(3)); }
-    else if (TokenPeek("BookFile", 1))     { SetBook(TokenNth(3)); }
-  }
+  if (!TokenPeek("name") || !TokenPeek("value", 2)) return;
+  if (     TokenPeek("UCI_Chess960", 1)) g_chess960 = TokenPeek("true", 3);
+  else if (TokenPeek("Hash", 1))         SetHashtable(TokenNumber(3));
+  else if (TokenPeek("Level", 1))        g_level = std::clamp(TokenNumber(3), 0, 100);
+  else if (TokenPeek("MoveOverhead", 1)) g_move_overhead = std::clamp(TokenNumber(3), 0, 10000);
+  else if (TokenPeek("EvalFile", 1))     SetNNUE(TokenNth(3));
+  else if (TokenPeek("BookFile", 1))     SetBook(TokenNth(3));
 }
 
 void PrintBestMove() {
@@ -2508,8 +2511,8 @@ void UciPerft(const std::string &depth2, const std::string &fen) {
 // > bench
 //   Result:   60 / 60
 //   Nodes:    241185678
-//   Time(ms): 17027
-//   NPS:      14164895
+//   Time(ms): 16914
+//   NPS:      14259529
 // > bench inf 10000
 //   Result:   60 / 60
 //   Nodes:    7565765060
@@ -2574,12 +2577,12 @@ void UciHelp() {
     "go wtime [int] btime [int] winc [int] binc [int] ...\n" <<
     "    movestogo [int] movetime [int] depth [int] [infinite]\n" <<
     "  Search the current position with the provided settings\n\n" <<
-    "p [fen]\n  Print ASCII art board\n\n" <<
-    "position [startpos | fen] [moves]?\n" <<
+    "p [fen = startpos]\n  Print ASCII art board\n\n" <<
+    "position [startpos | fen] [moves]\n" <<
     "  Sets the board position via an optional FEN and optional move list\n\n" <<
-    "perft [depth] [fen]\n" <<
+    "perft [depth = 6] [fen = startpos]\n" <<
     "  Calculate perft split numbers\n\n" <<
-    "bench [depth] [time]\n"  <<
+    "bench [depth = 14] [time = inf]\n"  <<
     "  Bench signature and speed of the program" << std::endl;
 }
 
