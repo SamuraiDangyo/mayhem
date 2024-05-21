@@ -2351,7 +2351,7 @@ std::uint64_t Perft(const bool wtm, const int depth, const int ply) {
 
 void UciMake(const int root_i) {
   if (!g_wtm) ++g_fullmoves; // Increase fullmoves only after black move
-  g_r50_positions[std::min(g_board->fifty, static_cast<std::uint8_t>(R50_ARR))] = Hash(g_wtm); // Set hash
+  g_r50_positions[std::min(g_board->fifty, static_cast<std::uint8_t>(R50_ARR - 1))] = Hash(g_wtm); // Set hash
   g_board_empty = g_boards[0][root_i]; // Copy current board
   g_board       = &g_board_empty; // Set pointer ( g_board must always point to smt )
   g_wtm         = !g_wtm; // Flip the board
