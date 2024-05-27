@@ -497,8 +497,9 @@ bool InputAvailable() { // See if std::cin has smt
 } // extern "C"
 
 // ms since 1.1.1970
-inline std::uint64_t Now() {
-  return std::chrono::duration_cast<std::chrono::milliseconds>(
+inline std::uint64_t Now(const std::uint64_t ms = 0) {
+  return ms +
+    std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::system_clock::now().time_since_epoch()) .count();
 }
 
@@ -770,28 +771,32 @@ std::uint64_t Fill(int from, const int to) { // from / to -> Always good
   return ret;
 }
 
-void BuildCastlingBitboard1W() {
-  if (g_board->castle & 0x1) { // White: O-O
-    g_castle_w[0]       = Fill(g_king_w, 6);
-    g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5)) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
-  }
-
-  if (g_board->castle & 0x2) { // White: O-O-O
-    g_castle_w[1]       = Fill(g_king_w, 2);
-    g_castle_empty_w[1] = (g_castle_w[1] | Fill(g_rook_w[1], 3)) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
-  }
+// White: O-O
+void BuildCastlingBitboard_O_O_W() {
+  if (!(g_board->castle & 0x1)) return;
+  g_castle_w[0]       = Fill(g_king_w, 6);
+  g_castle_empty_w[0] = (g_castle_w[0] | Fill(g_rook_w[0], 5)) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
 }
 
-void BuildCastlingBitboard1B() {
-  if (g_board->castle & 0x4) { // Black: O-O
-    g_castle_b[0]       = Fill(g_king_b, 56 + 6);
-    g_castle_empty_b[0] = (g_castle_b[0] | Fill(g_rook_b[0], 56 + 5)) ^ (Bit(g_king_b) | Bit(g_rook_b[0]));
-  }
+// White: O-O-O
+void BuildCastlingBitboard_O_O_O_W() {
+  if (!(g_board->castle & 0x2)) return;
+  g_castle_w[1]       = Fill(g_king_w, 2);
+  g_castle_empty_w[1] = (g_castle_w[1] | Fill(g_rook_w[1], 3)) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
+}
 
-  if (g_board->castle & 0x8) { // Black: O-O-O
-    g_castle_b[1]       = Fill(g_king_b, 56 + 2);
-    g_castle_empty_b[1] = (g_castle_b[1] | Fill(g_rook_b[1], 56 + 3)) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
-  }
+// Black: O-O
+void BuildCastlingBitboard_O_O_B() {
+  if (!(g_board->castle & 0x4)) return;
+  g_castle_b[0]       = Fill(g_king_b, 56 + 6);
+  g_castle_empty_b[0] = (g_castle_b[0] | Fill(g_rook_b[0], 56 + 5)) ^ (Bit(g_king_b) | Bit(g_rook_b[0]));
+}
+
+// Black: O-O-O
+void BuildCastlingBitboard_O_O_O_B() {
+  if (!(g_board->castle & 0x8)) return;
+  g_castle_b[1]       = Fill(g_king_b, 56 + 2);
+  g_castle_empty_b[1] = (g_castle_b[1] | Fill(g_rook_b[1], 56 + 3)) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
 }
 
 void BuildCastlingBitboard2() {
@@ -804,8 +809,10 @@ void BuildCastlingBitboard2() {
 }
 
 void BuildCastlingBitboards() {
-  BuildCastlingBitboard1W();
-  BuildCastlingBitboard1B();
+  BuildCastlingBitboard_O_O_W();
+  BuildCastlingBitboard_O_O_O_W();
+  BuildCastlingBitboard_O_O_B();
+  BuildCastlingBitboard_O_O_O_B();
   BuildCastlingBitboard2();
 }
 
@@ -1014,8 +1021,16 @@ void EvalRootMoves() {
 }
 
 // 2. Then sort root moves
-struct RootCompFunctor { bool operator()(const Board &a, const Board &b) const { return a.score > b.score; } };
-void SortRootMoves() { std::sort(g_boards[0] + 0, g_boards[0] + g_root_n, RootCompFunctor()); } // 9 -> 0
+struct RootCompFunctor {
+  bool operator()(const Board &a, const Board &b) const {
+    return a.score > b.score;
+  }
+};
+
+// 9 -> 0
+void SortRootMoves() {
+  std::sort(g_boards[0] + 0, g_boards[0] + g_root_n, RootCompFunctor());
+}
 
 void SortRoot(const int index) {
   if (!index) return;
@@ -1166,16 +1181,48 @@ void MgenCastlingMovesB() {
   AddOOOB();
 }
 
+bool CheckHasKingMovedW() {
+  if (g_board->pieces[g_king_w] == +6) return false;
+  g_board->castle &= 0x4 | 0x8;
+  return true;
+}
+
+void CheckHasLeftRookMovedW() {
+  if (g_board->pieces[g_rook_w[0]] == +4) return;
+  g_board->castle &= 0x2 | 0x4 | 0x8;
+}
+
+void CheckHasRightRookMovedW() {
+  if (g_board->pieces[g_rook_w[1]] == +4) return;
+  g_board->castle &= 0x1 | 0x4 | 0x8;
+}
+
 void CheckCastlingRightsW() {
-  if (g_board->pieces[g_king_w]    != +6) { g_board->castle &= 0x4 | 0x8; return; }
-  if (g_board->pieces[g_rook_w[0]] != +4) { g_board->castle &= 0x2 | 0x4 | 0x8; }
-  if (g_board->pieces[g_rook_w[1]] != +4) { g_board->castle &= 0x1 | 0x4 | 0x8; }
+  if (CheckHasKingMovedW()) return;
+  CheckHasLeftRookMovedW();
+  CheckHasRightRookMovedW();
+}
+
+bool CheckHasKingMovedB() {
+  if (g_board->pieces[g_king_b] == -6) return false;
+  g_board->castle &= 0x1 | 0x2;
+  return true;
+}
+
+void CheckHasLeftRookMovedB() {
+  if (g_board->pieces[g_rook_b[0]] == -4) return;
+  g_board->castle &= 0x1 | 0x2 | 0x8;
+}
+
+void CheckHasRightRookMovedB() {
+  if (g_board->pieces[g_rook_b[1]] == -4) return;
+  g_board->castle &= 0x1 | 0x2 | 0x4;
 }
 
 void CheckCastlingRightsB() {
-  if (g_board->pieces[g_king_b]    != -6) { g_board->castle &= 0x1 | 0x2; return; }
-  if (g_board->pieces[g_rook_b[0]] != -4) { g_board->castle &= 0x1 | 0x2 | 0x8; }
-  if (g_board->pieces[g_rook_b[1]] != -4) { g_board->castle &= 0x1 | 0x2 | 0x4; }
+  if (CheckHasKingMovedB()) return;
+  CheckHasLeftRookMovedB();
+  CheckHasRightRookMovedB();
 }
 
 void HandleCastlingRights() {
@@ -1271,14 +1318,38 @@ void AddPromotionB2(const int from, const int to, const int piece) {
   g_board = g_board_orig;
 }
 
+void AddPromotionStuff_NBRQ_W(const int from, const int to) {
+  for (const auto p : {+5, +2, +4, +3})
+    AddPromotionW2(from, to, p);
+}
+
+void AddPromotionStuff_NQ_W(const int from, const int to) {
+  for (const auto p : {+5, +2})
+    AddPromotionW2(from, to, p);
+}
+
 void AddPromotionStuffW(const int from, const int to) {
-  if (g_underpromos) for (const auto p : {+5, +2, +4, +3}) AddPromotionW2(from, to, p); // QNRB
-  else               for (const auto p : {+5, +2})         AddPromotionW2(from, to, p); // QN
+  if (g_underpromos)
+    AddPromotionStuff_NBRQ_W(from, to);
+  else
+    AddPromotionStuff_NQ_W(from, to);
+}
+
+void AddPromotionStuff_NBRQ_B(const int from, const int to) {
+  for (const auto p : {-5, -2, -4, -3})
+    AddPromotionB2(from, to, p);
+}
+
+void AddPromotionStuff_NQ_B(const int from, const int to) {
+  for (const auto p : {-5, -2})
+    AddPromotionB2(from, to, p);
 }
 
 void AddPromotionStuffB(const int from, const int to) {
-  if (g_underpromos) for (const auto p : {-5, -2, -4, -3}) AddPromotionB2(from, to, p);
-  else               for (const auto p : {-5, -2})         AddPromotionB2(from, to, p);
+  if (g_underpromos)
+    AddPromotionStuff_NBRQ_B(from, to);
+  else
+    AddPromotionStuff_NQ_B(from, to);
 }
 
 inline void CheckNormalCapturesW(const int me, const int eat, const int to) {
@@ -1309,7 +1380,8 @@ inline void AddMoveIfOkB() {
 }
 
 void AddNormalStuffW(const int from, const int to) {
-  const auto me = g_board->pieces[from], eat = g_board->pieces[to];
+  const auto me  = g_board->pieces[from];
+  const auto eat = g_board->pieces[to];
 
   g_moves[g_moves_n]     = *g_board;
   g_board                = &g_moves[g_moves_n];
@@ -1330,7 +1402,8 @@ void AddNormalStuffW(const int from, const int to) {
 }
 
 void AddNormalStuffB(const int from, const int to) {
-  const auto me = g_board->pieces[from], eat = g_board->pieces[to];
+  const auto me  = g_board->pieces[from];
+  const auto eat = g_board->pieces[to];
 
   g_moves[g_moves_n]      = *g_board;
   g_board                 = &g_moves[g_moves_n];
@@ -1920,7 +1993,7 @@ bool UserStop() {
 
 inline bool CheckTime() { // Time checking
   static std::uint64_t ticks = 0;
-  return ((++ticks) & READ_CLOCK) ? false : ((Now() >= g_stop_search_time) || UserStop());
+  return ((++ticks) & READ_CLOCK) ? false : ((g_stop_search_time < Now()) || UserStop());
 }
 
 // 1. Check against standpat to see whether we are better -> Done
@@ -2315,7 +2388,7 @@ void ThinkReset() { // Reset search status
 }
 
 void Think(const int ms) {
-  g_stop_search_time = Now() + static_cast<std::uint64_t>(ms); // Start clock early
+  g_stop_search_time = Now(static_cast<std::uint64_t>(ms)); // Start clock early
   ThinkReset();
   MgenRoot();
   if (!g_analyzing && FastMove(ms)) return;
@@ -2422,11 +2495,21 @@ void UciGoDepth() {
   PrintBestMove();
 }
 
+void UciMovetimeCmd() {
+  UciGoMovetime();
+  TokenPop();
+}
+
+void UciDepthCmd() {
+  UciGoDepth();
+  TokenPop();
+}
+
 // Calculate needed time then think
 // Make sure we never lose on time
 // Thus small overheadbuffer (100 ms) to prevent time losses
 void UciGo() {
-  auto wtime = 0, btime = 0, winc = 0, binc = 0, mtg = 26;
+  int wtime = 0, btime = 0, winc = 0, binc = 0, mtg = 26;
 
   for ( ; TokenOk(); TokenPop())
     if (     Token("wtime"))     { wtime = std::max(0, TokenNumber() - g_move_overhead); }
@@ -2434,9 +2517,9 @@ void UciGo() {
     else if (Token("winc"))      { winc  = std::max(0, TokenNumber()); }
     else if (Token("binc"))      { binc  = std::max(0, TokenNumber()); }
     else if (Token("movestogo")) { mtg   = std::max(1, TokenNumber()); }
-    else if (Token("movetime"))  { UciGoMovetime(), TokenPop(); return; }
-    else if (Token("infinite"))  { UciGoInfinite();             return; }
-    else if (Token("depth"))     { UciGoDepth(), TokenPop();    return; }
+    else if (Token("movetime"))  { UciMovetimeCmd(); return; }
+    else if (Token("infinite"))  { UciGoInfinite();  return; }
+    else if (Token("depth"))     { UciDepthCmd();    return; }
 
   if (g_wtm)
     Think(std::min(wtime, wtime / mtg + winc));
