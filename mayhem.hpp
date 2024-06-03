@@ -698,7 +698,10 @@ const std::string Board::to_fen() const {
       if (const auto p = "kqrbnp.PNBRQK"[this->pieces[8 * r + f] + 6]; p == '.') {
         ++empty;
       } else {
-        if (empty) s << empty, empty = 0;
+        if (empty) {
+          s << empty;
+          empty = 0;
+        }
         s << p;
       }
     if (empty)  s << empty;
@@ -799,7 +802,7 @@ void BuildCastlingBitboard_O_O_O_B() {
   g_castle_empty_b[1] = (g_castle_b[1] | Fill(g_rook_b[1], 56 + 3)) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
 }
 
-void BuildCastlingBitboard2() {
+void CheckCastlingBitboards() {
   for (const std::size_t i : {0, 1}) {
     g_castle_empty_w[i] &= 0xFFULL;
     g_castle_empty_b[i] &= 0xFF00000000000000ULL;
@@ -813,22 +816,29 @@ void BuildCastlingBitboards() {
   BuildCastlingBitboard_O_O_O_W();
   BuildCastlingBitboard_O_O_B();
   BuildCastlingBitboard_O_O_O_B();
-  BuildCastlingBitboard2();
+  CheckCastlingBitboards();
 }
 
-void PutPiece(const int sq, const int p) {
-  // Find kings too
-  switch (p) {
+void FindKings(const int sq, const int piece) {
+  switch (piece) {
     case +6: g_king_w = sq; break; // K
     case -6: g_king_b = sq; break; // k
   }
+}
 
-  // Put piece on board
-  g_board->pieces[sq] = p;
+void PutPieceOnBoard(const int sq, const int piece) {
+  g_board->pieces[sq] = piece;
+}
 
-  // Create bitboards
-  if      (p > 0) g_board->white[+p - 1] |= Bit(sq);
-  else if (p < 0) g_board->black[-p - 1] |= Bit(sq);
+void CreatePieceBitboards(const int sq, const int piece) {
+  if      (piece > 0) g_board->white[+piece - 1] |= Bit(sq);
+  else if (piece < 0) g_board->black[-piece - 1] |= Bit(sq);
+}
+
+void PutPiece(const int sq, const int piece) {
+  FindKings(sq, piece);
+  PutPieceOnBoard(sq, piece);
+  CreatePieceBitboards(sq, piece);
 }
 
 int Piece2Num(const char p) { // Convert piece (Char) -> Int
@@ -849,9 +859,20 @@ int Piece2Num(const char p) { // Convert piece (Char) -> Int
   }
 }
 
-int Empty2Num(const char e) { return e - '0'; } // Empty cells (Char) -> Int
-int File2Num(const char f) { return f - 'a'; } // X-coord (Char) -> Int
-int Rank2Num(const char r) { return r - '1'; } // Ep Y-coord (Char | '3' / '6') -> Int
+// Empty cells (Char) -> Int
+int Empty2Num(const char e) {
+  return static_cast<int>(e - '0');
+}
+
+// X-coord (Char) -> Int
+int File2Num(const char f) {
+  return static_cast<int>(f - 'a');
+}
+
+// Ep Y-coord -> Int
+int Rank2Num(const char r) {
+  return static_cast<int>(r - '1');
+}
 
 void FenBoard(const std::string &board) {
   int sq = 56;
