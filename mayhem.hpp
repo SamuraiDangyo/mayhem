@@ -56,35 +56,41 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION       "Mayhem 8.3" // Version
-#define MAX_MOVES     256      // Max chess moves
-#define MAX_SEARCH_DEPTH   64  // Max search depth (stack frame problems ...)
-#define MAX_Q_SEARCH_DEPTH 16  // Max Qsearch depth
-#define INF           1048576  // System max number
-#define DEF_HASH_MB   256      // MiB
-#define NOISE         2        // Noise for opening moves
-#define MOVEOVERHEAD  100      // ms
-#define REPS_DRAW     3        // 3rd repetition is a draw
-#define FIFTY         100      // 100 moves w/o progress is a draw (256 max)
-#define R50_ARR       (FIFTY + 2) // Checkmate overrules 50 move rep so extra space here
-#define SHUFFLE       30       // Allow shuffling then scale
-#define BOOK_MS       100      // At least 100ms+ for the book lookup
-#define BOOK_BEST     false    // Nondeterministic opening play
-#define READ_CLOCK    0x1FFULL // Read clock every 512 ticks (white / 2 x both)
-#define STARTPOS      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // UCI startpos
-#define WEEK          (7 * 24 * 60 * 60 * 1000) // ms
-#define MAX_PIECES    (2 * (8 * 1 + 2 * 3 + 2 * 3 + 2 * 5 + 1 * 9 + 1 * 0)) // Max pieces on board (Kings always exist)
-#define EVAL_FILE     "nn-cb80fb9393af.nnue" // Default NNUE evaluation file
-#define BOOK_FILE     "final-book.bin"       // Default Polyglot book file
+#define VERSION            "Mayhem 8.3" // Version
+#define MAX_MOVES          256 // Max chess moves
+#define MAX_SEARCH_DEPTH   64 // Max search depth (stack frame problems ...)
+#define MAX_Q_SEARCH_DEPTH 16 // Max Qsearch depth
+#define INF                1048576 // System max number
+#define DEF_HASH_MB        256 // MiB
+#define NOISE              2 // Noise for opening moves
+#define MOVEOVERHEAD       100 // ms
+#define REPS_DRAW          3 // 3rd repetition is a draw
+#define FIFTY              100 // 100 moves w/o progress is a draw (256 max)
+#define R50_ARR            (FIFTY + 2) // Checkmate overrules 50 move rep so extra space here
+#define SHUFFLE            30 // Allow shuffling then scale
+#define BOOK_MS            100 // At least 100ms+ for the book lookup
+#define BOOK_BEST          false // Nondeterministic opening play
+#define READ_CLOCK         0x1FFULL // Read clock every 512 ticks (white / 2 x both)
+#define STARTPOS           "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // UCI startpos
+#define WEEK               (7 * 24 * 60 * 60 * 1000) // ms
+#define MAX_PIECES         (2 * (8 * 1 + 2 * 3 + 2 * 3 + 2 * 5 + 1 * 9 + 1 * 0)) // Max pieces on board (Kings always exist)
+#define EVAL_FILE          "nn-cb80fb9393af.nnue" // Default NNUE evaluation file
+#define BOOK_FILE          "final-book.bin" // Default Polyglot book file
+#define FRC_PENALTY        100 // Penalty for bishop blocked on corner by own pawn
+#define TEMPO_BONUS        25 // Bonus for the side to move
+#define BISHOP_PAIR_BONUS  20 // Both colored bishops bonus
+#define CHECKS_BONUS       17 // Bonus for checks
 
+// Use NNUE evaluation (From make)
 #ifdef MAYHEMNNUE
-#define USE_NNUE true // Use NNUE evaluation
+#define USE_NNUE true
 #else
 #define USE_NNUE false
 #endif
 
+// Use Polyglot book
 #ifdef MAYHEMBOOK
-#define USE_BOOK true // Use Polyglot book
+#define USE_BOOK true
 #else
 #define USE_BOOK false
 #endif
@@ -478,7 +484,8 @@ char Rank2Char(const int r) {
 
 // Convert int coords to string
 const std::string Move2Str(const int from, const int to) {
-  return std::string{File2Char(Xaxl(from)), Rank2Char(Yaxl(from)), File2Char(Xaxl(to)), Rank2Char(Yaxl(to))};
+  return std::string{File2Char(Xaxl(from)), Rank2Char(Yaxl(from)),
+                     File2Char(Xaxl(to)), Rank2Char(Yaxl(to))};
 }
 
 extern "C" {
@@ -503,17 +510,21 @@ std::uint64_t Now(const std::uint64_t ms = 0) {
       std::chrono::system_clock::now().time_since_epoch()) .count();
 }
 
+std::uint64_t Mixer(const std::uint64_t num) {
+  return ((num) << 7) ^ ((num) >> 5);
+}
+
 // Deterministic Random()
 std::uint64_t Random64() {
   static std::uint64_t a = 0X12311227ULL, b = 0X1931311ULL, c = 0X13138141ULL;
-#define MIXER(num) (((num) << 7) ^ ((num) >> 5))
   a ^= b + c;
   b ^= b * c + 0x1717711ULL;
   c  = (3 * c) + 0x1ULL;
-  return MIXER(a) ^ MIXER(b) ^ MIXER(c);
+  return Mixer(a) ^ Mixer(b) ^ Mixer(c);
 }
 
-std::uint64_t Random8x64() { // 8x deterministic random for zobrist
+// 8x deterministic random for zobrist
+std::uint64_t Random8x64() {
   std::uint64_t ret = 0;
   for (std::size_t i = 0; i < 8; ++i) ret ^= Random64() << (8 * i);
   return ret;
@@ -590,19 +601,19 @@ void ReadInput() {
 
 // PolyGlot Book lib
 
-void SetBook(const std::string &book_file) { // book.bin
+void SetBook(const std::string &book_file = BOOK_FILE) {
   g_book_exist = USE_BOOK && (book_file.length() <= 1 ? false : g_book.open_book(book_file));
 }
 
 // NNUE lib
 
-void SetNNUE(const std::string &eval_file) { // nn.nnue
+void SetNNUE(const std::string &eval_file = EVAL_FILE) {
   g_classical = USE_NNUE && (!(g_nnue_exist = eval_file.length() <= 1 ? false : nnue::nnue_init(eval_file.c_str())));
 }
 
 // Hashtable
 
-void SetHashtable(int hash_mb) {
+void SetHashtable(int hash_mb = DEF_HASH_MB) {
   hash_mb = std::clamp(hash_mb, 1, 1048576); // Limits 1MB -> 1TB
   g_hash_entries = static_cast<std::uint32_t>((1 << 20) * hash_mb) / (sizeof(HashEntry)); // Hash(B) / Block(B)
   g_hash.reset(new HashEntry[g_hash_entries]); // Claim space
@@ -991,7 +1002,7 @@ void FenReset() {
   }
 }
 
-void SetFen(const std::string &fen) {
+void SetFen(const std::string &fen = STARTPOS) {
   FenReset();
   FenGen(fen);
 }
@@ -1684,11 +1695,6 @@ void MgenRoot() {
 
 // Evaluation
 
-#define FRC_PENALTY        100
-#define TEMPO_BONUS        25
-#define BISHOP_PAIR_BONUS  20
-#define CHECKS_BONUS       17
-
 // Mirror horizontal
 int FlipY(const int sq) {
   return sq ^ 56;
@@ -1739,7 +1745,8 @@ int CloseBonus(const int a, const int b) {
 }
 
 int CloseAnyCornerBonus(const int sq) {
-  return std::max({CloseBonus(sq, 0), CloseBonus(sq, 7), CloseBonus(sq, 56), CloseBonus(sq, 63)});
+  return std::max({CloseBonus(sq, 0),  CloseBonus(sq, 7),
+                   CloseBonus(sq, 56), CloseBonus(sq, 63)});
 }
 
 struct Evaluation {
@@ -1934,12 +1941,17 @@ struct Evaluation {
     this->score -= 6 * CloseAnyCornerBonus(this->wk) + 4 * CloseBonus(this->bk, this->wk);
   }
 
-#define WP(x) (this->w_pieces[(x)])
-#define BP(x) (this->b_pieces[(x)])
+  int wp(const std::size_t x) {
+    return this->w_pieces[x];
+  }
+
+  int bp(const std::size_t x) {
+    return this->b_pieces[x];
+  }
 
   Evaluation* bonus_bishop_pair() {
-    if (WP(2) >= 2) this->score += BISHOP_PAIR_BONUS;
-    if (BP(2) >= 2) this->score -= BISHOP_PAIR_BONUS;
+    if (this->wp(2) >= 2) this->score += BISHOP_PAIR_BONUS;
+    if (this->bp(2) >= 2) this->score -= BISHOP_PAIR_BONUS;
     return this;
   }
 
@@ -1948,14 +1960,14 @@ struct Evaluation {
   // 3. KRvK(NB)   -> Drawish (Try to checkmate)
   // 4. K(NB)vKR   -> Drawish (Try to checkmate)
   void bonus_special_4men() {
-    if (WP(4) && (!BP(4))) {
+    if (this->wp(4) && (!this->bp(4))) {
       this->bonus_mating_w();
-    } else if (BP(4) && (!WP(4))) {
+    } else if (this->bp(4) && (!this->wp(4))) {
       this->bonus_mating_b();
-    } else if (WP(3) && (BP(1) || BP(2))) {
+    } else if (this->wp(3) && (this->bp(1) || this->bp(2))) {
       this->scale_factor = 4;
       this->bonus_mating_w();
-    } else if (BP(3) && (WP(1) || WP(2))) {
+    } else if (this->bp(3) && (this->wp(1) || this->wp(2))) {
       this->scale_factor = 4;
       this->bonus_mating_b();
     }
@@ -1965,11 +1977,14 @@ struct Evaluation {
   // 2. KRvKRR / K(NB)vKR(NB)               -> Black Checkmate
   // 3. K(RQ)(PNB)vK(RQ) / K(RQ)vK(RQ)(PNB) -> Drawish
   void bonus_special_5men() {
-    if (     (WP(3) == 2 && BP(3)) || (WP(3) && (WP(2) || WP(1)) && (BP(2) || BP(1))))
+    if (     (this->wp(3) == 2 && this->bp(3)) ||
+             (this->wp(3) && (this->wp(2) || this->wp(1)) && (this->bp(2) || this->bp(1))))
       this->bonus_mating_w();
-    else if ((BP(3) == 2 && WP(3)) || (BP(3) && (BP(2) || BP(1)) && (WP(2) || WP(1))))
+    else if ((this->bp(3) == 2 && this->wp(3)) ||
+             (this->bp(3) && (this->bp(2) || this->bp(1)) && (this->wp(2) || this->wp(1))))
       this->bonus_mating_b();
-    else if (((WP(3) && BP(3)) || (WP(4) && BP(4))) && ((WP(0) || WP(1) || WP(2)) || (BP(0) || BP(1) || BP(2))))
+    else if (((this->wp(3) && this->bp(3)) || (this->wp(4) && this->bp(4))) &&
+        ((this->wp(0) || this->wp(1) || this->wp(2)) || (this->bp(0) || this->bp(1) || this->bp(2))))
       this->scale_factor = 4;
   }
 
@@ -1978,18 +1993,18 @@ struct Evaluation {
   // 3. Can't force mate w/ 2 knights -> Drawish
   void white_is_mating() {
     if (this->white_total == 3) {
-      if (WP(2) && WP(1)) { this->bonus_knbk_w();         return; }
-      if (WP(2) && WP(0)) { this->check_blind_bishop_w(); return; }
-      if (WP(1) == 2)     { this->scale_factor = 4; }
+      if (this->wp(2) && this->wp(1)) { this->bonus_knbk_w();         return; }
+      if (this->wp(2) && this->wp(0)) { this->check_blind_bishop_w(); return; }
+      if (this->wp(1) == 2)     { this->scale_factor = 4; }
     }
     this->bonus_mating_w();
   }
 
   void black_is_mating() {
     if (this->black_total == 3) {
-      if (BP(2) && BP(1)) { this->bonus_knbk_b();         return; }
-      if (BP(2) && BP(0)) { this->check_blind_bishop_b(); return; }
-      if (BP(1) == 2)     { this->scale_factor = 4; }
+      if (this->bp(2) && this->bp(1)) { this->bonus_knbk_b();         return; }
+      if (this->bp(2) && this->bp(0)) { this->check_blind_bishop_b(); return; }
+      if (this->bp(1) == 2)     { this->scale_factor = 4; }
     }
     this->bonus_mating_b();
   }
@@ -2135,8 +2150,11 @@ bool CheckTime() { // Time checking
 int QSearchW(int alpha, const int beta, const int depth, const int ply) {
   ++g_nodes; // Increase visited nodes count
 
-  if (g_stop_search || (g_stop_search = CheckTime())) return 0; // Search is stopped. Return ASAP
-  if (((alpha = std::max(alpha, Evaluate(true))) >= beta) || depth <= 0) return alpha; // Better / terminal node -> Done
+  // Search is stopped. Return ASAP
+  if (g_stop_search || (g_stop_search = CheckTime())) return 0;
+
+  // Better / terminal node -> Done
+  if (((alpha = std::max(alpha, Evaluate(true))) >= beta) || depth <= 0) return alpha;
 
   const auto moves_n = MgenTacticalW(g_boards[ply]);
   for (auto i = 0; i < moves_n; ++i) {
@@ -2182,8 +2200,10 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   const auto checks  = ChecksB();
   const auto moves_n = MgenW(g_boards[ply]);
 
-  if (!moves_n) return checks ? -INF : 0; // Checkmate or stalemate
-  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8))) ++depth; // Extend interesting path (SRE / CE / PPE)
+  // Checkmate or stalemate
+  if (!moves_n) return checks ? -INF : 0;
+  // Extend interesting path (SRE / CE / PPE)
+  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8))) ++depth;
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
@@ -2253,11 +2273,11 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
 bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
   if ((!g_nullmove_active) && // No nullmove on the path ?
       (!g_is_pv) && // Not pv ?
-      (depth >= 3) && // Enough depth ( 2 blunders too much. 3 sweet spot ... ) ?
+      ( depth >= 3) && // Enough depth ( 2 blunders too much. 3 sweet spot ... ) ?
       ((g_board->white[1] | g_board->white[2] | g_board->white[3] | g_board->white[4]) ||
        (std::popcount(g_board->white[0]) >= 2)) && // Non pawn material or at least 2 pawns ( Zugzwang ... ) ?
       (!ChecksB()) && // Not under checks ?
-      (Evaluate(true) >= beta)) { // Looks good ?
+      ( Evaluate(true) >= beta)) { // Looks good ?
     const auto ep     = g_board->epsq;
     auto *tmp         = g_board;
     g_board->epsq     = -1;
@@ -2277,11 +2297,11 @@ bool TryNullMoveW(int *alpha, const int beta, const int depth, const int ply) {
 bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
   if ((!g_nullmove_active) &&
       (!g_is_pv) &&
-      (depth >= 3) &&
+      ( depth >= 3) &&
       ((g_board->black[1] | g_board->black[2] | g_board->black[3] | g_board->black[4]) ||
        (std::popcount(g_board->black[0]) >= 2)) &&
       (!ChecksW()) &&
-      (alpha >= Evaluate(false))) {
+      ( alpha >= Evaluate(false))) {
     const auto ep     = g_board->epsq;
     auto *tmp         = g_board;
     g_board->epsq     = -1;
@@ -2349,7 +2369,7 @@ int FindBestW(const int i, const int alpha) {
 
 // Root search
 int BestW() {
-  auto best_i = 0, alpha = -INF;
+  int best_i = 0, alpha = -INF;
 
   for (auto i = 0; i < g_root_n; ++i) {
     SetMoveAndPv(0, i); // 1 / 2 moves too good and not tactical -> pv
@@ -2380,7 +2400,7 @@ int FindBestB(const int i, const int beta) {
 }
 
 int BestB() {
-  auto best_i = 0, beta = +INF;
+  int best_i = 0, beta = +INF;
 
   for (auto i = 0; i < g_root_n; ++i) {
     SetMoveAndPv(0, i);
@@ -2421,12 +2441,15 @@ struct Material {
     // 9+ pawns
     if (std::popcount(g_board->white[0]) >= 9 || std::popcount(g_board->black[0]) >= 9)
       return true;
+
     // 3+ [=n, =b, =r, =q]
     for (const std::size_t i : {1, 2, 3, 4})
       if (std::popcount(g_board->white[i]) >= 3 || std::popcount(g_board->black[i]) >= 3)
         return true;
-    return (0xFF000000000000FFULL & (g_board->white[0] | g_board->black[0])) || // Pawns on 1st or 8th rank
-           this->white_n >= 17 || this->black_n >= 17;                          // Lots of pieces
+
+    // Pawns on 1st or 8th rank || Lots of pieces ...
+    return (0xFF000000000000FFULL & (g_board->white[0] | g_board->black[0])) ||
+           this->white_n >= 17 || this->black_n >= 17;
   }
 };
 
@@ -2528,7 +2551,8 @@ void Think(const int ms) {
   if (!g_analyzing && FastMove(ms)) return;
 
   const auto tmp = g_board;
-  const Material m{ .white_n = std::popcount(White()), .black_n = std::popcount(Black()) };
+  const Material m{ .white_n = std::popcount(White()),
+                    .black_n = std::popcount(Black()) };
   g_classical = ClassicalActivation(m);
   EvalRootMoves();
   SortRootMoves();
@@ -2584,7 +2608,7 @@ void UciTakeSpecialFen() {
 }
 
 void UciFen() {
-  Token("startpos") ? SetFen(STARTPOS) : UciTakeSpecialFen();
+  Token("startpos") ? SetFen() : UciTakeSpecialFen();
 }
 
 void UciMoves() {
@@ -2728,16 +2752,16 @@ void UciPerft(const std::string &depth2, const std::string &fen) {
 // > bench
 //   Result:   60 / 60
 //   Nodes:    241185678
-//   Time(ms): 16914
-//   NPS:      14259529
+//   Time(ms): 17312
+//   NPS:      13931705
 // > bench inf 10000
 //   Result:   60 / 60
-//   Nodes:    7565765060
-//   Time(ms): 496201
-//   NPS:      15247379
+//   Nodes:    7302365969
+//   Time(ms): 494468
+//   NPS:      14768126
 void UciBench(const std::string &depth, const std::string &ms) {
   const Save save{};
-  SetHashtable(DEF_HASH_MB); // Set hash and reset
+  SetHashtable(); // Set hash and reset
   g_max_depth         = !depth.length() ? 14 :
       (depth == "inf" ? MAX_SEARCH_DEPTH : std::clamp(std::stoi(depth), 0, MAX_SEARCH_DEPTH)); // Set depth limits
   g_noise             = 0; // Make search deterministic
@@ -2930,10 +2954,10 @@ void Init() {
   InitRookMagics();
   InitJumpMoves();
   InitZobrist();
-  SetHashtable(DEF_HASH_MB);
-  SetNNUE(EVAL_FILE);
-  SetBook(BOOK_FILE);
-  SetFen(STARTPOS);
+  SetHashtable();
+  SetNNUE();
+  SetBook();
+  SetFen();
 }
 
 void UciLoop() {
