@@ -2725,8 +2725,8 @@ void UciPrintBoard(const std::string &fen) {
 // Calculate perft split numbers
 // > perft
 //   Nodes:    119060324
-//   Time(ms): 1190
-//   NPS:      100050692
+//   Time(ms): 1536
+//   NPS:      77513231
 void UciPerft(const std::string &depth2, const std::string &fen) {
   const Save save{};
   const auto depth = depth2.length() ? std::max(0, std::stoi(depth2)) : 6;
@@ -2738,7 +2738,8 @@ void UciPerft(const std::string &depth2, const std::string &fen) {
     const auto start  = Now();
     const auto nodes2 = depth >= 0 ? Perft(!g_wtm, depth - 1, 1) : 0;
     const auto ms     = Now() - start;
-    std::cout << (i + 1) << ". " << g_boards[0][i].movename() << " -> " << nodes2 << " (" << ms << " ms)" << std::endl;
+    std::cout << (i + 1) << ". " << g_boards[0][i].movename() << " -> " <<
+                 nodes2 << " (" << ms << " ms)" << std::endl;
     nodes    += nodes2;
     total_ms += ms;
   }
@@ -2752,8 +2753,8 @@ void UciPerft(const std::string &depth2, const std::string &fen) {
 // > bench
 //   Result:   60 / 60
 //   Nodes:    241185678
-//   Time(ms): 17312
-//   NPS:      13931705
+//   Time(ms): 16648
+//   NPS:      14487366
 // > bench inf 10000
 //   Result:   60 / 60
 //   Nodes:    7302365969
