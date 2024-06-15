@@ -56,7 +56,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION            "Mayhem 8.3" // Version
+#define VERSION            "Mayhem 8.4" // Version
 #define MAX_MOVES          256 // Max chess moves
 #define MAX_SEARCH_DEPTH   64 // Max search depth (stack frame problems ...)
 #define MAX_Q_SEARCH_DEPTH 16 // Max Qsearch depth

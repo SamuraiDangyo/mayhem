@@ -41,7 +41,7 @@ clean:
 	rm -f $(EXE)
 
 help:
-	@echo "#+# Mayhem #+#"
+	@echo "#+#+# Mayhem Make Help #+#+#"
 	@echo ""
 	@echo "To compile Mayhem, type:"
 	@echo ""
@@ -49,15 +49,15 @@ help:
 	@echo ""
 	@echo "Supported targets:"
 	@echo ""
-	@echo "all      # Build"
-	@echo "install  # Installation"
-	@echo "strip    # Strip executable"
-	@echo "clean    # Clean up"
-	@echo "help     # This help"
+	@echo "all     # Build"
+	@echo "install # Installation"
+	@echo "strip   # Strip executable"
+	@echo "clean   # Cleanup"
+	@echo "help    # This help"
 	@echo ""
 	@echo "Examples:"
 	@echo ""
-	@echo "> make -j                 # Just build"
-	@echo "> make all strip install  # Install"
+	@echo "> make -j                # Just build"
+	@echo "> make all strip install # Install"
 
-.PHONY: all install clean help
+.PHONY: all install clean strip help
