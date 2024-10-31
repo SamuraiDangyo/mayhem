@@ -41,7 +41,7 @@ clean:
 	rm -f $(EXE)
 
 help:
-	@echo "#+#+# Mayhem Make Help #+#+#"
+	@echo "#+# Mayhem Chess960 Engine #+#"
 	@echo ""
 	@echo "To compile Mayhem, type:"
 	@echo ""
@@ -60,4 +60,4 @@ help:
 	@echo "> make -j                # Just build"
 	@echo "> make all strip install # Install"
 
-.PHONY: all install clean strip help
+.PHONY: all install strip clean help
