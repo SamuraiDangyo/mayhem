@@ -41,7 +41,7 @@ clean:
 	rm -f $(EXE)
 
 help:
-	@echo "#+# Mayhem Chess960 Engine #+#"
+	@echo "#+# Mayhem. Linux UCI Chess960 engine #+#"
 	@echo ""
 	@echo "To compile Mayhem, type:"
 	@echo ""
