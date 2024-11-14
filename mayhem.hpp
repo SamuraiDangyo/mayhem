@@ -533,7 +533,7 @@ std::uint64_t Random64() {
 // 8x deterministic random for zobrist
 std::uint64_t Random8x64() {
   std::uint64_t ret = 0;
-  for (std::size_t i = 0; i < 8; ++i) ret ^= Random64() << (8 * i);
+  for (std::size_t i = 0; i < 8; i += 1) ret ^= Random64() << (8 * i);
   return ret;
 }
 
@@ -570,15 +570,15 @@ const std::string FlipFen(const std::string &fen) {
   const std::string upper    = "PNBRQKWACDEFGH";
   bool only_number           = false;
   int empty                  = 0;
-  for (std::size_t i = 0; i < fen.size(); ++i) {
+  for (std::size_t i = 0; i < fen.size(); i += 1) {
     if (fen[i] == ' ') {
-      ++empty;
+      empty += 1;
       if (empty == 1) {
         std::vector<std::string> pieces{};
         SplitString< std::vector< std::string> >(s, pieces, "/");
         if (pieces.size() != 8) throw std::runtime_error("info string ( #1 ) Bad fen: " + fen);
         s = "";
-        for (std::size_t k = 0; k < 8; ++k) {
+        for (std::size_t k = 0; k < 8; k += 1) {
           s += pieces[7 - k];
           if (k <= 6) s += '/';
         }
@@ -712,11 +712,11 @@ const std::string Board::movename() const {
 // Board presentation in FEN ( Forsyth–Edwards Notation )
 const std::string Board::to_fen() const {
   std::stringstream s{};
-  for (auto r = 7; r >= 0; --r) {
+  for (auto r = 7; r >= 0; r -= 1) {
     auto empty = 0;
-    for (auto f = 0; f <= 7; ++f)
+    for (auto f = 0; f <= 7; f += 1)
       if (const auto p = "kqrbnp.PNBRQK"[this->pieces[8 * r + f] + 6]; p == '.') {
-        ++empty;
+        empty += 1;
       } else {
         if (empty) {
           s << empty;
@@ -745,8 +745,8 @@ const std::string Board::to_fen() const {
 const std::string Board::to_s() const {
   std::stringstream s{};
   s << " +---+---+---+---+---+---+---+---+\n";
-  for (auto r = 7; r >= 0; --r) {
-    for (auto f = 0; f <= 7; ++f)
+  for (auto r = 7; r >= 0; r -= 1) {
+    for (auto f = 0; f <= 7; f += 1)
       s << " | " << "kqrbnp PNBRQK"[this->pieces[8 * r + f] + 6];
     s << " | " << (1 + r) << "\n +---+---+---+---+---+---+---+---+\n";
   }
@@ -776,15 +776,15 @@ bool TokenPeek(const std::string &token, const std::uint32_t nth = 0) {
   return TokenIsOk(nth) && token == g_tokens[g_tokens_nth + nth];
 }
 
+int TokenGetNumber(const std::uint32_t nth = 0) {
+  return TokenIsOk(nth) ? std::stoi(g_tokens[g_tokens_nth + nth]) : 0;
+}
+
 // If true then pop n
 bool Token(const std::string &token, const std::uint32_t pop_n = 1) {
   if (!TokenPeek(token)) return false;
   TokenPop(pop_n);
   return true;
-}
-
-int TokenGetNumber(const std::uint32_t nth = 0) {
-  return TokenIsOk(nth) ? std::stoi(g_tokens[g_tokens_nth + nth]) : 0;
 }
 
 // Fen handling
@@ -899,14 +899,14 @@ int FenMakeRank2Num(const char r) {
 
 void FenBoard(const std::string &board) {
   int sq = 56;
-  for (std::size_t i = 0; i < board.length() && sq >= 0; ++i) // O(n)
+  for (std::size_t i = 0; i < board.length() && sq >= 0; i += 1) // O(n)
     if (const auto c = board[i]; c == '/') {
       sq -= 16;
     } else if (std::isdigit(c)) {
       sq += FenMakeEmpty2Num(c);
     } else {
       FenPutPiece(sq, FenMakePiece2Num(c));
-      ++sq;
+      sq += 1;
     }
 }
 
@@ -937,7 +937,7 @@ void FenAddChess960Castling(const char file) {
 }
 
 void FenKQkq(const std::string &KQkq) {
-  for (std::size_t i = 0; i < KQkq.length(); ++i)
+  for (std::size_t i = 0; i < KQkq.length(); i += 1)
     switch (const auto f = KQkq[i]) {
       case 'K': FenAddCastle(g_rook_w + 0, 7,      0x1); break;
       case 'Q': FenAddCastle(g_rook_w + 1, 0,      0x2); break;
@@ -1008,7 +1008,7 @@ void FenReset() {
     g_rook_b[i]         = 0;
   }
 
-  for (std::size_t i = 0; i < 6; ++i) {
+  for (std::size_t i = 0; i < 6; i += 1) {
     g_board->white[i] = 0;
     g_board->black[i] = 0;
   }
@@ -1066,19 +1066,19 @@ bool ChecksB() {
 // Sort only one node at a time ( Avoid the costly n! of operations ! )
 // Swap every node for simplicity ( See: lazy-sorting-algorithm paper )
 void LazySort(const int ply, const int nth, const int total_moves) {
-  for (auto i = nth + 1; i < total_moves; ++i)
+  for (auto i = nth + 1; i < total_moves; i += 1)
     if (g_boards[ply][i].score > g_boards[ply][nth].score)
       std::swap(g_boards[ply][nth], g_boards[ply][i]);
 }
 
 // 1. Evaluate all root moves
 void EvalRootMoves() {
-  for (auto i = 0; i < g_root_n; ++i) {
+  for (auto i = 0; i < g_root_n; i += 1) {
     g_board         = g_boards[0] + i; // Pointer to this board
     g_board->score += (g_board->is_queen_promo() ? 1000  : 0) +
                       (g_board->is_castling()    ? 100   : 0) +
                       (g_board->is_underpromo()  ? -5000 : 0) +
-                      (Random(-g_noise, +g_noise)) + // Add noise -> Make unpredictable
+                      (Random(-g_noise, +g_noise)) +       // Add noise -> Make unpredictable
                       (g_wtm ? +1 : -1) * Evaluate(g_wtm); // Full eval
   }
 }
@@ -1098,7 +1098,7 @@ void SortRootMoves() {
 void SortRoot(const int index) {
   if (!index) return;
   const auto tmp = g_boards[0][index];
-  for (auto i = index; i > 0; --i)
+  for (auto i = index; i > 0; i -= 1)
     g_boards[0][i] = g_boards[0][i - 1];
   g_boards[0][0] = tmp;
 }
@@ -2161,7 +2161,7 @@ bool CheckTime() {
 // 1. Check against standpat to see whether we are better -> Done
 // 2. Iterate deeper
 int QSearchW(int alpha, const int beta, const int depth, const int ply) {
-  ++g_nodes; // Increase visited nodes count
+  g_nodes += 1; // Increase visited nodes count
 
   // Search is stopped. Return ASAP
   if (g_stop_search || (g_stop_search = CheckTime())) return 0;
@@ -2170,7 +2170,7 @@ int QSearchW(int alpha, const int beta, const int depth, const int ply) {
   if (((alpha = std::max(alpha, Evaluate(true))) >= beta) || depth <= 0) return alpha;
 
   const auto moves_n = MgenTacticalW(g_boards[ply]);
-  for (auto i = 0; i < moves_n; ++i) {
+  for (auto i = 0; i < moves_n; i += 1) {
     LazySort(ply, i, moves_n); // Very few moves, sort them all
     g_board = g_boards[ply] + i;
     if ((alpha = std::max(alpha, QSearchB(alpha, beta, depth - 1, ply + 1))) >= beta) return alpha;
@@ -2180,13 +2180,13 @@ int QSearchW(int alpha, const int beta, const int depth, const int ply) {
 }
 
 int QSearchB(const int alpha, int beta, const int depth, const int ply) {
-  ++g_nodes;
+  g_nodes += 1;
 
   if (g_stop_search) return 0;
   if ((alpha >= (beta = std::min(beta, Evaluate(false)))) || depth <= 0) return beta;
 
   const auto moves_n = MgenTacticalB(g_boards[ply]);
-  for (auto i = 0; i < moves_n; ++i) {
+  for (auto i = 0; i < moves_n; i += 1) {
     LazySort(ply, i, moves_n);
     g_board = g_boards[ply] + i;
     if (alpha >= (beta = std::min(beta, QSearchW(alpha, beta, depth - 1, ply + 1)))) return beta;
@@ -2216,7 +2216,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   // Checkmate or stalemate
   if (!moves_n) return checks ? -INF : 0;
   // Extend interesting path (SRE / CE / PPE)
-  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8))) ++depth;
+  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8))) depth += 1;
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
@@ -2225,7 +2225,7 @@ int SearchMovesW(int alpha, const int beta, int depth, const int ply) {
   // Tiny speedup since not all moves are scored (lots of pointless shuffling ...)
   // So avoid sorting useless moves
   auto sort = true;
-  for (auto i = 0; i < moves_n; ++i) {
+  for (auto i = 0; i < moves_n; i += 1) {
     if (sort) {
       LazySort(ply, i, moves_n);
       sort = g_boards[ply][i].score != 0;
@@ -2253,14 +2253,14 @@ int SearchMovesB(const int alpha, int beta, int depth, const int ply) {
   const auto moves_n = MgenB(g_boards[ply]);
 
   if (!moves_n) return checks ? +INF : 0;
-  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8))) ++depth;
+  if (moves_n == 1 || (depth == 1 && (checks || g_board->type == 8))) depth += 1;
 
   const auto ok_lmr = moves_n >= 5 && depth >= 2 && !checks;
   auto *entry       = &g_hash[static_cast<std::uint32_t>(hash % g_hash_entries)];
   entry->put_hash_value_to_moves(hash, g_boards[ply]);
 
   auto sort = true;
-  for (auto i = 0; i < moves_n; ++i) {
+  for (auto i = 0; i < moves_n; i += 1) {
     if (sort) {
       LazySort(ply, i, moves_n);
       sort = g_boards[ply][i].score != 0;
@@ -2333,7 +2333,7 @@ bool TryNullMoveB(const int alpha, int *beta, const int depth, const int ply) {
 
 // Front-end for ab-search
 int SearchW(int alpha, const int beta, const int depth, const int ply) {
-  ++g_nodes;
+  g_nodes += 1;
 
   if (g_stop_search || (g_stop_search = CheckTime())) return 0; // Search is stopped. Return ASAP
   if (depth <= 0 || ply >= MAX_SEARCH_DEPTH) return QSearchW(alpha, beta, g_q_depth, ply);
@@ -2351,7 +2351,7 @@ int SearchW(int alpha, const int beta, const int depth, const int ply) {
 }
 
 int SearchB(const int alpha, int beta, const int depth, const int ply) {
-  ++g_nodes;
+  g_nodes += 1;
 
   if (g_stop_search) return 0;
   if (depth <= 0 || ply >= MAX_SEARCH_DEPTH) return QSearchB(alpha, beta, g_q_depth, ply);
@@ -2384,7 +2384,7 @@ int FindBestW(const int i, const int alpha) {
 int SearchRootW() {
   int best_i = 0, alpha = -INF;
 
-  for (auto i = 0; i < g_root_n; ++i) {
+  for (auto i = 0; i < g_root_n; i += 1) {
     SetMoveAndPv(0, i); // 1 / 2 moves too good and not tactical -> pv
     const auto score = FindBestW(i, alpha);
     if (g_stop_search) return g_best_score; // Scores are rubbish now
@@ -2415,7 +2415,7 @@ int FindBestB(const int i, const int beta) {
 int SearchRootB() {
   int best_i = 0, beta = +INF;
 
-  for (auto i = 0; i < g_root_n; ++i) {
+  for (auto i = 0; i < g_root_n; i += 1) {
     SetMoveAndPv(0, i);
     const auto score = FindBestB(i, beta);
     if (g_stop_search) return g_best_score;
@@ -2485,13 +2485,13 @@ bool ClassicalActivation(const Material &m) {
 // Play the book move from root list
 bool FindBookMove(const int from, const int to, const int type) {
   if (type) { // Castling or promotion
-    for (auto i = 0; i < g_root_n; ++i)
+    for (auto i = 0; i < g_root_n; i += 1)
       if (g_boards[0][i].type == type) {
         SwapMoveInRootList(i);
         return true;
       }
   } else {
-    for (auto i = 0; i < g_root_n; ++i)
+    for (auto i = 0; i < g_root_n; i += 1)
       if (g_boards[0][i].from == from && g_boards[0][i].to == to) {
         SwapMoveInRootList(i);
         return true;
@@ -2547,7 +2547,7 @@ void SearchRootMoves(const bool is_eg) {
   auto good        = 0; // Good score in a row for HCE activation
   const auto start = Now();
 
-  for ( ; std::abs(g_best_score) != INF && g_depth < g_max_depth && !g_stop_search; ++g_depth) {
+  for ( ; std::abs(g_best_score) != INF && g_depth < g_max_depth && !g_stop_search; g_depth += 1) {
     g_q_depth = std::min(g_q_depth + 2, MAX_Q_SEARCH_DEPTH);
     g_best_score = g_wtm ? SearchRootW() : SearchRootB();
     // Switch to classical only when the game is decided ( 4+ pawns ) !
@@ -2597,7 +2597,7 @@ std::uint64_t Perft(const bool wtm, const int depth, const int ply) {
   const auto moves_n = wtm ? MgenW(g_boards[ply]) : MgenB(g_boards[ply]);
   if (depth == 1) return moves_n; // Bulk counting
   std::uint64_t nodes = 0;
-  for (auto i = 0; i < moves_n; ++i) {
+  for (auto i = 0; i < moves_n; i += 1) {
     g_board = g_boards[ply] + i;
     nodes  += Perft(!wtm, depth - 1, ply + 1);
   }
@@ -2607,7 +2607,7 @@ std::uint64_t Perft(const bool wtm, const int depth, const int ply) {
 // UCI
 
 void UciMake(const int root_i) {
-  if (!g_wtm) ++g_fullmoves; // Increase fullmoves only after black move
+  if (!g_wtm) g_fullmoves += 1; // Increase fullmoves only after black move
   g_r50_positions[std::min(g_board->fifty, static_cast<std::uint8_t>(R50_ARR - 1))] = Hash(g_wtm); // Set hash
   g_board_empty = g_boards[0][root_i]; // Copy current board
   g_board       = &g_board_empty; // Set pointer ( g_board must always point to smt )
@@ -2617,7 +2617,7 @@ void UciMake(const int root_i) {
 void UciMakeMove() {
   const auto move = TokenGetNth();
   MgenRoot();
-  for (auto i = 0; i < g_root_n; ++i)
+  for (auto i = 0; i < g_root_n; i += 1)
     if (move == g_boards[0][i].movename()) {
       UciMake(i);
       return;
@@ -2790,7 +2790,7 @@ void UciPerft() {
   std::uint64_t nodes      = depth >= 1 ? 0 : 1, total_ms = 0;
   SetFen(fen.length() ? fen : STARTPOS);
   MgenRoot();
-  for (auto i = 0; i < g_root_n; ++i) {
+  for (auto i = 0; i < g_root_n; i += 1) {
     g_board           = g_boards[0] + i;
     const auto start  = Now();
     const auto nodes2 = depth >= 0 ? Perft(!g_wtm, depth - 1, 1) : 0;
@@ -2816,7 +2816,7 @@ void Bench(const int depth, const int time) {
   std::uint64_t nodes = 0, total_ms = 0;
   int n = 0, correct = 0;
   for (const std::string &fen2 : kBench) {
-    for (std::size_t i = 0; i < 2; ++i) {
+    for (std::size_t i = 0; i < 2; i += 1) {
       const std::string &fen = i == 0 ? fen2 : FlipFen(fen2);
       std::cout << "[ " << (++n) << "/" << (2 * kBench.size()) << " ; "  << fen << " ]" << std::endl;
       SetFen(fen);
@@ -2825,7 +2825,7 @@ void Bench(const int depth, const int time) {
       total_ms += Now() - start;
       nodes    += g_nodes;
       std::cout << std::endl;
-      if (g_boards[0][0].movename() == fen.substr(fen.rfind(" bm ") + 4)) ++correct;
+      if (g_boards[0][0].movename() == fen.substr(fen.rfind(" bm ") + 4)) correct += 1;
     }
   }
   g_noise     = NOISE;
@@ -2942,12 +2942,12 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
   int total = 0, good[64] = {};
   std::uint64_t permutations = 0;
 
-  for (std::size_t i = 0; i < 64; ++i)
+  for (std::size_t i = 0; i < 64; i += 1)
     if (moves & Bit(i))
       good[total++] = i; // post inc
 
   const auto popn = std::popcount(moves);
-  for (auto i = 0; i < popn; ++i)
+  for (auto i = 0; i < popn; i += 1)
     if ((0x1 << i) & index)
       permutations |= Bit(good[i]);
 
@@ -2957,8 +2957,8 @@ std::uint64_t PermutateBb(const std::uint64_t moves, const int index) {
 std::uint64_t MakeSliderMagicMoves(const std::vector<int> &slider_vectors, const int sq, const std::uint64_t moves) {
   std::uint64_t possible_moves = 0;
   const auto x_pos = MakeX(sq), y_pos = MakeY(sq);
-  for (std::size_t i = 0; i < slider_vectors.size() / 2; ++i)
-    for (std::size_t j = 1; j < 8; ++j) {
+  for (std::size_t i = 0; i < slider_vectors.size() / 2; i += 1)
+    for (std::size_t j = 1; j < 8; j += 1) {
       const auto x = x_pos + j * slider_vectors[2 * i], y = y_pos + j * slider_vectors[2 * i + 1];
       if (!IsOnBoard(x, y)) break;
       const auto tmp  = Bit(8 * y + x);
@@ -2970,9 +2970,9 @@ std::uint64_t MakeSliderMagicMoves(const std::vector<int> &slider_vectors, const
 
 void InitBishopMagics() {
   const std::vector<int> bishop_vectors = {+1, +1, -1, -1, +1, -1, -1, +1};
-  for (std::size_t i = 0; i < 64; ++i) {
+  for (std::size_t i = 0; i < 64; i += 1) {
     const auto magics = kBishopMagics[2][i] & (~Bit(i));
-    for (std::size_t j = 0; j < 512; ++j) {
+    for (std::size_t j = 0; j < 512; j += 1) {
       const auto allmoves = PermutateBb(magics, j);
       g_bishop_magic_moves[i][GetBishopMagicIndex(i, allmoves)] = MakeSliderMagicMoves(bishop_vectors, i, allmoves);
     }
@@ -2981,9 +2981,9 @@ void InitBishopMagics() {
 
 void InitRookMagics() {
   const std::vector<int> rook_vectors = {+1, 0, 0, +1, 0, -1, -1, 0};
-  for (std::size_t i = 0; i < 64; ++i) {
+  for (std::size_t i = 0; i < 64; i += 1) {
     const auto magics = kRookMagics[2][i] & (~Bit(i));
-    for (std::size_t j = 0; j < 4096; ++j) {
+    for (std::size_t j = 0; j < 4096; j += 1) {
       const auto allmoves = PermutateBb(magics, j);
       g_rook_magic_moves[i][GetRookMagicIndex(i, allmoves)] = MakeSliderMagicMoves(rook_vectors, i, allmoves);
     }
@@ -2993,7 +2993,7 @@ void InitRookMagics() {
 std::uint64_t MakeJumpMoves(const int sq, const int dy, const std::vector<int> &jump_vectors) {
   std::uint64_t moves = 0;
   const auto x_pos = MakeX(sq), y_pos = MakeY(sq);
-  for (std::size_t i = 0; i < jump_vectors.size() / 2; ++i)
+  for (std::size_t i = 0; i < jump_vectors.size() / 2; i += 1)
     if (const auto x = x_pos + jump_vectors[2 * i], y = y_pos + dy * jump_vectors[2 * i + 1]; IsOnBoard(x, y))
       moves |= Bit(8 * y + x);
   return moves;
@@ -3005,7 +3005,7 @@ void InitJumpMoves() {
   const std::vector<int> pawn_check_vectors = {-1, +1, +1, +1};
   const std::vector<int> pawn_1_vectors     = { 0, +1};
 
-  for (std::size_t i = 0; i < 64; ++i) {
+  for (std::size_t i = 0; i < 64; i += 1) {
     g_king_moves[i]     = MakeJumpMoves(i, +1, king_vectors);
     g_knight_moves[i]   = MakeJumpMoves(i, +1, knight_vectors);
     g_pawn_checks_w[i]  = MakeJumpMoves(i, +1, pawn_check_vectors);
@@ -3014,17 +3014,17 @@ void InitJumpMoves() {
     g_pawn_1_moves_b[i] = MakeJumpMoves(i, -1, pawn_1_vectors);
   }
 
-  for (std::size_t i = 0; i < 8; ++i) {
+  for (std::size_t i = 0; i < 8; i += 1) {
     g_pawn_2_moves_w[ 8 + i] = MakeJumpMoves( 8 + i, +1, pawn_1_vectors) | MakeJumpMoves( 8 + i, +2, pawn_1_vectors);
     g_pawn_2_moves_b[48 + i] = MakeJumpMoves(48 + i, -1, pawn_1_vectors) | MakeJumpMoves(48 + i, -2, pawn_1_vectors);
   }
 }
 
 void InitZobrist() {
-  for (std::size_t i = 0; i < 13; ++i) for (std::size_t j = 0; j < 64; ++j) g_zobrist_board[i][j] = Random8x64();
-  for (std::size_t i = 0; i < 64; ++i) g_zobrist_ep[i]     = Random8x64();
-  for (std::size_t i = 0; i < 16; ++i) g_zobrist_castle[i] = Random8x64();
-  for (std::size_t i = 0; i <  2; ++i) g_zobrist_wtm[i]    = Random8x64();
+  for (std::size_t i = 0; i < 13; i += 1) for (std::size_t j = 0; j < 64; j += 1) g_zobrist_board[i][j] = Random8x64();
+  for (std::size_t i = 0; i < 64; i += 1) g_zobrist_ep[i]     = Random8x64();
+  for (std::size_t i = 0; i < 16; i += 1) g_zobrist_castle[i] = Random8x64();
+  for (std::size_t i = 0; i <  2; i += 1) g_zobrist_wtm[i]    = Random8x64();
 }
 
 void PrintVersion() {
