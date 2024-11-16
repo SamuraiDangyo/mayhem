@@ -69,6 +69,7 @@ namespace mayhem {
 #define R50_ARR            (FIFTY + 2) // Checkmate overrules 50 move rep so extra space here
 #define SHUFFLE            30       // Allow shuffling then scale
 #define BOOK_MS            100      // At least 100ms+ for the book lookup
+#define PERFT_DEPTH        6        // Perft at depth 6
 #define BENCH_DEPTH        14       // Bench at depth 14
 #define BENCH_SPEED        10000    // Bench for 10s
 #define BOOK_BEST          false    // Nondeterministic opening play
@@ -2778,17 +2779,10 @@ void UciPrintBoard() {
   std::cout << '\n' << g_board->to_s() << std::endl;
 }
 
-// Calculate perft split numbers
-// Nodes:    119060324
-// Time(ms): 1797
-// NPS:      66255049
-void UciPerft() {
+void PerftUtil(const int depth, const std::string fen) {
   const Save save{};
-  const std::string depth2 = TokenGetNth(0);
-  const std::string fen    = TokenGetNth(1);
-  const auto depth         = depth2.length() ? std::max(0, std::stoi(depth2)) : 6;
-  std::uint64_t nodes      = depth >= 1 ? 0 : 1, total_ms = 0;
-  SetFen(fen.length() ? fen : STARTPOS);
+  std::uint64_t nodes = depth >= 1 ? 0 : 1, total_ms = 0;
+  SetFen(fen);
   MgenRoot();
   for (auto i = 0; i < g_root_n; i += 1) {
     g_board           = g_boards[0] + i;
@@ -2808,7 +2802,7 @@ void UciPerft() {
 
 void Bench(const int depth, const int time) {
   const Save save{};
-  SetHashtable(); // Set hash and reset
+  SetHashtable(); // Reset hash
   g_max_depth  = depth;
   g_noise      = 0; // Make search deterministic
   g_nnue_exist = false;
@@ -2837,26 +2831,37 @@ void Bench(const int depth, const int time) {
     "NPS:      " << Nps(nodes, total_ms) << std::endl;
 }
 
-// Signature of the program
+// Show signature of the program
 // Result:   70 / 70
 // Nodes:    247216819
-// Time(ms): 29170
-// NPS:      8475036
+// Time(ms): 28076
+// NPS:      8805272
 void UciBench() {
   const std::string depth = TokenGetNth();
   Bench(!depth.length() ? BENCH_DEPTH : (depth == "inf" ? MAX_SEARCH_DEPTH : std::clamp(std::stoi(depth), 0, MAX_SEARCH_DEPTH)),
         WEEK);
 }
 
-// Speed of the program
+// Show speed of the program
 // Result:   70 / 70
-// Nodes:    6031111110
-// Time(ms): 579009
-// NPS:      10416264
+// Nodes:    6294221730
+// Time(ms): 578852
+// NPS:      10873628
 void UciSpeed() {
   const std::string ms = TokenGetNth();
   Bench(MAX_SEARCH_DEPTH,
         !ms.length() ? BENCH_SPEED : std::max(0, std::stoi(ms)));
+}
+
+// Calculate perft split numbers
+// Nodes:    119060324
+// Time(ms): 1779
+// NPS:      66925421
+void UciPerft() {
+  const std::string depth = TokenGetNth(0);
+  const std::string fen   = TokenGetNth(1);
+  PerftUtil(depth.length() ? std::max(0, std::stoi(depth)) : PERFT_DEPTH,
+            fen.length() ? fen : STARTPOS);
 }
 
 void UciPrintLogo() {
