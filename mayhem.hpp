@@ -56,7 +56,7 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION            "Mayhem 8.4" // Version
+#define VERSION            "Mayhem 8.5" // Version
 #define MAX_MOVES          256      // Max chess moves
 #define MAX_SEARCH_DEPTH   64       // Max search depth (Stack frame problems ...)
 #define MAX_Q_SEARCH_DEPTH 16       // Max Qsearch depth
@@ -687,25 +687,16 @@ bool Board::is_underpromo() const {
   }
 }
 
-char PromoLetter(const std::int8_t piece) {
-  switch (std::abs(piece)) {
-    case 2:  return 'n'; // e7e8n
-    case 3:  return 'b'; // e7e8b
-    case 4:  return 'r'; // e7e8r
-    default: return 'q'; // e7e8q
-  }
-}
-
 const std::string Board::movename() const {
   switch (this->type) {
     case 1:  return MakeMove2Str(g_king_w, g_chess960 ? g_rook_w[0] : 6);      // O-Ow
     case 2:  return MakeMove2Str(g_king_w, g_chess960 ? g_rook_w[1] : 2);      // O-O-Ow
     case 3:  return MakeMove2Str(g_king_b, g_chess960 ? g_rook_b[0] : 56 + 6); // O-Ob
     case 4:  return MakeMove2Str(g_king_b, g_chess960 ? g_rook_b[1] : 56 + 2); // O-O-Ob
-    case 5:  return MakeMove2Str(this->from, this->to) + PromoLetter(this->pieces[this->to]); // e7e8n
-    case 6:  return MakeMove2Str(this->from, this->to) + PromoLetter(this->pieces[this->to]); // e7e8b
-    case 7:  return MakeMove2Str(this->from, this->to) + PromoLetter(this->pieces[this->to]); // e7e8r
-    case 8:  return MakeMove2Str(this->from, this->to) + PromoLetter(this->pieces[this->to]); // e7e8q
+    case 5:  return MakeMove2Str(this->from, this->to) + 'n'; // e7e8n
+    case 6:  return MakeMove2Str(this->from, this->to) + 'b'; // e7e8b
+    case 7:  return MakeMove2Str(this->from, this->to) + 'r'; // e7e8r
+    case 8:  return MakeMove2Str(this->from, this->to) + 'q'; // e7e8q
     default: return MakeMove2Str(this->from, this->to); // Normal
   }
 }
@@ -865,7 +856,8 @@ void FenPutPiece(const int sq, const int piece) {
   FenCreatePieceBitboards(sq, piece);
 }
 
-int FenMakePiece2Num(const char p) { // Convert piece (Char) -> Int
+// Convert piece (Char) -> Int
+int FenMakePiece2Num(const char p) {
   switch (p) {
     case 'P': return +1;
     case 'N': return +2;
@@ -885,17 +877,44 @@ int FenMakePiece2Num(const char p) { // Convert piece (Char) -> Int
 
 // Empty cells (Char) -> Int
 int FenMakeEmpty2Num(const char e) {
-  return static_cast<int>(e - '0');
+  switch (e) {
+    case '1': return 1;
+    case '2': return 2;
+    case '3': return 3;
+    case '4': return 4;
+    case '5': return 5;
+    case '6': return 6;
+    case '7': return 7;
+    default:  return 8;
+  }
 }
 
 // X-coord (Char) -> Int
 int FenMakeFile2Num(const char f) {
-  return static_cast<int>(f - 'a');
+  switch (f) {
+    case 'a': return 0;
+    case 'b': return 1;
+    case 'c': return 2;
+    case 'd': return 3;
+    case 'e': return 4;
+    case 'f': return 5;
+    case 'g': return 6;
+    default:  return 7;
+  }
 }
 
 // Ep Y-coord -> Int
 int FenMakeRank2Num(const char r) {
-  return static_cast<int>(r - '1');
+  switch (r) {
+    case 1:  return 0;
+    case 2:  return 1;
+    case 3:  return 2;
+    case 4:  return 3;
+    case 5:  return 4;
+    case 6:  return 5;
+    case 7:  return 6;
+    default: return 8;
+  }
 }
 
 void FenBoard(const std::string &board) {
@@ -1163,7 +1182,8 @@ void AddCastleOOW() {
   g_board->white[5]            = (g_board->white[5] ^ Bit(g_king_w))    | Bit(6);
 
   if (ChecksB()) return;
-  g_board->index = g_moves_n++;
+  g_board->index = g_moves_n;
+  g_moves_n     += 1;
 }
 
 void AddCastleOOB() {
@@ -1178,7 +1198,8 @@ void AddCastleOOB() {
   g_board->black[5]            = (g_board->black[5] ^ Bit(g_king_b))    | Bit(56 + 6);
 
   if (ChecksW()) return;
-  g_board->index = g_moves_n++;
+  g_board->index = g_moves_n;
+  g_moves_n     += 1;
 }
 
 void AddCastleOOOW() {
@@ -1193,7 +1214,8 @@ void AddCastleOOOW() {
   g_board->white[5]            = (g_board->white[5] ^ Bit(g_king_w))    | Bit(2);
 
   if (ChecksB()) return;
-  g_board->index = g_moves_n++;
+  g_board->index = g_moves_n;
+  g_moves_n     += 1;
 }
 
 void AddCastleOOOB() {
@@ -1208,7 +1230,8 @@ void AddCastleOOOB() {
   g_board->black[5]            = (g_board->black[5] ^ Bit(g_king_b))    | Bit(56 + 2);
 
   if (ChecksW()) return;
-  g_board->index = g_moves_n++;
+  g_board->index = g_moves_n;
+  g_moves_n     += 1;
 }
 
 void AddOOW() {
@@ -1368,7 +1391,8 @@ void AddPromotionB(const int from, const int to, const int piece) {
 
   if (ChecksW()) return;
   HandleCastlingRights();
-  g_board->index = g_moves_n++;
+  g_board->index = g_moves_n;
+  g_moves_n     += 1;
 }
 
 void AddPromotionW2(const int from, const int to, const int piece) {
@@ -1433,13 +1457,15 @@ void CheckNormalCapturesB(const int me, const int eat, const int to) {
 void AddMoveIfOkW() {
   if (ChecksB()) return;
   HandleCastlingRights();
-  g_board->index = g_moves_n++;
+  g_board->index = g_moves_n;
+  g_moves_n     += 1;
 }
 
 void AddMoveIfOkB() {
   if (ChecksW()) return;
   HandleCastlingRights();
-  g_board->index = g_moves_n++;
+  g_board->index = g_moves_n;
+  g_moves_n     += 1;
 }
 
 void AddNormalStuffW(const int from, const int to) {
