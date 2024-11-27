@@ -719,13 +719,53 @@ const std::string Board::movename() const {
   }
 }
 
+char GetPiece(const int piece) {
+  switch (piece) {
+    case +1: return 'P';
+    case +2: return 'N';
+    case +3: return 'B';
+    case +4: return 'R';
+    case +5: return 'Q';
+    case +6: return 'K';
+    case -1: return 'p';
+    case -2: return 'n';
+    case -3: return 'b';
+    case -4: return 'r';
+    case -5: return 'q';
+    case -6: return 'k';
+    default: return '.';
+  }
+}
+
+char GetCastleFile(const int file) {
+  switch (file) {
+    case 0:  return 'A';
+    case 1:  return 'B';
+    case 2:  return 'C';
+    case 3:  return 'D';
+    case 4:  return 'E';
+    case 5:  return 'F';
+    case 6:  return 'G';
+    case 7:  return 'H';
+    case 56: return 'a';
+    case 57: return 'b';
+    case 58: return 'c';
+    case 59: return 'd';
+    case 60: return 'e';
+    case 61: return 'f';
+    case 62: return 'g';
+    case 63: return 'h';
+    default: return '.';
+  }
+}
+
 // Board presentation in FEN ( Forsyth–Edwards Notation )
 const std::string Board::to_fen() const {
   std::stringstream s{};
   for (auto r = 7; r >= 0; r -= 1) {
     auto empty = 0;
     for (auto f = 0; f <= 7; f += 1)
-      if (const auto p = "kqrbnp.PNBRQK"[this->pieces[8 * r + f] + 6]; p == '.') {
+      if (const auto p = GetPiece(this->pieces[8 * r + f]); p == '.') {
         empty += 1;
       } else {
         if (empty) {
@@ -738,15 +778,15 @@ const std::string Board::to_fen() const {
     if (r != 0) s << "/";
   }
   s << (g_wtm ? " w " : " b ");
-  if (this->castle & 0x1) s << static_cast<char>('A' + g_rook_w[0]);
-  if (this->castle & 0x2) s << static_cast<char>('A' + g_rook_w[1]);
-  if (this->castle & 0x4) s << static_cast<char>('a' + g_rook_b[0] - 56);
-  if (this->castle & 0x8) s << static_cast<char>('a' + g_rook_b[1] - 56);
+  if (this->castle & 0x1) s << GetCastleFile(g_rook_w[0]);
+  if (this->castle & 0x2) s << GetCastleFile(g_rook_w[1]);
+  if (this->castle & 0x4) s << GetCastleFile(g_rook_b[0]);
+  if (this->castle & 0x8) s << GetCastleFile(g_rook_b[1]);
   s << (this->castle ? " " : "- ");
   if (this->epsq == -1)
     s << "-";
   else
-    s << static_cast<char>('a' + MakeX(this->epsq)) << static_cast<char>('1' + MakeY(this->epsq));
+    s << MakeFile2Char(MakeX(this->epsq)) << MakeRank2Char(MakeY(this->epsq));
   s << " " << static_cast<int>(this->fifty) << " " << static_cast<int>(std::max(1, g_fullmoves));
   return s.str();
 }
@@ -757,7 +797,7 @@ const std::string Board::to_s() const {
   s << " +---+---+---+---+---+---+---+---+\n";
   for (auto r = 7; r >= 0; r -= 1) {
     for (auto f = 0; f <= 7; f += 1)
-      s << " | " << "kqrbnp PNBRQK"[this->pieces[8 * r + f] + 6];
+      s << " | " << GetPiece(this->pieces[8 * r + f]);
     s << " | " << (1 + r) << "\n +---+---+---+---+---+---+---+---+\n";
   }
   s << "   a   b   c   d   e   f   g   h\n\n" <<
@@ -874,7 +914,6 @@ void FenPutPiece(const int sq, const int piece) {
   FenCreatePieceBitboards(sq, piece);
 }
 
-// Convert piece (Char) -> Int
 int FenMakePiece2Num(const char p) {
   switch (p) {
     case 'P': return +1;
@@ -889,12 +928,11 @@ int FenMakePiece2Num(const char p) {
     case 'r': return -4;
     case 'q': return -5;
     case 'k': return -6;
-    default:  return  0; // Impossible
+    default:  return  0;
   }
 }
 
-// Empty cells (Char) -> Int
-int FenMakeEmpty2Num(const char e) {
+int MakeChar2Num(const char e) {
   switch (e) {
     case '1': return 1;
     case '2': return 2;
@@ -903,11 +941,11 @@ int FenMakeEmpty2Num(const char e) {
     case '5': return 5;
     case '6': return 6;
     case '7': return 7;
-    default:  return 8;
+    case '8': return 8;
+    default:  return 0;
   }
 }
 
-// X-coord (Char) -> Int
 int FenMakeFile2Num(const char f) {
   switch (f) {
     case 'a': return 0;
@@ -917,21 +955,8 @@ int FenMakeFile2Num(const char f) {
     case 'e': return 4;
     case 'f': return 5;
     case 'g': return 6;
-    default:  return 7;
-  }
-}
-
-// Ep Y-coord -> Int
-int FenMakeRank2Num(const char r) {
-  switch (r) {
-    case 1:  return 0;
-    case 2:  return 1;
-    case 3:  return 2;
-    case 4:  return 3;
-    case 5:  return 4;
-    case 6:  return 5;
-    case 7:  return 6;
-    default: return 7;
+    case 'h': return 7;
+    default:  return 0;
   }
 }
 
@@ -941,7 +966,7 @@ void FenBoard(const std::string &board) {
     if (const auto c = board[i]; c == '/') {
       sq -= 16;
     } else if (std::isdigit(c)) {
-      sq += FenMakeEmpty2Num(c);
+      sq += MakeChar2Num(c);
     } else {
       FenPutPiece(sq, FenMakePiece2Num(c));
       sq += 1;
@@ -987,7 +1012,7 @@ void FenKQkq(const std::string &KQkq) {
 
 void FenEp(const std::string &ep) {
   if (ep.length() != 2) return;
-  g_board->epsq = 8 * FenMakeRank2Num(ep[1]) + FenMakeFile2Num(ep[0]);
+  g_board->epsq = 8 * (MakeChar2Num(ep[1]) - 1) + MakeChar2Num(ep[0]) - 1;
 }
 
 void FenRule50(const std::string &fifty) {
