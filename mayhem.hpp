@@ -932,7 +932,7 @@ int FenMakePiece2Num(const char p) {
   }
 }
 
-int MakeChar2Num(const char e) {
+int FenMakeChar2Num(const char e) {
   switch (e) {
     case '1': return 1;
     case '2': return 2;
@@ -966,7 +966,7 @@ void FenBoard(const std::string &board) {
     if (const auto c = board[i]; c == '/') {
       sq -= 16;
     } else if (std::isdigit(c)) {
-      sq += MakeChar2Num(c);
+      sq += FenMakeChar2Num(c);
     } else {
       FenPutPiece(sq, FenMakePiece2Num(c));
       sq += 1;
@@ -1012,7 +1012,7 @@ void FenKQkq(const std::string &KQkq) {
 
 void FenEp(const std::string &ep) {
   if (ep.length() != 2) return;
-  g_board->epsq = 8 * (MakeChar2Num(ep[1]) - 1) + MakeChar2Num(ep[0]) - 1;
+  g_board->epsq = 8 * FenMakeFile2Num(ep[1]) + FenMakeChar2Num(ep[0]) - 1;
 }
 
 void FenRule50(const std::string &fifty) {
