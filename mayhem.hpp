@@ -931,7 +931,7 @@ int FenMakeRank2Num(const char r) {
     case 5:  return 4;
     case 6:  return 5;
     case 7:  return 6;
-    default: return 8;
+    default: return 7;
   }
 }
 
