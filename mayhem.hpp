@@ -1011,8 +1011,8 @@ void FenKQkq(const std::string &KQkq) {
 }
 
 void FenEp(const std::string &ep) {
-  if (ep.length() != 2) return;
-  g_board->epsq = 8 * FenMakeFile2Num(ep[1]) + FenMakeChar2Num(ep[0]) - 1;
+  if (ep.length() != 2) return; // b6
+  g_board->epsq = 8 * (FenMakeChar2Num(ep[1]) - 1) + FenMakeFile2Num(ep[0]);
 }
 
 void FenRule50(const std::string &fifty) {
@@ -1311,54 +1311,14 @@ void MgenCastlingMovesB() {
   AddOOOB();
 }
 
-bool CheckHasKingMovedW() {
-  if (g_board->pieces[g_king_w] == +6) return false;
-  g_board->castle &= 0x4 | 0x8;
-  return true;
-}
-
-void CheckHasLeftRookMovedW() {
-  if (g_board->pieces[g_rook_w[0]] == +4) return;
-  g_board->castle &= 0x2 | 0x4 | 0x8;
-}
-
-void CheckHasRightRookMovedW() {
-  if (g_board->pieces[g_rook_w[1]] == +4) return;
-  g_board->castle &= 0x1 | 0x4 | 0x8;
-}
-
-void CheckCastlingRightsW() {
-  if (CheckHasKingMovedW()) return;
-  CheckHasLeftRookMovedW();
-  CheckHasRightRookMovedW();
-}
-
-bool CheckHasKingMovedB() {
-  if (g_board->pieces[g_king_b] == -6) return false;
-  g_board->castle &= 0x1 | 0x2;
-  return true;
-}
-
-void CheckHasLeftRookMovedB() {
-  if (g_board->pieces[g_rook_b[0]] == -4) return;
-  g_board->castle &= 0x1 | 0x2 | 0x8;
-}
-
-void CheckHasRightRookMovedB() {
-  if (g_board->pieces[g_rook_b[1]] == -4) return;
-  g_board->castle &= 0x1 | 0x2 | 0x4;
-}
-
-void CheckCastlingRightsB() {
-  if (CheckHasKingMovedB()) return;
-  CheckHasLeftRookMovedB();
-  CheckHasRightRookMovedB();
-}
-
 void HandleCastlingRights() {
   if (!g_board->castle) return;
-  CheckCastlingRightsW();
-  CheckCastlingRightsB();
+  if (g_board->pieces[g_king_w] != +6)    g_board->castle &= 0x4 | 0x8;
+  if (g_board->pieces[g_rook_w[0]] != +4) g_board->castle &= 0x2 | 0x4 | 0x8;
+  if (g_board->pieces[g_rook_w[1]] != +4) g_board->castle &= 0x1 | 0x4 | 0x8;
+  if (g_board->pieces[g_king_b] != -6)    g_board->castle &= 0x1 | 0x2;
+  if (g_board->pieces[g_rook_b[0]] != -4) g_board->castle &= 0x1 | 0x2 | 0x8;
+  if (g_board->pieces[g_rook_b[1]] != -4) g_board->castle &= 0x1 | 0x2 | 0x4;
 }
 
 void ModifyPawnStuffW(const int from, const int to) {
