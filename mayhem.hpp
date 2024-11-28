@@ -83,6 +83,7 @@ namespace mayhem {
 #define TEMPO_BONUS        25       // Bonus for the side to move
 #define BISHOP_PAIR_BONUS  20       // Both colored bishops bonus
 #define CHECKS_BONUS       17       // Bonus for checks
+#define BIT(x)             (0x1ULL << (x)) // 64b BitBoard
 
 // Use NNUE evaluation (From make) ?
 #ifdef MAYHEMNNUE
@@ -398,7 +399,7 @@ struct HashEntry { // 10B
 std::uint64_t g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_stop_search_time = 0,
   g_nodes = 0, g_pawn_sq = 0, g_pawn_1_moves_w[64]{}, g_pawn_1_moves_b[64]{}, g_pawn_2_moves_w[64]{},
   g_pawn_2_moves_b[64]{}, g_knight_moves[64]{}, g_king_moves[64]{}, g_pawn_checks_w[64]{}, g_pawn_checks_b[64]{},
-  g_castle_w[2]{}, g_castle_b[2]{}, g_castle_empty_w[2]{}, g_castle_empty_b[2]{}, g_bishop_magic_moves[64][512]{},
+  g_castle_no_checks[2]{}, g_castle_no_checks_b[2]{}, g_castle_empty_w[2]{}, g_castle_empty_b[2]{}, g_bishop_magic_moves[64][512]{},
   g_rook_magic_moves[64][4096]{}, g_zobrist_ep[64]{}, g_zobrist_castle[16]{}, g_zobrist_wtm[2]{},
   g_r50_positions[R50_ARR]{}, g_zobrist_board[13][64]{};
 
@@ -450,7 +451,7 @@ inline std::uint64_t Both() {
 
 // Set bit in 1 -> 64
 inline std::uint64_t Bit(const int nth) {
-  return 0x1ULL << nth;
+  return BIT(nth);
 }
 
 // Count rightmost zeros AND then pop BitBoard
@@ -850,37 +851,37 @@ std::uint64_t FenFill(int from, const int to) { // from / to -> Always good
 // White: O-O
 void FenBuildCastlingBitboard_O_O_W() {
   if (!(g_board->castle & 0x1)) return;
-  g_castle_w[0]       = FenFill(g_king_w, 6);
-  g_castle_empty_w[0] = (g_castle_w[0] | FenFill(g_rook_w[0], 5)) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
+  g_castle_no_checks[0] = FenFill(g_king_w, 6);
+  g_castle_empty_w[0]   = (g_castle_no_checks[0] | FenFill(g_rook_w[0], 5)) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
 }
 
 // White: O-O-O
 void FenBuildCastlingBitboard_O_O_O_W() {
   if (!(g_board->castle & 0x2)) return;
-  g_castle_w[1]       = FenFill(g_king_w, 2);
-  g_castle_empty_w[1] = (g_castle_w[1] | FenFill(g_rook_w[1], 3)) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
+  g_castle_no_checks[1] = FenFill(g_king_w, 2);
+  g_castle_empty_w[1]   = (g_castle_no_checks[1] | FenFill(g_rook_w[1], 3)) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
 }
 
 // Black: O-O
 void FenBuildCastlingBitboard_O_O_B() {
   if (!(g_board->castle & 0x4)) return;
-  g_castle_b[0]       = FenFill(g_king_b, 56 + 6);
-  g_castle_empty_b[0] = (g_castle_b[0] | FenFill(g_rook_b[0], 56 + 5)) ^ (Bit(g_king_b) | Bit(g_rook_b[0]));
+  g_castle_no_checks_b[0] = FenFill(g_king_b, 56 + 6);
+  g_castle_empty_b[0]     = (g_castle_no_checks_b[0] | FenFill(g_rook_b[0], 56 + 5)) ^ (Bit(g_king_b) | Bit(g_rook_b[0]));
 }
 
 // Black: O-O-O
 void FenBuildCastlingBitboard_O_O_O_B() {
   if (!(g_board->castle & 0x8)) return;
-  g_castle_b[1]       = FenFill(g_king_b, 56 + 2);
-  g_castle_empty_b[1] = (g_castle_b[1] | FenFill(g_rook_b[1], 56 + 3)) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
+  g_castle_no_checks_b[1] = FenFill(g_king_b, 56 + 2);
+  g_castle_empty_b[1]     = (g_castle_no_checks_b[1] | FenFill(g_rook_b[1], 56 + 3)) ^ (Bit(g_king_b) | Bit(g_rook_b[1]));
 }
 
 void FenCheckCastlingBitboards() {
   for (const std::size_t i : {0, 1}) {
-    g_castle_empty_w[i] &= 0xFFULL;
-    g_castle_empty_b[i] &= 0xFF00000000000000ULL;
-    g_castle_w[i]       &= 0xFFULL;
-    g_castle_b[i]       &= 0xFF00000000000000ULL;
+    g_castle_empty_w[i]     &= 0xFFULL;
+    g_castle_empty_b[i]     &= 0xFF00000000000000ULL;
+    g_castle_no_checks[i]   &= 0xFFULL;
+    g_castle_no_checks_b[i] &= 0xFF00000000000000ULL;
   }
 }
 
@@ -1063,12 +1064,12 @@ void FenReset() {
   g_fullmoves   = 1;
 
   for (const std::size_t i : {0, 1}) {
-    g_castle_w[i]       = 0;
-    g_castle_empty_w[i] = 0;
-    g_castle_b[i]       = 0;
-    g_castle_empty_b[i] = 0;
-    g_rook_w[i]         = 0;
-    g_rook_b[i]         = 0;
+    g_castle_no_checks[i]   = 0;
+    g_castle_empty_w[i]     = 0;
+    g_castle_no_checks_b[i] = 0;
+    g_castle_empty_b[i]     = 0;
+    g_rook_w[i]             = 0;
+    g_rook_b[i]             = 0;
   }
 
   for (std::size_t i = 0; i < 6; i += 1) {
@@ -1214,7 +1215,7 @@ void HandleCastlingB(const int mtype, const int from, const int to) {
 }
 
 void AddCastleOOW() {
-  if (ChecksCastleB(g_castle_w[0])) return;
+  if (ChecksCastleB(g_castle_no_checks[0])) return;
 
   HandleCastlingW(1, g_king_w, 6);
   g_board->pieces[g_rook_w[0]] = 0;
@@ -1230,7 +1231,7 @@ void AddCastleOOW() {
 }
 
 void AddCastleOOB() {
-  if (ChecksCastleW(g_castle_b[0])) return;
+  if (ChecksCastleW(g_castle_no_checks_b[0])) return;
 
   HandleCastlingB(3, g_king_b, 56 + 6);
   g_board->pieces[g_rook_b[0]] = 0;
@@ -1246,7 +1247,7 @@ void AddCastleOOB() {
 }
 
 void AddCastleOOOW() {
-  if (ChecksCastleB(g_castle_w[1])) return;
+  if (ChecksCastleB(g_castle_no_checks[1])) return;
 
   HandleCastlingW(2, g_king_w, 2);
   g_board->pieces[g_rook_w[1]] = 0;
@@ -1262,7 +1263,7 @@ void AddCastleOOOW() {
 }
 
 void AddCastleOOOB() {
-  if (ChecksCastleW(g_castle_b[1])) return;
+  if (ChecksCastleW(g_castle_no_checks_b[1])) return;
 
   HandleCastlingB(4, g_king_b, 56 + 2);
   g_board->pieces[g_rook_b[1]] = 0;
@@ -1764,7 +1765,7 @@ bool IsEasyDraw(const bool wtm) {
 
 int FixFRC() {
   // No bishop in corner -> Speedup
-  static const std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
+  constexpr std::uint64_t corners = BIT(0) | BIT(7) | BIT(56) | BIT(63);
   if (!((g_board->white[2] | g_board->black[2]) & corners)) return 0;
 
   int s = 0;
@@ -1842,16 +1843,6 @@ struct Evaluation {
     return this;
   }
 
-  Evaluation* eval_score_w(const int piece, const int k, const int sq, const std::uint64_t m) {
-    return this->pesto_w(piece, sq)
-               ->mobility_w(k, m & this->reachable_w());
-  }
-
-  Evaluation* eval_score_b(const int piece, const int k, const int sq, const std::uint64_t m) {
-    return this->pesto_b(piece, sq)
-               ->mobility_b(k, m & this->reachable_b());
-  }
-
   void eval_w(const int p) {
     this->piece_sum   += kPiece[p];
     this->white_total += 1;
@@ -1875,52 +1866,62 @@ struct Evaluation {
   }
 
   void knight_w(const int sq) {
-    this->eval_score_w(1, 2, sq, g_knight_moves[sq])
+    this->pesto_w(1, sq)
+        ->mobility_w(2, g_knight_moves[sq] & this->reachable_w())
         ->eval_w(1);
   }
 
   void knight_b(const int sq) {
-    this->eval_score_b(1, 2, sq, g_knight_moves[sq])
+    this->pesto_b(1, sq)
+        ->mobility_b(2, g_knight_moves[sq] & this->reachable_b())
         ->eval_b(1);
   }
 
   void bishop_w(const int sq) {
-    this->eval_score_w(2, 3, sq, GetBishopMagicMoves(sq, this->both))
+    this->pesto_w(2, sq)
+        ->mobility_w(3, GetBishopMagicMoves(sq, this->both) & this->reachable_w())
         ->eval_w(2);
   }
 
   void bishop_b(const int sq) {
-    this->eval_score_b(2, 3, sq, GetBishopMagicMoves(sq, this->both))
+    this->pesto_b(2, sq)
+        ->mobility_b(3, GetBishopMagicMoves(sq, this->both) & this->reachable_b())
         ->eval_b(2);
   }
 
   void rook_w(const int sq) {
-    this->eval_score_w(3, 3, sq, GetRookMagicMoves(sq, this->both))
+    this->pesto_w(3, sq)
+        ->mobility_w(3, GetRookMagicMoves(sq, this->both) & this->reachable_w())
         ->eval_w(3);
   }
 
   void rook_b(const int sq) {
-    this->eval_score_b(3, 3, sq, GetRookMagicMoves(sq, this->both))
+    this->pesto_b(3, sq)
+        ->mobility_b(3, GetRookMagicMoves(sq, this->both) & this->reachable_b())
         ->eval_b(3);
   }
 
   void queen_w(const int sq) {
-    this->eval_score_w(4, 2, sq, GetBishopMagicMoves(sq, this->both) | GetRookMagicMoves(sq, this->both))
+    this->pesto_w(4, sq)
+        ->mobility_w(2, (GetBishopMagicMoves(sq, this->both) | GetRookMagicMoves(sq, this->both)) & this->reachable_w())
         ->eval_w(4);
   }
 
   void queen_b(const int sq) {
-    this->eval_score_b(4, 2, sq, GetBishopMagicMoves(sq, this->both) | GetRookMagicMoves(sq, this->both))
+    this->pesto_b(4, sq)
+        ->mobility_b(2, (GetBishopMagicMoves(sq, this->both) | GetRookMagicMoves(sq, this->both)) & this->reachable_b())
         ->eval_b(4);
   }
 
   void king_w(const int sq) {
-    this->eval_score_w(5, 1, sq, g_king_moves[sq])
+    this->pesto_w(5, sq)
+        ->mobility_w(1, g_king_moves[sq] & this->reachable_w())
         ->wk = sq;
   }
 
   void king_b(const int sq) {
-    this->eval_score_b(5, 1, sq, g_king_moves[sq])
+    this->pesto_b(5, sq)
+        ->mobility_b(1, g_king_moves[sq] & this->reachable_b())
         ->bk = sq;
   }
 
@@ -2553,9 +2554,9 @@ bool ProbePolygotBook() {
   return false;
 }
 
-bool PlayRandomMove() {
+bool PlayRandomMove(const int ms) {
   // At level 0 we simply play a random move
-  if (g_level == 0) {
+  if (ms <= 0 || g_level == 0) {
     SwapMoveInRootList(Random(0, g_root_n - 1));
     return true;
   }
@@ -2563,9 +2564,9 @@ bool PlayRandomMove() {
 }
 
 bool PlayFastMove(const int ms) {
-  if ((g_root_n <= 1)    || // Only move
-      (PlayRandomMove()) || // Random mover
-      (ms <= 1)          || // Hurry up !
+  if ((g_root_n <= 1)      || // Only move
+      (PlayRandomMove(ms)) || // Random mover
+      (ms <= 1)            || // Hurry up !
       (g_book_exist && ms > BOOK_MS && ProbePolygotBook())) { // Try book
     SpeakUci(g_last_eval, 0);
     return true;
