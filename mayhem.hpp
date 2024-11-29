@@ -819,8 +819,8 @@ const std::string TokenGetNth(const std::uint32_t nth = 0) {
   return TokenIsOk(nth) ? g_tokens[g_tokens_nth + nth] : "";
 }
 
-void TokenPop(const std::uint32_t nth = 1) {
-  g_tokens_nth += nth;
+void TokenPop() {
+  g_tokens_nth += 1;
 }
 
 bool TokenPeek(const std::string &token, const std::uint32_t nth = 0) {
@@ -831,10 +831,15 @@ int TokenGetNumber(const std::uint32_t nth = 0) {
   return TokenIsOk(nth) ? std::stoi(g_tokens[g_tokens_nth + nth]) : 0;
 }
 
-// If true then pop n
-bool Token(const std::string &token, const std::uint32_t pop_n = 1) {
+void TokenExpect(const std::string &token) {
+  if (!TokenPeek(token))
+    throw std::runtime_error("info string ( #11 ) Unexpected token: " + token);
+  TokenPop();
+}
+
+bool Token(const std::string &token) {
   if (!TokenPeek(token)) return false;
-  TokenPop(pop_n);
+  TokenPop(); // If true then pop
   return true;
 }
 
@@ -2657,7 +2662,7 @@ void UciMakeMove() {
 }
 
 void UciTakeSpecialFen() {
-  TokenPop(); // pop "fen"
+  TokenExpect("fen");
   std::stringstream fen{};
   for ( ; TokenIsOk() && !TokenPeek("moves"); TokenPop())
     fen << TokenGetNth() << " ";
@@ -2736,12 +2741,12 @@ void UciGoDepth() {
 
 void UciMovetimeCmd() {
   UciGoMovetime();
-  TokenPop();
+  TokenExpect("movetime");
 }
 
 void UciDepthCmd() {
   UciGoDepth();
-  TokenPop();
+  TokenExpect("depth");
 }
 
 void UciThink(const int think_time, const int inc, const int mtg) {
