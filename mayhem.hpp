@@ -399,7 +399,7 @@ struct HashEntry { // 10B
 std::uint64_t g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_stop_search_time = 0,
   g_nodes = 0, g_pawn_sq = 0, g_pawn_1_moves_w[64]{}, g_pawn_1_moves_b[64]{}, g_pawn_2_moves_w[64]{},
   g_pawn_2_moves_b[64]{}, g_knight_moves[64]{}, g_king_moves[64]{}, g_pawn_checks_w[64]{}, g_pawn_checks_b[64]{},
-  g_castle_no_checks[2]{}, g_castle_no_checks_b[2]{}, g_castle_empty_w[2]{}, g_castle_empty_b[2]{}, g_bishop_magic_moves[64][512]{},
+  g_castle_no_checks_w[2]{}, g_castle_no_checks_b[2]{}, g_castle_empty_w[2]{}, g_castle_empty_b[2]{}, g_bishop_magic_moves[64][512]{},
   g_rook_magic_moves[64][4096]{}, g_zobrist_ep[64]{}, g_zobrist_castle[16]{}, g_zobrist_wtm[2]{},
   g_r50_positions[R50_ARR]{}, g_zobrist_board[13][64]{};
 
@@ -856,15 +856,15 @@ std::uint64_t FenFill(int from, const int to) { // from / to -> Always good
 // White: O-O
 void FenBuildCastlingBitboard_O_O_W() {
   if (!(g_board->castle & 0x1)) return;
-  g_castle_no_checks[0] = FenFill(g_king_w, 6);
-  g_castle_empty_w[0]   = (g_castle_no_checks[0] | FenFill(g_rook_w[0], 5)) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
+  g_castle_no_checks_w[0] = FenFill(g_king_w, 6);
+  g_castle_empty_w[0]     = (g_castle_no_checks_w[0] | FenFill(g_rook_w[0], 5)) ^ (Bit(g_king_w) | Bit(g_rook_w[0]));
 }
 
 // White: O-O-O
 void FenBuildCastlingBitboard_O_O_O_W() {
   if (!(g_board->castle & 0x2)) return;
-  g_castle_no_checks[1] = FenFill(g_king_w, 2);
-  g_castle_empty_w[1]   = (g_castle_no_checks[1] | FenFill(g_rook_w[1], 3)) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
+  g_castle_no_checks_w[1] = FenFill(g_king_w, 2);
+  g_castle_empty_w[1]     = (g_castle_no_checks_w[1] | FenFill(g_rook_w[1], 3)) ^ (Bit(g_king_w) | Bit(g_rook_w[1]));
 }
 
 // Black: O-O
@@ -885,7 +885,7 @@ void FenCheckCastlingBitboards() {
   for (const std::size_t i : {0, 1}) {
     g_castle_empty_w[i]     &= 0xFFULL;
     g_castle_empty_b[i]     &= 0xFF00000000000000ULL;
-    g_castle_no_checks[i]   &= 0xFFULL;
+    g_castle_no_checks_w[i] &= 0xFFULL;
     g_castle_no_checks_b[i] &= 0xFF00000000000000ULL;
   }
 }
@@ -1069,7 +1069,7 @@ void FenReset() {
   g_fullmoves   = 1;
 
   for (const std::size_t i : {0, 1}) {
-    g_castle_no_checks[i]   = 0;
+    g_castle_no_checks_w[i] = 0;
     g_castle_empty_w[i]     = 0;
     g_castle_no_checks_b[i] = 0;
     g_castle_empty_b[i]     = 0;
@@ -1220,7 +1220,7 @@ void HandleCastlingB(const int mtype, const int from, const int to) {
 }
 
 void AddCastleOOW() {
-  if (ChecksCastleB(g_castle_no_checks[0])) return;
+  if (ChecksCastleB(g_castle_no_checks_w[0])) return;
 
   HandleCastlingW(1, g_king_w, 6);
   g_board->pieces[g_rook_w[0]] = 0;
@@ -1252,7 +1252,7 @@ void AddCastleOOB() {
 }
 
 void AddCastleOOOW() {
-  if (ChecksCastleB(g_castle_no_checks[1])) return;
+  if (ChecksCastleB(g_castle_no_checks_w[1])) return;
 
   HandleCastlingW(2, g_king_w, 2);
   g_board->pieces[g_rook_w[1]] = 0;
