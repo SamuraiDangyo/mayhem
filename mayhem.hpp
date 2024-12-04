@@ -2661,12 +2661,15 @@ void UciMakeMove() {
   throw std::runtime_error("info string ( #3 ) Bad move: " + move); // No move found -> Quit
 }
 
+std::string TakeFen() {
+  std::stringstream fen{};
+  for ( ; TokenIsOk() && !TokenPeek("moves"); TokenPop()) fen << TokenGetNth() << " ";
+  return fen.str();
+}
+
 void UciTakeSpecialFen() {
   TokenExpect("fen");
-  std::stringstream fen{};
-  for ( ; TokenIsOk() && !TokenPeek("moves"); TokenPop())
-    fen << TokenGetNth() << " ";
-  SetFen(fen.str());
+  SetFen(TakeFen());
 }
 
 void UciFen() {
@@ -2809,7 +2812,7 @@ struct Save {
 // Print ASCII art board ( + Used for debug in UCI mode )
 void UciPrintBoard() {
   const Save save{};
-  const std::string fen = TokenGetNth();
+  const std::string fen = TakeFen();
   if (fen.length()) SetFen(fen);
   std::cout << '\n' << g_board->to_s() << std::endl;
 }
@@ -2894,7 +2897,8 @@ void UciSpeed() {
 // NPS:      66925421
 void UciPerft() {
   const std::string depth = TokenGetNth(0);
-  const std::string fen   = TokenGetNth(1);
+  TokenPop();
+  const std::string fen   = TakeFen();
   PerftUtil(depth.length() ? std::max(0, std::stoi(depth)) : PERFT_DEPTH,
             fen.length() ? fen : STARTPOS);
 }
