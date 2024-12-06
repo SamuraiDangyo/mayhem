@@ -445,6 +445,7 @@ struct Evaluation {
 
 struct NnueEval {
   const bool wtm{true};
+
   int probe() const;
   int evaluate();
 };
@@ -2937,8 +2938,8 @@ void Bench(const int depth, const int time) {
 // Show signature of the program
 // Result:   70 / 70
 // Nodes:    247216819
-// Time(ms): 28076
-// NPS:      8805272
+// Time(ms): 28045
+// NPS:      8815005
 void UciBench() {
   const std::string depth = TokenGetNth();
   Bench(!depth.length() ? BENCH_DEPTH : (depth == "inf" ? MAX_SEARCH_DEPTH : std::clamp(std::stoi(depth), 0, MAX_SEARCH_DEPTH)),
@@ -2958,8 +2959,8 @@ void UciSpeed() {
 
 // Calculate perft split numbers
 // Nodes:    119060324
-// Time(ms): 1779
-// NPS:      66925421
+// Time(ms): 1757
+// NPS:      67763417
 void UciPerft() {
   const std::string depth = TokenGetNth(0);
   TokenPop();
