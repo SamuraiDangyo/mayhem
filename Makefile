@@ -19,7 +19,7 @@
 CXX    = clang++
 EXE    = mayhem
 BIN    = /usr/bin
-BFLAGS = -std=c++20 -O3 -flto -march=native -DNDEBUG -DMAYHEMBOOK -DMAYHEMNNUE
+BFLAGS = -std=c++20 -O3 -march=native -DNDEBUG -DMAYHEMBOOK -DMAYHEMNNUE
 WFLAGS = -Wall -Wextra -Wshadow -pedantic
 NFLAGS = -DUSE_AVX2 -mavx2 -DUSE_SSE41 -msse4.1 -DUSE_SSSE3 -mssse3 -DUSE_SSE2 -msse2
 
