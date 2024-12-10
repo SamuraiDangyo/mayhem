@@ -22,33 +22,16 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Headers
 
-#include <bit>
-#include <algorithm>
-#include <memory>
-#include <iostream>
-#include <sstream>
-#include <vector>
-#include <array>
-#include <string>
-#include <chrono>
-#include <cmath>
-#include <cstdlib>
-#include <cstdint>
-#include <iterator>
-#include <numeric>
-#include <utility>
-
-extern "C" {
-#ifdef WINDOWS
-#include <conio.h>
-#else
-#include <unistd.h>
-#endif
-} // extern "C"
-
+#include <bits/stdc++.h>
 #include "nnue.hpp"
 #include "polyglotbook.hpp"
 #include "eucalyptus.hpp"
+
+extern "C" {
+#ifdef WINDOWS
+  #include <conio.h>
+#endif
+}
 
 // Namespace
 
@@ -56,47 +39,46 @@ namespace mayhem {
 
 // Macros
 
-#define VERSION            "Mayhem 8.5" // Version
-#define MAX_MOVES          256      // Max chess moves
-#define MAX_SEARCH_DEPTH   64       // Max search depth (Stack frame problems ...)
-#define MAX_Q_SEARCH_DEPTH 16       // Max Qsearch depth
-#define INF                1048576  // System max number
-#define DEF_HASH_MB        256      // MiB
-#define NOISE              2        // Noise for opening moves
-#define MOVEOVERHEAD       100      // ms
-#define REPS_DRAW          3        // 3rd repetition is a draw
-#define FIFTY              100      // 100 moves w/o progress is a draw (256 max)
-#define R50_ARR            (FIFTY + 2) // Checkmate overrules 50 move rep so extra space here
-#define SHUFFLE            30       // Allow shuffling then scale
-#define BOOK_MS            100      // At least 100ms+ for the book lookup
-#define PERFT_DEPTH        6        // Perft at depth 6
-#define BENCH_DEPTH        14       // Bench at depth 14
-#define BENCH_SPEED        10000    // Bench for 10s
-#define BOOK_BEST          false    // Nondeterministic opening play
-#define READ_CLOCK         0x1FFULL // Read clock every 512 ticks (white / 2 x both)
-#define STARTPOS           "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" // UCI startpos
-#define WEEK               (7 * 24 * 60 * 60 * 1000) // ms
-#define MAX_PIECES         (2 * (8 * 1 + 2 * 3 + 2 * 3 + 2 * 5 + 1 * 9 + 1 * 0)) // Max pieces on board (Kings always exist)
-#define EVAL_FILE          "nn-cb80fb9393af.nnue" // Default NNUE evaluation file
-#define BOOK_FILE          "final-book.bin"       // Default Polyglot book file
-#define FRC_PENALTY        100      // Penalty for bishop blocked on corner by own pawn
-#define TEMPO_BONUS        25       // Bonus for the side to move
-#define BISHOP_PAIR_BONUS  20       // Both colored bishops bonus
-#define CHECKS_BONUS       17       // Bonus for checks
-#define BIT(x)             (0x1ULL << (x)) // 64b BitBoard
+const std::string VERSION          = "Mayhem 8.7"; // Version
+constexpr int MAX_MOVES            = 256;      // Max chess moves
+constexpr int MAX_SEARCH_DEPTH     = 64;       // Max search depth (Stack frame problems ...)
+constexpr int MAX_Q_SEARCH_DEPTH   = 16;       // Max Qsearch depth
+constexpr int INF                  = 1048576;  // System max number
+constexpr int DEF_HASH_MB          = 256;      // MiB
+constexpr int NOISE                = 2;        // Noise for opening moves
+constexpr int MOVEOVERHEAD         = 100;      // ms
+constexpr int REPS_DRAW            = 3;        // 3rd repetition is a draw
+constexpr int FIFTY                = 100;      // 100 moves w/o progress is a draw (256 max)
+constexpr int R50_ARR              = (FIFTY + 2); // Checkmate overrules 50 move rep so extra space here
+constexpr int SHUFFLE              = 30;       // Allow shuffling then scale
+constexpr int BOOK_MS              = 100;      // At least 100ms+ for the book lookup
+constexpr int PERFT_DEPTH          = 6;        // Perft at depth 6
+constexpr int BENCH_DEPTH          = 14;       // Bench at depth 14
+constexpr int BENCH_SPEED          = 10000;    // Bench for 10s
+constexpr bool BOOK_BEST           = false;    // Nondeterministic opening play
+constexpr int WEEK                 = (7 * 24 * 60 * 60 * 1000); // ms
+constexpr int MAX_PIECES           = (2 * (8 * 1 + 2 * 3 + 2 * 3 + 2 * 5 + 1 * 9 + 1 * 0)); // Max pieces on board (Kings always exist)
+constexpr int FRC_PENALTY          = 100; // Penalty for bishop blocked on corner by own pawn
+constexpr int TEMPO_BONUS          = 25;  // Bonus for the side to move
+constexpr int BISHOP_PAIR_BONUS    = 20;  // Both colored bishops bonus
+constexpr int CHECKS_BONUS         = 17;  // Bonus for checks
+constexpr std::uint64_t READ_CLOCK = 0x1FFULL; // Read clock every 512 ticks (white / 2 x both)
+const std::string STARTPOS         = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; // UCI startpos
+const std::string EVAL_FILE        = "nn-cb80fb9393af.nnue"; // Default NNUE evaluation file
+const std::string BOOK_FILE        = "final-book.bin";       // Default Polyglot book file
 
 // Use NNUE evaluation (From make) ?
 #ifdef MAYHEMNNUE
-#define USE_NNUE true
+  constexpr bool USE_NNUE = true;
 #else
-#define USE_NNUE false
+  constexpr bool USE_NNUE = false;
 #endif
 
 // Use Polyglot book ?
 #ifdef MAYHEMBOOK
-#define USE_BOOK true
+  constexpr bool USE_BOOK = true;
 #else
-#define USE_BOOK false
+  constexpr bool USE_BOOK = false;
 #endif
 
 // Constants
@@ -375,7 +357,6 @@ struct Board { // 172B
   std::uint8_t  type{0};      // Move type ( 0:Normal 1:OOw 2:OOOw 3:OOb 4:OOOb 5:=n 6:=b 7:=r 8:=q )
   std::uint8_t  castle{0};    // Castling rights ( 0x1:K 0x2:Q 0x4:k 0x8:q )
   std::uint8_t  fifty{0};     // Rule 50 counter ( 256 max )
-
   bool is_underpromo() const;
   bool is_queen_promo() const;
   bool is_castling() const;
@@ -389,7 +370,6 @@ struct HashEntry { // 10B
   std::uint32_t good_hash{0};   // Good move hash
   std::uint8_t  killer{0};      // Killer move index
   std::uint8_t  good{0};        // Good move index
-
   template <MoveType> void update(const std::uint64_t, const std::uint8_t);
   void put_hash_value_to_moves(const std::uint64_t, Board*) const;
 };
@@ -400,7 +380,6 @@ struct Evaluation {
   int w_pieces[5]{}, b_pieces[5]{}, white_total{1}, black_total{1},
       both_total{0}, piece_sum{0}, wk{0}, bk{0}, score{0},
       mg{0}, eg{0}, scale_factor{1};
-
   void check_blind_bishop_w();
   void check_blind_bishop_b();
   Evaluation* pesto_w(const int, const int);
@@ -445,7 +424,6 @@ struct Evaluation {
 
 struct NnueEval {
   const bool wtm{true};
-
   int probe() const;
   int evaluate();
 };
@@ -457,7 +435,6 @@ struct RootCompFunctor {
 // Material detection for classical activation
 struct Material {
   const int white_n{0}, black_n{0};
-
   bool is_rook_ending() const;
   bool is_easy() const;
   bool is_endgame() const;
@@ -472,7 +449,6 @@ struct Material {
 struct Save {
   const bool nnue{false}, book{false};
   const std::string fen{};
-
   Save();
   ~Save();
 };
@@ -533,8 +509,8 @@ inline std::uint64_t Both() {
 }
 
 // Set bit in 1 -> 64
-inline std::uint64_t Bit(const int nth) {
-  return BIT(nth);
+inline constexpr std::uint64_t Bit(const int nth) {
+  return 0x1ULL << nth;
 }
 
 // Count rightmost zeros AND then pop BitBoard
@@ -667,19 +643,17 @@ void SplitString(const std::string &str, T &cont, const std::string &delims = " 
 // 8/8/5k2/7p/7P/6KR/5p1P/8 b - - 0 1 ; bm f2f1b
 const std::string FlipFen(const std::string &fen) {
   std::string s{};
-  const std::string num      = "12345678";
-  const std::string num_flip = "87654321";
-  const std::string small    = "pnbrqkwacdefgh";
-  const std::string upper    = "PNBRQKWACDEFGH";
-  bool only_number           = false;
-  int empty                  = 0;
+  const std::string num = "12345678", num_flip = "87654321";
+  const std::string small = "pnbrqkwacdefgh", upper = "PNBRQKWACDEFGH";
+  bool only_number = false;
+  int empty        = 0;
   for (std::size_t i = 0; i < fen.size(); i += 1) {
     if (fen[i] == ' ') {
       empty += 1;
       if (empty == 1) {
         std::vector<std::string> pieces{};
         SplitString< std::vector< std::string> >(s, pieces, "/");
-        if (pieces.size() != 8) throw std::runtime_error("info string ( #1 ) Bad fen: " + fen);
+        if (pieces.size() != 8) throw std::runtime_error("info string ( #1 ) Bad FEN: " + fen);
         s = "";
         for (std::size_t k = 0; k < 8; k += 1) {
           s += pieces[7 - k];
@@ -723,8 +697,8 @@ void SetNNUE(const std::string &eval_file = EVAL_FILE) {
 
 // Hashtable
 
-void SetHashtable(int hash_mb = DEF_HASH_MB) {
-  hash_mb = std::clamp(hash_mb, 1, 1048576); // Limits 1MB -> 1TB
+void SetHashtable(const int hash_mb2 = DEF_HASH_MB) {
+  const int hash_mb = std::clamp(hash_mb2, 1, 1048576); // Limits 1MB -> 1TB
   g_hash_entries = static_cast<std::uint32_t>((1 << 20) * hash_mb) / (sizeof(HashEntry)); // Hash(B) / Block(B)
   g_hash.reset(new HashEntry[g_hash_entries]); // Claim space
 }
@@ -733,8 +707,7 @@ void SetHashtable(int hash_mb = DEF_HASH_MB) {
 
 std::uint64_t Hash(const bool wtm) {
   std::uint64_t ret = g_zobrist_ep[g_board->epsq + 1] ^
-                      g_zobrist_wtm[wtm] ^
-                      g_zobrist_castle[g_board->castle];
+                      g_zobrist_wtm[wtm] ^ g_zobrist_castle[g_board->castle];
   for (auto both = Both(); both; ) {
     const auto sq = CtzrPop(&both);
     ret ^= g_zobrist_board[g_board->pieces[sq] + 6][sq];
@@ -772,19 +745,16 @@ bool Board::is_queen_promo() const {
 
 bool Board::is_castling() const {
   switch (this->type) {
-    case 1:  return true; // O-Ow
-    case 2:  return true; // O-O-Ow
-    case 3:  return true; // O-Ob
-    case 4:  return true; // O-O-Ob
+    // O-Ow / O-O-Ow / O-Ob / O-O-Ob
+    case 1: case 2: case 3: case 4: return true;
     default: return false;
   }
 }
 
 bool Board::is_underpromo() const {
   switch (this->type) {
-    case 5:  return true; // e7e8n
-    case 6:  return true; // e7e8n
-    case 7:  return true; // e7e8r
+    // e7e8n / e7e8n / e7e8r
+    case 5: case 6: case 7: return true;
     default: return false;
   }
 }
@@ -1120,7 +1090,7 @@ void FenCheckStr(const std::string &fen, const std::vector<std::string> &tokens)
       tokens.size() < 6                        ||
       tokens[0].find('K') == std::string::npos ||
       tokens[0].find('k') == std::string::npos)
-    throw std::runtime_error("info string ( #2 ) Bad fen: " + fen);
+    throw std::runtime_error("info string ( #2 ) Bad FEN: " + fen);
 }
 
 void FenWtm(const std::string &wtm) {
@@ -1853,7 +1823,7 @@ bool IsEasyDraw(const bool wtm) {
 
 int FixFRC() {
   // No bishop in corner -> Speedup
-  constexpr std::uint64_t corners = BIT(0) | BIT(7) | BIT(56) | BIT(63);
+  constexpr std::uint64_t corners = Bit(0) | Bit(7) | Bit(56) | Bit(63);
   if (!((g_board->white[2] | g_board->black[2]) & corners)) return 0;
 
   int s = 0;
@@ -2813,13 +2783,13 @@ void UciGoDepth() {
 }
 
 void UciMovetimeCmd() {
-  UciGoMovetime();
   TokenExpect("movetime");
+  UciGoMovetime();
 }
 
 void UciDepthCmd() {
-  UciGoDepth();
   TokenExpect("depth");
+  UciGoDepth();
 }
 
 void UciThink(const int think_time, const int inc, const int mtg) {
