@@ -37,9 +37,12 @@ extern "C" {
 
 namespace mayhem {
 
-// Macros
+// Constants
 
 const std::string VERSION          = "Mayhem 8.7"; // Version
+const std::string STARTPOS         = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; // UCI startpos
+const std::string EVAL_FILE        = "nn-cb80fb9393af.nnue"; // Default NNUE evaluation file
+const std::string BOOK_FILE        = "final-book.bin";       // Default Polyglot book file
 constexpr int MAX_MOVES            = 256;      // Max chess moves
 constexpr int MAX_SEARCH_DEPTH     = 64;       // Max search depth (Stack frame problems ...)
 constexpr int MAX_Q_SEARCH_DEPTH   = 16;       // Max Qsearch depth
@@ -55,17 +58,14 @@ constexpr int BOOK_MS              = 100;      // At least 100ms+ for the book l
 constexpr int PERFT_DEPTH          = 6;        // Perft at depth 6
 constexpr int BENCH_DEPTH          = 14;       // Bench at depth 14
 constexpr int BENCH_SPEED          = 10000;    // Bench for 10s
-constexpr bool BOOK_BEST           = false;    // Nondeterministic opening play
 constexpr int WEEK                 = (7 * 24 * 60 * 60 * 1000); // ms
 constexpr int MAX_PIECES           = (2 * (8 * 1 + 2 * 3 + 2 * 3 + 2 * 5 + 1 * 9 + 1 * 0)); // Max pieces on board (Kings always exist)
 constexpr int FRC_PENALTY          = 100; // Penalty for bishop blocked on corner by own pawn
 constexpr int TEMPO_BONUS          = 25;  // Bonus for the side to move
 constexpr int BISHOP_PAIR_BONUS    = 20;  // Both colored bishops bonus
 constexpr int CHECKS_BONUS         = 17;  // Bonus for checks
+constexpr bool BOOK_BEST           = false;    // Nondeterministic opening play
 constexpr std::uint64_t READ_CLOCK = 0x1FFULL; // Read clock every 512 ticks (white / 2 x both)
-const std::string STARTPOS         = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; // UCI startpos
-const std::string EVAL_FILE        = "nn-cb80fb9393af.nnue"; // Default NNUE evaluation file
-const std::string BOOK_FILE        = "final-book.bin";       // Default Polyglot book file
 
 // Use NNUE evaluation (From make) ?
 #ifdef MAYHEMNNUE
