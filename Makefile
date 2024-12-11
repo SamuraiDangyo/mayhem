@@ -60,7 +60,7 @@ help:
 	@echo ""
 	@echo "help      # This help"
 	@echo "all       # Build"
-	@echo "install   # Installation"
+	@echo "install   # Install"
 	@echo "uninstall # Uninstall"
 	@echo "strip     # Strip executable"
 	@echo "clean     # Cleanup"
@@ -71,4 +71,4 @@ help:
 	@echo "> make all strip install # Install"
 	@echo "> make clean uninstall   # Clean and uninstall"
 
-.PHONY: all install strip clean help
+.PHONY: all install uninstall strip clean help
