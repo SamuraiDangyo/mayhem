@@ -66,6 +66,7 @@ help:
 	@echo "clean     # Cleanup"
 	@echo ""
 	@echo "Examples:"
+	@echo ""
 	@echo "> make -j                # Just build"
 	@echo "> make all strip install # Install"
 	@echo "> make clean uninstall   # Clean and uninstall"
