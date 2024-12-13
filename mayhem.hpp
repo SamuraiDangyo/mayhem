@@ -28,9 +28,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "eucalyptus.hpp"
 
 extern "C" {
-#ifdef WINDOWS
-  #include <conio.h>
-#endif
+  #ifdef WINDOWS
+    #include <conio.h>
+  #endif
 }
 
 // Namespace
@@ -55,6 +55,8 @@ constexpr int FIFTY                = 100;      // 100 moves w/o progress is a dr
 constexpr int R50_ARR              = (FIFTY + 2); // Checkmate overrules 50 move rep so extra space here
 constexpr int SHUFFLE              = 30;       // Allow shuffling then scale
 constexpr int BOOK_MS              = 100;      // At least 100ms+ for the book lookup
+constexpr int LEVEL                = 100;      // Level of engine. ( 0: Random, 1-99: Levels, 100: Full)
+constexpr int NOISE_PAWNS          = 5;        // Add noise to eval for different playing levels ( -5 -> +5 pawns )
 constexpr int PERFT_DEPTH          = 6;        // Perft at depth 6
 constexpr int BENCH_DEPTH          = 14;       // Bench at depth 14
 constexpr int BENCH_SPEED          = 10000;    // Bench for 10s
@@ -462,7 +464,7 @@ std::uint64_t g_black = 0, g_white = 0, g_both = 0, g_empty = 0, g_good = 0, g_s
   g_rook_magic_moves[64][4096]{}, g_zobrist_ep[64]{}, g_zobrist_castle[16]{}, g_zobrist_wtm[2]{},
   g_r50_positions[R50_ARR]{}, g_zobrist_board[13][64]{};
 
-int g_move_overhead = MOVEOVERHEAD, g_level = 100, g_root_n = 0, g_king_w = 0, g_king_b = 0, g_moves_n = 0,
+int g_move_overhead = MOVEOVERHEAD, g_level = LEVEL, g_root_n = 0, g_king_w = 0, g_king_b = 0, g_moves_n = 0,
   g_max_depth = MAX_SEARCH_DEPTH, g_q_depth = 0, g_depth = 0, g_best_score = 0, g_noise = NOISE, g_last_eval = 0,
   g_fullmoves = 1, g_rook_w[2]{}, g_rook_b[2]{}, g_nnue_pieces[64]{}, g_nnue_squares[64]{};
 
@@ -474,7 +476,7 @@ Board g_board_empty{}, *g_board = &g_board_empty, *g_moves = nullptr, *g_board_o
   g_boards[MAX_SEARCH_DEPTH + MAX_Q_SEARCH_DEPTH][MAX_MOVES]{};
 
 std::uint32_t g_hash_entries = 0, g_tokens_nth = 0;
-std::vector<std::string> g_tokens(300); // 300 plys init
+std::vector<std::string> g_tokens(256); // 300 plys init
 polyglotbook::PolyglotBook g_book{};
 std::unique_ptr<HashEntry[]> g_hash{};
 
@@ -575,19 +577,19 @@ const std::string MakeMove2Str(const int from, const int to) {
 }
 
 extern "C" {
-bool IsInputAvailable() { // See if std::cin has smt
-#ifdef WINDOWS
-  return _kbhit();
-#else
-  fd_set fd{};
-  struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
-  FD_ZERO(&fd);
-  FD_SET(STDIN_FILENO, &fd);
-  select(STDIN_FILENO + 1, &fd, nullptr, nullptr, &tv);
-  return FD_ISSET(STDIN_FILENO, &fd) > 0;
-#endif
+  bool IsInputAvailable() { // See if std::cin has smt
+    #ifdef WINDOWS
+      return _kbhit();
+    #else
+      fd_set fd{};
+      struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
+      FD_ZERO(&fd);
+      FD_SET(STDIN_FILENO, &fd);
+      select(STDIN_FILENO + 1, &fd, nullptr, nullptr, &tv);
+      return FD_ISSET(STDIN_FILENO, &fd) > 0;
+    #endif
+  }
 }
-} // extern "C"
 
 // ms since 1.1.1970
 std::uint64_t Now(const std::uint64_t ms = 0) {
@@ -2168,16 +2170,11 @@ int EvaluateClassical(const bool wtm) {
 }
 
 int EvaluateNNUE(const bool wtm) {
-  return NnueEval { .wtm = wtm }
-           .evaluate();
+  return NnueEval { .wtm = wtm }.evaluate();
 }
 
-// Add noise to eval for different playing levels ( -5 -> +5 pawns )
-// 0    (Random Mover)
-// 1-99 (Levels)
-// 100  (Full Strength)
 int LevelNoise() {
-  return Random(-5 * (100 - g_level), +5 * (100 - g_level));
+  return Random(-NOISE_PAWNS * (100 - g_level), +NOISE_PAWNS * (100 - g_level));
 }
 
 float GetScale() {
@@ -2825,7 +2822,7 @@ void UciUci() {
     "id name " << VERSION << '\n' <<
     "id author Toni Helminen\n" <<
     "option name UCI_Chess960 type check default false\n" <<
-    "option name Level type spin default 100 min 0 max 100\n" <<
+    "option name Level type spin default " << LEVEL << " min 0 max 100\n" <<
     "option name MoveOverhead type spin default " << MOVEOVERHEAD << " min 0 max 100000\n" <<
     "option name Hash type spin default " << DEF_HASH_MB << " min 1 max 1048576\n" <<
     "option name EvalFile type string default " << EVAL_FILE << '\n' <<
