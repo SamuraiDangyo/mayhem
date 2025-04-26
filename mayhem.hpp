@@ -1,6 +1,6 @@
 /*
 Mayhem. Linux UCI Chess960 engine. Written in C++20 language
-Copyright (C) 2020-2024 Toni Helminen
+Copyright (C) 2020-2025 Toni Helminen
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ namespace mayhem {
 
 // Constants
 
-const std::string VERSION          = "Mayhem 8.7"; // Version
+const std::string VERSION          = "Mayhem 8.8"; // Version
 const std::string STARTPOS         = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"; // UCI startpos
 const std::string EVAL_FILE        = "nn-cb80fb9393af.nnue"; // Default NNUE evaluation file
 const std::string BOOK_FILE        = "final-book.bin";       // Default Polyglot book file
@@ -82,8 +82,6 @@ constexpr std::uint64_t READ_CLOCK = 0x1FFULL; // Read clock every 512 ticks (wh
 #else
   constexpr bool USE_BOOK = false;
 #endif
-
-// Constants
 
 // Tactical fens to pressure search
 const std::vector<std::string> kBench = {
@@ -2945,7 +2943,7 @@ void UciPrintLogo() {
     "| |  | | (_| | |_| | | | |  __/ | | | | | \n"
     "\\_|  |_/\\__,_|\\__, |_| |_|\\___|_| |_| |_| \n"
     "               __/ | \n"
-    "              |___/ " << std::endl;
+    "              |___/" << std::endl;
 }
 
 void UciHelp() {
